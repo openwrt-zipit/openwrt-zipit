@@ -9,5 +9,7 @@ config interface loopback
 config interface lan
 	option ifname	usb0
 	option proto	static
-	option ipaddr	192.168.1.1
+	option ipaddr	192.168.254.101
 	option netmask	255.255.255.0
+	option gateway  192.168.254.100
+	option dns      208.67.222.222
