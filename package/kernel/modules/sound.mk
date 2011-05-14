@@ -50,7 +50,7 @@ SOUNDCORE_FILES ?= \
 define KernelPackage/sound-core
   SUBMENU:=$(SOUND_MENU)
   TITLE:=Sound support
-  DEPENDS:=@AUDIO_SUPPORT
+  DEPENDS:=@AUDIO_SUPPORT @!TARGET_xburst_qi_lb60
   KCONFIG:= \
 	CONFIG_SOUND \
 	CONFIG_SND \
