@@ -1,0 +1,244 @@
+From 5201aff546faacdf539c03190f1b8ff0de9b2ef8 Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@sharism.cc>
+Date: Mon, 7 Feb 2011 14:41:56 +0800
+Subject: [PATCH] add-more-boot-option.patch
+
+---
+ arch/mips/lib/bootm.c            |    8 ++++
+ board/xburst/nanonote/nanonote.c |   81 +++++++++++++++++++++++--------------
+ common/env_common.c              |    6 ---
+ common/main.c                    |    8 ++++
+ include/configs/nanonote.h       |    4 ++
+ include/configs/qi_lb60.h        |   15 ++++++-
+ 6 files changed, 82 insertions(+), 40 deletions(-)
+
+diff --git a/arch/mips/lib/bootm.c b/arch/mips/lib/bootm.c
+index 24a40cc..280e396 100644
+--- a/arch/mips/lib/bootm.c
++++ b/arch/mips/lib/bootm.c
+@@ -53,6 +53,14 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
+ #if defined(CONFIG_NANONOTE)
+         if (gd->boot_option & BOOT_FROM_SDCARD)
+                 commandline = getenv ("bootargsfromsd");
++        else if (gd->boot_option & BOOT_WITH_F1)
++                commandline = getenv ("bootargsf1");
++        else if (gd->boot_option & BOOT_WITH_F2)
++                commandline = getenv ("bootargsf2");
++        else if (gd->boot_option & BOOT_WITH_F3)
++                commandline = getenv ("bootargsf3");
++        else if (gd->boot_option & BOOT_WITH_F4)
++                commandline = getenv ("bootargsf4");
+         else
+ #endif
+                 commandline = getenv ("bootargs");
+diff --git a/board/xburst/nanonote/nanonote.c b/board/xburst/nanonote/nanonote.c
+index ef9552a..0fc8925 100644
+--- a/board/xburst/nanonote/nanonote.c
++++ b/board/xburst/nanonote/nanonote.c
+@@ -14,32 +14,12 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+-static void gpio_init(void)
++static void boot_option(void)
+ {
+ 	/*
+-	 * Initialize NAND Flash Pins
+-	 */
+-	__gpio_as_nand();
+-
+-	/*
+-	 * Initialize SDRAM pins
+-	 */
+-	__gpio_as_sdram_16bit_4720();
+-
+-	/*
+-	 * Initialize LCD pins
+-	 */
+-	__gpio_as_lcd_18bit();
+-
+-	/*
+-	 * Initialize MSC pins
+-	 */
+-	__gpio_as_msc();
+-
+-	/*
+ 	 * Initialize Other pins
+ 	 */
+-	unsigned int i;
++	unsigned int i, j;
+ 	for (i = 0; i < 7; i++){
+ 		__gpio_as_input(GPIO_KEYIN_BASE + i);
+ 		__gpio_enable_pull(GPIO_KEYIN_BASE + i);
+@@ -50,16 +30,12 @@ static void gpio_init(void)
+ 		__gpio_clear_pin(GPIO_KEYOUT_BASE + i);
+ 	}
+ 
+-	/* enable the TP4, TP5 as UART0 */
+-	__gpio_jtag_to_uart0();
+-
+ 	/*
+ 	 * Initialize UART0 pins, in Ben NanoNote uart0 and keyin8 use the
+ 	 * same gpio, init the gpio as uart0 cause a keyboard bug. so for
+ 	 * end user we disable the uart0
+ 	 */
+ 	if (__gpio_get_pin(GPIO_KEYIN_BASE + 2) == 0){
+-		/* if pressed [S] */
+ 		printf("[S] pressed, enable UART0\n");
+ 		gd->boot_option |= BOOT_WITH_ENABLE_UART;
+ 		__gpio_as_uart0();
+@@ -68,6 +44,53 @@ static void gpio_init(void)
+ 		__gpio_enable_pull(GPIO_KEYIN_8);
+ 	}
+ 
++	if (__gpio_get_pin(GPIO_KEYIN_BASE + 3) == 0) {
++		printf("[M] pressed, boot from sd card\n");
++		gd->boot_option |= BOOT_FROM_SDCARD;
++	}
++
++	for (j = 0; j < 4; j++) {
++		for (i = 0; i < 4; i++)
++			__gpio_set_pin(GPIO_KEYOUT_BASE + i);
++
++		__gpio_clear_pin(GPIO_KEYOUT_BASE + j);
++
++		if (__gpio_get_pin(GPIO_KEYIN_BASE) == 0) {
++			printf("[F%d] pressed", (j + 1));
++			gd->boot_option |= (1 << (j + 2));
++			/* BOOT_WITH_F1	(1 << 2) */
++			/* BOOT_WITH_F2	(1 << 3) */
++			/* BOOT_WITH_F3	(1 << 4) */
++			/* BOOT_WITH_F4	(1 << 5) */
++		}
++	}
++}
++
++static void gpio_init(void)
++{
++	/*
++	 * Initialize NAND Flash Pins
++	 */
++	__gpio_as_nand();
++
++	/*
++	 * Initialize SDRAM pins
++	 */
++	__gpio_as_sdram_16bit_4720();
++
++	/*
++	 * Initialize LCD pins
++	 */
++	__gpio_as_lcd_18bit();
++
++	/*
++	 * Initialize MSC pins
++	 */
++	__gpio_as_msc();
++
++	/* enable the TP4, TP5 as UART0 */
++	__gpio_jtag_to_uart0();
++
+ 	__gpio_as_output(GPIO_AUDIO_POP);
+ 	__gpio_set_pin(GPIO_AUDIO_POP);
+ 
+@@ -86,11 +109,6 @@ static void gpio_init(void)
+ 
+ 	__gpio_as_input(GPIO_USB_DETECT);
+ 	__gpio_enable_pull(GPIO_USB_DETECT);
+-
+-	if (__gpio_get_pin(GPIO_KEYIN_BASE + 3) == 0) {
+-		printf("[M] pressed, boot from sd card\n");
+-		gd->boot_option |= BOOT_FROM_SDCARD;
+-	}
+ }
+ 
+ static void cpm_init(void)
+@@ -111,6 +129,7 @@ void board_early_init(void)
+ {
+ 	gpio_init();
+ 	cpm_init();
++	boot_option();
+ }
+ 
+ /* U-Boot common routines */
+diff --git a/common/env_common.c b/common/env_common.c
+index 7ac2b6b..439a4a9 100644
+--- a/common/env_common.c
++++ b/common/env_common.c
+@@ -133,12 +133,6 @@ uchar default_environment[] = {
+ #if defined(CONFIG_PCI_BOOTDELAY) && (CONFIG_PCI_BOOTDELAY > 0)
+ 	"pcidelay="	MK_STR(CONFIG_PCI_BOOTDELAY)	"\0"
+ #endif
+-#ifdef CONFIG_BOOTARGSFROMSD
+-	"bootargsfromsd=" CONFIG_BOOTARGSFROMSD "\0"
+-#endif
+-#ifdef CONFIG_BOOTCOMMANDFROMSD
+-	"bootcmdfromsd=" CONFIG_BOOTCOMMANDFROMSD "\0"
+-#endif
+ #ifdef  CONFIG_EXTRA_ENV_SETTINGS
+ 	CONFIG_EXTRA_ENV_SETTINGS
+ #endif
+diff --git a/common/main.c b/common/main.c
+index c64979f..d4f729e 100644
+--- a/common/main.c
++++ b/common/main.c
+@@ -400,6 +400,14 @@ void main_loop (void)
+ #if defined(CONFIG_NANONOTE)
+ 		if (gd->boot_option & BOOT_FROM_SDCARD)
+ 			s = getenv ("bootcmdfromsd");
++		else if (gd->boot_option & BOOT_WITH_F1)
++			s = getenv ("bootcmdf1");
++		else if (gd->boot_option & BOOT_WITH_F2)
++			s = getenv ("bootcmdf2");
++		else if (gd->boot_option & BOOT_WITH_F3)
++			s = getenv ("bootcmdf3");
++		else if (gd->boot_option & BOOT_WITH_F4)
++			s = getenv ("bootcmdf4");
+ 		else
+ #endif
+ 			s = getenv ("bootcmd");
+diff --git a/include/configs/nanonote.h b/include/configs/nanonote.h
+index 6b7d635..dde5cb4 100644
+--- a/include/configs/nanonote.h
++++ b/include/configs/nanonote.h
+@@ -23,6 +23,10 @@
+ 
+ #define BOOT_FROM_SDCARD	1
+ #define BOOT_WITH_ENABLE_UART	(1 << 1)	/* Vaule for global_data.h gd->boot_option */
++#define BOOT_WITH_F1		(1 << 2)
++#define BOOT_WITH_F2		(1 << 3)
++#define BOOT_WITH_F3		(1 << 4)
++#define BOOT_WITH_F4		(1 << 5)
+ 
+ #define CONFIG_LCD		1  /* LCD support */
+ #define LCD_BPP			LCD_COLOR32	/*5:18,24,32 bits per pixel */
+diff --git a/include/configs/qi_lb60.h b/include/configs/qi_lb60.h
+index 29ec805..9f08c74 100644
+--- a/include/configs/qi_lb60.h
++++ b/include/configs/qi_lb60.h
+@@ -6,10 +6,19 @@
+ #define CONFIG_QI_LB60 1
+ 
+ //#define DEBUG
+-#define CONFIG_BOOTARGS		"mem=32M console=tty0 console=ttyS0,57600n8 ubi.mtd=2 rootfstype=ubifs root=ubi0:rootfs rw rootwait"
+-#define CONFIG_BOOTARGSFROMSD	"mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p1 rw rootwait"
+ #define CONFIG_BOOTCOMMAND	"nand read 0x80600000 0x400000 0x200000;bootm"
+-#define CONFIG_BOOTCOMMANDFROMSD	"mmc init; ext2load mmc 0 0x80600000 /boot/uImage; bootm"
++#define CONFIG_BOOTARGS		"mem=32M console=tty0 console=ttyS0,57600n8 ubi.mtd=2 rootfstype=ubifs root=ubi0:rootfs rw rootwait"
++#define CONFIG_EXTRA_ENV_SETTINGS \
++	"bootcmdfromsd=mmc init; ext2load mmc 0 0x80600000 /boot/uImage; bootm;\0" \
++	"bootargsfromsd=mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p1 rw rootwait\0" \
++	"bootcmdf1=mmc init; ext2load mmc 0:1 0x80600000 /boot/uImage; bootm;\0" \
++	"bootargsf1=mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p1 rw rootwait\0" \
++	"bootcmdf2=mmc init; ext2load mmc 0:2 0x80600000 /boot/uImage; bootm;\0" \
++	"bootargsf2=mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p2 rw rootwait\0" \
++	"bootcmdf3=mmc init; ext2load mmc 0:3 0x80600000 /boot/uImage; bootm;\0" \
++	"bootargsf3=mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p3 rw rootwait\0" \
++	"bootcmdf4=mmc init; ext2load mmc 0:4 0x80600000 /boot/uImage; bootm;\0" \
++	"bootargsf4=mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p4 rw rootwait\0"
+ 
+ /* SDRAM paramters */
+ #define SDRAM_BW16		1	/* Data bus width: 0-32bit, 1-16bit */
+-- 
+1.7.0.4
+

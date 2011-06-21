@@ -17,14 +17,20 @@
 #define CONFIG_JzRISC		1  /* JzRISC core */
 #define CONFIG_JZSOC		1  /* Jz SoC */
 #define CONFIG_JZ4740		1  /* Jz4740 SoC */
-#define CONFIG_NANONOTE		1
+#define CONFIG_NAND_JZ4740
+#define CONFIG_JZ4740_MMC
+#define CONFIG_NANONOTE
+
+#define BOOT_FROM_SDCARD	1
+#define BOOT_WITH_ENABLE_UART	(1 << 1)	/* Vaule for global_data.h gd->boot_option */
 
 #define CONFIG_LCD		1  /* LCD support */
 #define LCD_BPP			LCD_COLOR32	/*5:18,24,32 bits per pixel */
-#define CONFIG_SYS_WHITE_ON_BLACK	1
+#define CONFIG_SYS_WHITE_ON_BLACK
+#define CONFIG_VIDEO_GPM940B0
 
 #define CONFIG_SYS_CPU_SPEED	336000000	/* CPU clock: 336 MHz */
-#define CONFIG_SYS_EXTAL		12000000	/* EXTAL freq: 12 MHz */
+#define CONFIG_SYS_EXTAL	12000000	/* EXTAL freq: 12 MHz */
 #define CONFIG_SYS_HZ		(CONFIG_SYS_EXTAL / 256) /* incrementer freq */
 #define CONFIG_SYS_MIPS_TIMER_FREQ	CONFIG_SYS_CPU_SPEED
 
@@ -38,11 +44,11 @@
 #define CONFIG_SKIP_LOWLEVEL_INIT	1
 #define CONFIG_BOARD_EARLY_INIT_F	1
 #define CONFIG_SYS_NO_FLASH	1
+#define CONFIG_SYS_FLASH_BASE	0 /* init flash_base as 0 */
 #define CONFIG_ENV_OVERWRITE	1
 
 #define CONFIG_BOOTP_MASK	(CONFIG_BOOTP_DEFAUL)
 #define CONFIG_BOOTDELAY	0
-#define CONFIG_BOOTFILE		"uImage"	/* file to load */
 /*
  * Command line configuration.
  */
@@ -62,6 +68,7 @@
 #define CONFIG_CMD_NAND
 #define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
+#define CONFIG_CMD_EXT2
 
 /*
  * Serial download configuration
@@ -72,8 +79,8 @@
 /*
  * Miscellaneous configurable options
  */
-#define	CONFIG_SYS_LONGHELP			/* undef to save memory */
-#define	CONFIG_SYS_PROMPT		"QI# "	/* Monitor Command Prompt */
+#define	CONFIG_SYS_LONGHELP		/* undef to save memory */
+#define	CONFIG_SYS_PROMPT		"NanoNote# "	/* Monitor Command Prompt */
 #define	CONFIG_SYS_CBSIZE		256	/* Console I/O Buffer Size */
 #define	CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 /* Print Buffer Size */
@@ -96,6 +103,8 @@
 /*
  * NAND FLASH configuration
  */
+#define CONFIG_SYS_64BIT_VSPRINTF	/* needed for nand_util.c */
+
 /* NAND Boot config code */
 #define JZ4740_NANDBOOT_CFG	JZ4740_NANDBOOT_B8R3
 
@@ -111,12 +120,15 @@
 /* nand bad block was marked at this page in a block, start from 0 */
 #define CONFIG_SYS_NAND_BADBLOCK_PAGE	127
 /* ECC offset position in oob area, default value is 6 if it isn't defined */
-#define CONFIG_SYS_NAND_ECC_POS	(6 * NANONOTE_NAND_SIZE)
-#define CONFIG_SYS_MAX_NAND_DEVICE     1
-#define NAND_MAX_CHIPS          1
-#define CONFIG_SYS_NAND_BASE           0xB8000000
-#define CONFIG_SYS_NAND_SELECT_DEVICE  1 /* nand driver supports mutipl.*/
-#define CONFIG_SYS_ONENAND_BASE	CONFIG_SYS_NAND_BASE
+#define CONFIG_SYS_NAND_ECC_POS		(6 * NANONOTE_NAND_SIZE)
+#define CONFIG_SYS_NAND_ECCSIZE		512
+#define CONFIG_SYS_NAND_ECCBYTES	9
+
+#define CONFIG_SYS_NAND_BASE		0xB8000000
+#define CONFIG_SYS_ONENAND_BASE		CONFIG_SYS_NAND_BASE
+#define NAND_MAX_CHIPS			1
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
+#define CONFIG_SYS_NAND_SELECT_DEVICE	1 /* nand driver supports mutipl.*/
 
 /*
  * IPL (Initial Program Loader, integrated inside CPU)
@@ -133,7 +145,7 @@
  * from RAM. Therefore it mustn't (re-)configure the SDRAM controller.
  *
  */
-#define CONFIG_SYS_NAND_U_BOOT_DST		0x80100000	/* Load NUB to this addr */
+#define CONFIG_SYS_NAND_U_BOOT_DST	0x80100000	/* Load NUB to this addr */
 #define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_NAND_U_BOOT_DST 
 /* Start NUB from this addr*/
 
@@ -143,10 +155,9 @@
 #define CONFIG_SYS_NAND_U_BOOT_OFFS	(256 << 10)	/* Offset to RAM U-Boot image */
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	(512 << 10)	/* Size of RAM U-Boot image */
 
-#define CONFIG_ENV_SIZE		CONFIG_SYS_NAND_BLOCK_SIZE
-#define CONFIG_ENV_OFFSET	(CONFIG_SYS_NAND_BLOCK_SIZE + CONFIG_SYS_NAND_U_BOOT_SIZE + CONFIG_SYS_NAND_BLOCK_SIZE)
-/* environment starts here  */
-#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
+#define CONFIG_ENV_SIZE		(4 << 10)
+#define CONFIG_ENV_OFFSET	(CONFIG_SYS_NAND_BLOCK_SIZE + CONFIG_SYS_NAND_U_BOOT_SIZE)
+#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET  + CONFIG_SYS_NAND_BLOCK_SIZE)
 
 /* in board/nanonote/config.mk TEXT_BAS = 0x88000000 */
 #define CONFIG_SYS_MONITOR_BASE	TEXT_BASE
@@ -167,16 +178,13 @@
  * GPIO definition
  */
 #define GPIO_LCD_CS	(2 * 32 + 21)
-#define GPIO_DISP_OFF_N (3 * 32 + 21)
-#define GPIO_PWM	(3 * 32 + 27)
-
 #define GPIO_AMP_EN	(3 * 32 + 4)
 
 #define GPIO_SDPW_EN	(3 * 32 + 2)
 #define	GPIO_SD_DETECT	(3 * 32 + 0)
 
-#define	GPIO_USB_DETECT	(3 * 32 + 27)
-#define	GPIO_BUZZ_PWM	(3 * 32 + 28)
+#define	GPIO_BUZZ_PWM	(3 * 32 + 27)
+#define	GPIO_USB_DETECT	(3 * 32 + 28)
 
 #define	GPIO_AUDIO_POP	(1 * 32 + 29)
 #define GPIO_COB_TEST	(1 * 32 + 30)
@@ -188,4 +196,7 @@
 #define GPIO_SD_CD_N	GPIO_SD_DETECT		/* SD Card insert detect */
 #define GPIO_SD_VCC_EN_N	GPIO_SDPW_EN	/* SD Card Power Enable */
 
+#define SPEN	GPIO_LCD_CS	/* LCDCS :Serial command enable      */
+#define SPDA	(2 * 32 + 22)	/* LCDSCL:Serial command clock input */
+#define SPCK	(2 * 32 + 23)	/* LCDSDA:Serial command data input  */
 #endif	/* __CONFIG_NANONOTE_H */
