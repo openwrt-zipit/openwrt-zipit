@@ -20,8 +20,8 @@ PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/compat-wireless-$(PKG_VERSION)
 PKG_BUILD_PARALLEL:=1
 
 PKG_DRIVERS = \
-	ath5k libertas-usb libertas-sd p54-common p54-pci p54-usb p54-spi \
-	rt2x00-lib rt2x00-pci rt2x00-usb rt2x00-soc rt2800-lib rt2400-pci \
+	ath5k libertas-common libertas-usb libertas-sd libertas-spi p54-common p54-pci p54-usb \
+	p54-spi rt2x00-lib rt2x00-pci rt2x00-usb rt2x00-soc rt2800-lib rt2400-pci \
 	rt2500-pci rt2500-usb rt61-pci rt73-usb rt2800-pci rt2800-usb \
 	rtl8180 rtl8187 zd1211rw mac80211-hwsim carl9170 b43 b43legacy \
 	ath9k-common ath9k ath9k-htc ath net-libipw net-ipw2100 net-ipw2200 \
@@ -468,25 +468,43 @@ define KernelPackage/carl9170/install
 	$(INSTALL_DATA) $(DL_DIR)/$(CARL9170_FW)-$(CARL9170_FW_VERSION) $(1)/lib/firmware/$(CARL9170_FW)
 endef
 
+define KernelPackage/libertas-common
+  $(call KernelPackage/mac80211/Default)
+  DEPENDS+= +kmod-mac80211 +kmod-lib80211
+  TITLE+= Marvell Wireless Driver (common code)
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas.ko
+  AUTOLOAD:=$(call AutoLoad,27,libertas)
+endef
+
+
 define KernelPackage/libertas-usb
   $(call KernelPackage/mac80211/Default)
-  DEPENDS+= @USB_SUPPORT +kmod-mac80211 +kmod-usb-core +kmod-lib80211
+  DEPENDS+= @USB_SUPPORT +kmod-libertas-common +kmod-usb-core 
   TITLE:=Marvell 88W8015 Wireless Driver
   FILES:= \
-	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas.ko \
 	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/usb8xxx.ko
-  AUTOLOAD:=$(call AutoLoad,27,libertas usb8xxx)
+  AUTOLOAD:=$(call AutoLoad,28,usb8xxx)
 endef
 
 define KernelPackage/libertas-sd
   $(call KernelPackage/mac80211/Default)
-  DEPENDS+= +kmod-mac80211 +kmod-lib80211 +@DRIVER_WEXT_SUPPORT
-  TITLE:=Marvell 88W8686 Wireless Driver
+  DEPENDS+= +kmod-libertas-common +@DRIVER_WEXT_SUPPORT
+  TITLE:=Marvell 88W8686 Wireless Driver (via SDIO)
   FILES:= \
-	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas.ko \
 	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas_sdio.ko
-  AUTOLOAD:=$(call AutoLoad,91,libertas libertas_sdio)
+  AUTOLOAD:=$(call AutoLoad,91,libertas_sdio)
 endef
+
+define KernelPackage/libertas-spi
+  $(call KernelPackage/mac80211/Default)
+  DEPENDS+= +kmod-libertas-common +@DRIVER_WEXT_SUPPORT
+  TITLE:=Marvell 88W8686 Wireless Driver (via SPI)
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas_spi.ko
+  AUTOLOAD:=$(call AutoLoad,91,libertas_spi)
+endef
+
 
 define KernelPackage/mac80211-hwsim
   $(call KernelPackage/mac80211/Default)
@@ -820,7 +838,7 @@ define KernelPackage/b43-common
   TITLE:=Generic stuff for Broadcom wireless devices
   URL:=http://linuxwireless.org/en/users/Drivers/b43
   KCONFIG:= \
-  	CONFIG_HW_RANDOM=y
+	CONFIG_HW_RANDOM=y
   DEPENDS+= +kmod-mac80211 +!(TARGET_brcm47xx||TARGET_brcm63xx):kmod-ssb
 endef
 
@@ -1102,9 +1120,9 @@ MAKE_OPTS:= \
 	CONFIG_MAC80211_HWSIM=$(if $(CONFIG_PACKAGE_kmod-mac80211-hwsim),m) \
 	CONFIG_PCMCIA= \
 	CONFIG_LIBIPW=$(if $(CONFIG_PACKAGE_kmod-net-libipw),m) \
-	CONFIG_LIBERTAS=$(if $(CONFIG_PACKAGE_kmod-libertas-sd)$(CONFIG_PACKAGE_kmod-libertas-usb),m) \
+	CONFIG_LIBERTAS=$(if $(CONFIG_PACKAGE_kmod-libertas-common),m) \
 	CONFIG_LIBERTAS_CS= \
-	CONFIG_LIBERTAS_SPI= \
+	CONFIG_LIBERTAS_SPI=$(if $(CONFIG_PACKAGE_kmod-libertas-spi),m)\
 	CONFIG_LIBERTAS_SDIO=$(if $(CONFIG_PACKAGE_kmod-libertas-sd),m) \
 	CONFIG_LIBERTAS_THINFIRM= \
 	CONFIG_LIBERTAS_USB=$(if $(CONFIG_PACKAGE_kmod-libertas-usb),m) \
@@ -1151,7 +1169,7 @@ MAKE_OPTS:= \
 	KERNEL_SUBLEVEL=$(lastword $(subst ., ,$(KERNEL_PATCHVER))) \
 	KBUILD_LDFLAGS_MODULE_PREREQ=
 
-ifeq ($(CONFIG_PACKAGE_kmod-libertas-sd)$(CONFIG_PACKAGE_kmod-libertas-usb)$(CONFIG_PACKAGE_kmod-rt2x00-lib),)
+ifeq ($(CONFIG_PACKAGE_kmod-libertas-common)$(CONFIG_PACKAGE_kmod-rt2x00-lib),)
   MAKE_OPTS += CONFIG_COMPAT_KFIFO=
 endif
 
@@ -1211,6 +1229,15 @@ define KernelPackage/libertas-sd/install
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8688.bin \
 		$(1)/lib/firmware/
 endef
+
+define KernelPackage/libertas-spi/install
+	$(INSTALL_DIR) $(1)/lib/firmware
+	$(INSTALL_DATA) \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/gspi8686_v9_helper.bin \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/gspi8686_v9.bin \
+		$(1)/lib/firmware/
+endef
+
 
 define KernelPackage/cfg80211/install
 	$(INSTALL_DIR) $(1)/lib/wifi
@@ -1377,8 +1404,10 @@ endif
 endef
 
 $(eval $(call KernelPackage,ath5k))
+$(eval $(call KernelPackage,libertas-common))
 $(eval $(call KernelPackage,libertas-usb))
 $(eval $(call KernelPackage,libertas-sd))
+$(eval $(call KernelPackage,libertas-spi))
 $(eval $(call KernelPackage,cfg80211))
 $(eval $(call KernelPackage,mac80211))
 $(eval $(call KernelPackage,p54-common))
