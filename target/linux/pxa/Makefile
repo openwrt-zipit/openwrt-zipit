@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 ARCH:=arm
 BOARD:=pxa
 BOARDNAME:=Marvell/Intel PXA2xx
-FEATURES:=squashfs
+SUBTARGETS=verdex zipitz2
 MAINTAINER:=Imre Kaloz <kaloz@openwrt.org>
 
 LINUX_VERSION:=2.6.37.6
@@ -17,7 +17,7 @@ LINUX_VERSION:=2.6.37.6
 include $(INCLUDE_DIR)/target.mk
 
 define Target/Description
-	Build images for PXA2xx systems, eg. Gumstix.
+	Build images for PXA2xx systems, eg. Gumstix, ZipIt Z2
 endef
 
 KERNELNAME:="uImage"
