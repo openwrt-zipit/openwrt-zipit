@@ -22,7 +22,7 @@ scan_legacy() {
 	config_set "$device" vifs "${ap:+$ap }${adhoc:+$adhoc }${sta:+$sta }${monitor:+$monitor }${mesh:+$mesh}"
 }
 
-disable_legacy() (
+disable_legacy() {
 	local device="$1"
 
 	config_get wdev "$device" interface
@@ -38,7 +38,7 @@ disable_legacy() (
 	unbridge "$dev"
 
 	return 0
-)
+}
 
 enable_legacy() {
 	local device="$1"
@@ -46,7 +46,7 @@ enable_legacy() {
 	config_get txpower "$device" txpower
 	config_get country "$device" country
 
-	config_get ifname "$device" interface
+	config_get vifs "$device" vifs
 
 	local i=0
 	local macidx=0
@@ -60,20 +60,31 @@ enable_legacy() {
 
 	wifi_fixup_hwmode "$device" "g"
 
-	# TODO:reinsert code to find vif for device
-
-	config_get mode "$vif" mode
-	config_get ssid "$vif" ssid
+	for vif in $vifs; do
+	    echo "VIF $vif"
 	
-	[ "$mode" -eq "sta" ] || {
+	    while [ -d "/sys/class/net/wlan$i" ]; do
+		i=$(($i + 1))
+	    done
+
+	    config_get ifname "$vif" ifname
+	    [ -n "$ifname" ] || {
+		ifname="wlan$i"
+	    }
+	    config_set "$vif" ifname "$ifname"
+
+	    config_get mode "$vif" mode
+	    config_get ssid "$vif" ssid
+
+	    [ "$mode" = "sta" ] || {
 		 echo "Legacy hardware only supports sta mode, not mode $mode"
 		 return 1
 	} 
 	local wdsflag
-	config_get_bool wds "$vif" wds 0
+	config_get_bool wds "$device" wds 0
 	[ "$wds" -gt 0 ] && wdsflag="4addr on"
 	iw phy "$phy" interface add "$ifname" type managed $wdsflag
-	config_get_bool powersave "$vif" powersave 0
+	config_get_bool powersave "$device" powersave 0
 	[ "$powersave" -gt 0 ] && powersave="on" || powersave="off"
 	iwconfig "$ifname" power "$powersave"
 	
@@ -84,30 +95,32 @@ enable_legacy() {
 	local mac_1="${macaddr%%:*}"
 	local mac_2="${macaddr#*:}"
 	
-	config_get vif_mac "$vif" macaddr
-	[ -n "$vif_mac" ] || {
-		 if [ "$macidx" -gt 0 ]; then
-			  offset="$(( 2 + $macidx * 4 ))"
-		 else
-			  offset="0"
-		 fi
+	    config_get vif_mac "$vif" macaddr
+	    [ -n "$vif_mac" ] || {
+	    if [ "$macidx" -gt 0 ]; then
+		offset="$(( 2 + $macidx * 4 ))"
+	    else
+		offset="0"
+	    fi
 		 vif_mac="$( printf %02x $((0x$mac_1 + $offset)) ):$mac_2"
 		 macidx="$(($macidx + 1))"
-		}
-		[ "$mode" = "ap" ] || ifconfig "$ifname" hw ether "$vif_mac"
-		config_set "$vif" macaddr "$vif_mac"
-
-		config_get vif_txpower "$vif" txpower
-		# use vif_txpower (from wifi-iface) to override txpower (from
-		# wifi-device) if the latter doesn't exist
-		txpower="${txpower:-$vif_txpower}"
-		[ -z "$txpower" ] || iw dev "$ifname" set txpower fixed "${txpower%%.*}00"
-
-		if eval "type wpa_supplicant_setup_vif" 2>/dev/null >/dev/null; then
-			 wpa_supplicant_setup_vif "$vif" nl80211 "${hostapd_ctrl:+-H $hostapd_ctrl}" || {
-				  echo "enable_legacy($device): Failed to set up wpa_supplicant for interface $ifname" >&2
-							# make sure this wifi interface won't accidentally stay open without encryption
-				  ifconfig "$ifname" down
-				  continue
-			 }
+	}
+	    ifconfig "$ifname" hw ether "$vif_mac"
+	    config_set "$vif" macaddr "$vif_mac"
+	
+	    config_get vif_txpower "$vif" txpower
+	# use vif_txpower (from wifi-iface) to override txpower (from
+	# wifi-device) if the latter doesn't exist
+	    txpower="${txpower:-$vif_txpower}"
+	[ -z "$txpower" ] || iw dev "$ifname" set txpower fixed "${txpower%%.*}00"
+	
+	if eval "type wpa_supplicant_setup_vif" 2>/dev/null >/dev/null; then
+		wpa_supplicant_setup_vif "$vif" nl80211 "${hostapd_ctrl:+-H $hostapd_ctrl}" || {
+		    echo "enable_legacy($vif): Failed to set up wpa_supplicant for interface $ifname" >&2
+	        # make sure this wifi interface won't accidentally stay open without encryption
+		ifconfig "$ifname" down
+		    continue
+	    }
+	fi		
+	done
 }
