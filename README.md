@@ -1,7 +1,7 @@
 (This is the ZipIt Z2-specific README.md, see also the file 'README' for the OpenWRT original README.)
 
-This is a fork of (OpenWRT)[http://www.openwrt.org/] to add support
-for (ZipIt Z2)[http://linux.zipitwireless.com/] ARM devices.
+This is a fork of [OpenWRT](http://www.openwrt.org/) to add support
+for [ZipIt Z2](http://linux.zipitwireless.com/) ARM devices.
 
 Current status is rough but usable. Check 'Issues' here on github for
 known limitations, and please report an Issue if you find one.
@@ -9,9 +9,9 @@ known limitations, and please report an Issue if you find one.
 Prerequisites
 =============
 
-* A ZipIt Z2 with (uboot already installed)[http://linux.zipitwireless.com/].
+* A ZipIt Z2 with [uboot already installed](http://linux.zipitwireless.com/).
 
-* A system capable of (building OpenWRT)[http://wiki.openwrt.org/doc/howto/obtain.firmware.compile].
+* A system capable of [building OpenWRT](http://wiki.openwrt.org/doc/howto/obtain.firmware.compile).
 
 Building
 ========
@@ -24,9 +24,9 @@ Building
   + Plus for correct keyboard/console:
 
     Base system -> busybox -> Console Utilities ->
-    	 "loadfont" &
-    	 "loadkmap" &
-	 "Support for PSF2 console fonts" (will appear)
+    	 + "loadfont" &
+    	 + "loadkmap" &
+	 + "Support for PSF2 console fonts" (will appear)
 
   Plus any other packages you'd like in your image.
 
@@ -38,11 +38,11 @@ Installing
 * Format your SD card with the ext2 filesystem
 
 * Unpack the rootfs:
-    cd /path/to/SD
-    sudo tar zxvf <path-to-openwrt>/bin/pxa/openwrt-pxa-zipitz2-rootfs.tar.gz
+    + cd /path/to/SD
+    + sudo tar zxvf <path-to-openwrt>/bin/pxa/openwrt-pxa-zipitz2-rootfs.tar.gz
 
 * Copy the kernel image
-    sudo cp <path-to-openwrt>/bin/pxa/openwrt-pxa-zipitz2-uImage boot/uImage
+    + sudo cp <path-to-openwrt>/bin/pxa/openwrt-pxa-zipitz2-uImage boot/uImage
 
 * Preconfigure the wifi (recommended, easier than doing it onboard), by editing
   /etc/config/network and /etc/config/wireless
