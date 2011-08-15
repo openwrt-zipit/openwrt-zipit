@@ -1231,11 +1231,11 @@ define KernelPackage/libertas-sd/install
 endef
 
 define KernelPackage/libertas-spi/install
-	$(INSTALL_DIR) $(1)/lib/firmware
+	$(INSTALL_DIR) $(1)/lib/firmware/libertas
 	$(INSTALL_DATA) \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/gspi8686_v9_helper.bin \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/gspi8686_v9.bin \
-		$(1)/lib/firmware/
+		$(1)/lib/firmware/libertas
 endef
 
 
