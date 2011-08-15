@@ -5,6 +5,7 @@ define Target/Description
 endef
 
 FEATURES:=targz
-DEFAULT_PACKAGES += kmod-libertas-spi
+DEFAULT_PACKAGES += kmod-libertas-spi hostapd wpa-supplicant
+
 
 
