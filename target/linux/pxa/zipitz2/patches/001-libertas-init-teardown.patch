@@ -1,0 +1,95 @@
+commit 5c15f35cecd27ce1c1e7e2b0bd136e032b4eaecf
+Author: Vasily Khoruzhick <anarsoul@gmail.com>
+Date:   Mon Mar 7 14:59:33 2011 +0200
+
+    ARM: PXA: Z2: Fix libertas init/tear down sequences
+    
+    GPIO15 seems to be not related to WiFi, so don't touch it.
+    
+    Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+
+diff --git a/arch/arm/mach-pxa/include/mach/z2.h b/arch/arm/mach-pxa/include/mach/z2.h
+index 8835c16..7b0f71e 100644
+--- a/arch/arm/mach-pxa/include/mach/z2.h
++++ b/arch/arm/mach-pxa/include/mach/z2.h
+@@ -25,8 +25,7 @@
+ #define	GPIO98_ZIPITZ2_LID_BUTTON	98
+ 
+ /* Libertas GSPI8686 WiFi */
+-#define	GPIO14_ZIPITZ2_WIFI_RESET	14
+-#define	GPIO15_ZIPITZ2_WIFI_POWER	15
++#define	GPIO14_ZIPITZ2_WIFI_POWER	14
+ #define	GPIO24_ZIPITZ2_WIFI_CS		24
+ #define	GPIO36_ZIPITZ2_WIFI_IRQ		36
+ 
+diff --git a/arch/arm/mach-pxa/z2.c b/arch/arm/mach-pxa/z2.c
+index d34f149..202a593 100644
+--- a/arch/arm/mach-pxa/z2.c
++++ b/arch/arm/mach-pxa/z2.c
+@@ -142,8 +142,7 @@ static unsigned long z2_pin_config[] = {
+ 	GPIO1_GPIO,		/* Power button */
+ 	GPIO37_GPIO,		/* Headphone detect */
+ 	GPIO98_GPIO,		/* Lid switch */
+-	GPIO14_GPIO,		/* WiFi Reset */
+-	GPIO15_GPIO,		/* WiFi Power */
++	GPIO14_GPIO,		/* WiFi Power */
+ 	GPIO24_GPIO,		/* WiFi CS */
+ 	GPIO36_GPIO,		/* WiFi IRQ */
+ 	GPIO88_GPIO,		/* LCD CS */
+@@ -505,26 +504,16 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
+ {
+ 	int ret = 0;
+ 
+-	ret = gpio_request(GPIO15_ZIPITZ2_WIFI_POWER, "WiFi Power");
++	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_POWER, "WiFi Power");
+ 	if (ret)
+ 		goto err;
+ 
+-	ret = gpio_direction_output(GPIO15_ZIPITZ2_WIFI_POWER, 1);
++	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_POWER, 1);
+ 	if (ret)
+ 		goto err2;
+ 
+-	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_RESET, "WiFi Reset");
+-	if (ret)
+-		goto err2;
+-
+-	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_RESET, 0);
+-	if (ret)
+-		goto err3;
+-
+-	/* Reset the card */
++	/* Wait until card is powered on */
+ 	mdelay(180);
+-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 1);
+-	mdelay(20);
+ 
+ 	spi->bits_per_word = 16;
+ 	spi->mode = SPI_MODE_2,
+@@ -533,22 +522,18 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
+ 
+ 	return 0;
+ 
+-err3:
+-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
+ err2:
+-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
++	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
+ err:
+ 	return ret;
+ };
+ 
+ static int z2_lbs_spi_teardown(struct spi_device *spi)
+ {
+-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 0);
+-	gpio_set_value(GPIO15_ZIPITZ2_WIFI_POWER, 0);
+-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
+-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
+-	return 0;
++	gpio_set_value(GPIO14_ZIPITZ2_WIFI_POWER, 0);
++	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
+ 
++	return 0;
+ };
+ 
+ static struct pxa2xx_spi_chip z2_lbs_chip_info = {
