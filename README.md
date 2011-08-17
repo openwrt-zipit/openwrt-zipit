@@ -21,13 +21,8 @@ Configuring & Building
     + Target System -> "Marvell/Intel PXA2xx"
     + Subtarget -> "ZipIt Z2"
     
-    + Plus for correct keyboard/console:
-        - Base system -> busybox -> Console Utilities ->
-            - "loadfont" &
-            - "loadkmap" &
-            - "Support for PSF2 console fonts" (will appear)
-
-    + Plus any other packages you'd like in your image.
+    + Plus any other packages you'd like in your image 
+      (or you can install them later).
 
 * *make* to compile (ideally *make -j*, of course.)
 
