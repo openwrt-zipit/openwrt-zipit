@@ -1,20 +1,21 @@
-# This default config is for libertas SPI wifi on ZipIt Z2
-# in client mode. Please edit it as required.
-
-config wifi-device  wlan0
-	option type     legacy
-#	option macaddr	00:00:00:00:00:00
+config wifi-device  radio0
+	option type     mac80211
+# you should probably replace the following 'macaddr' with the real
+# MAC address of your ZipIt ( can be found under the battery)
+	option macaddr	00:1D:04:00:EE:EE
 	option hwmode	11g
+	option phy phy0
 
-	# REMOVE THIS LINE TO ENABLE WIFI:
+# COMMENT THE FOLLOWING LINE TO ENABLE WIFI
 	option disabled 1
 
 config wifi-iface
-	option device   wlan0
+	option device   radio0
 	option ifname wlan0
 	option network  wlan
-	option mode     sta
-	option ssid     YourNetworkNameHere
-	option encryption psk2
-	option key YourKeyHere
+ 	option mode     sta
 
+# change these to match your wifi network's details
+	option ssid     MyNetworkSSID
+	option encryption psk2
+	option key MyNetworkKey
