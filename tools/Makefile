@@ -11,15 +11,14 @@ curdir:=tools
 # subdirectories to descend into
 tools-y :=
 ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN)$(CONFIG_GCC_LLVM),)
-tools-y += gmp mpfr
-tools-$(CONFIG_GCC_VERSION_4_5) += mpc libelf
+tools-y += gmp mpfr mpc libelf
 endif
 tools-y += m4 libtool autoconf automake flex bison pkg-config sed mklibs
 tools-y += sstrip ipkg-utils genext2fs e2fsprogs mtd-utils mkimage
-tools-y += firmware-utils patch-cmdline quilt yaffs2 flock
+tools-y += firmware-utils patch-cmdline quilt yaffs2 flock padjffs2
 tools-y += mm-macros xorg-macros xfce-macros missing-macros xz cmake
 tools-$(CONFIG_TARGET_orion_generic) += wrt350nv2-builder upslug2
-tools-$(CONFIG_TARGET_x86) += qemu mkelfimage
+tools-$(CONFIG_TARGET_x86) += qemu
 ifneq ($(CONFIG_TARGET_ar71xx),)
 tools-y += lzma-old squashfs 
 endif
@@ -80,8 +79,9 @@ $(STAGING_DIR)/.prepared: $(TMP_DIR)/.build
 
 $(STAGING_DIR_HOST)/.prepared: $(TMP_DIR)/.build
 	$(call PrepareStaging,$(STAGING_DIR_HOST))
-	mkdir -p $(BUILD_DIR_HOST)/stamp
+	mkdir -p $(BUILD_DIR_HOST)/stamp $(STAGING_DIR_HOST)/include/sys
 	$(INSTALL_DATA) $(TOPDIR)/tools/include/*.h $(STAGING_DIR_HOST)/include/
+	$(INSTALL_DATA) $(TOPDIR)/tools/include/sys/*.h $(STAGING_DIR_HOST)/include/sys/
 	touch $@
 
 

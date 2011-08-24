@@ -9,6 +9,23 @@ do_sysctl() {
 		sysctl -n -e "$1"
 }
 
+map_sysctls() {
+	local cfg="$1"
+	local ifn="$2"
+
+	local fam
+	for fam in ipv4 ipv6; do
+		if [ -d /proc/sys/net/$fam ]; then
+			local key
+			for key in /proc/sys/net/$fam/*/$ifn/*; do
+				local val
+				config_get val "$cfg" "${fam}_${key##*/}"
+				[ -n "$val" ] && echo -n "$val" > "$key"
+			done
+		fi
+	done
+}
+
 find_config() {
 	local iftype device iface ifaces ifn
 	for ifn in $interfaces; do
@@ -96,8 +113,8 @@ add_dns() {
 	done
 
 	[ -n "$cfg" ] && {
-		uci_set_state network "$cfg" dns "$add"
-		uci_set_state network "$cfg" resolv_dns "$add"
+		uci_toggle_state network "$cfg" dns "$add"
+		uci_toggle_state network "$cfg" resolv_dns "$add"
 	}
 }
 
@@ -156,6 +173,9 @@ prepare_interface() {
 			ifconfig "$iface" down
 			ifconfig "$iface" hw ether "$vifmac" up
 		}
+
+		# Apply sysctl settings
+		map_sysctls "$config" "$iface"
 	}
 
 	# Setup VLAN interfaces
@@ -176,7 +196,7 @@ prepare_interface() {
 					for dev in $(sort_list "$devices" "$iface"); do
 						append newdevs "$dev"
 					done
-					uci_set_state network "$config" device "$newdevs"
+					uci_toggle_state network "$config" device "$newdevs"
 					$DEBUG ifconfig "$iface" 0.0.0.0
 					$DEBUG do_sysctl "net.ipv6.conf.$iface.disable_ipv6" 1
 					$DEBUG brctl addif "br-$config" "$iface"
@@ -210,8 +230,8 @@ set_interface_ifname() {
 
 	local device
 	config_get device "$1" device
-	uci_set_state network "$config" ifname "$ifname"
-	uci_set_state network "$config" device "$device"
+	uci_toggle_state network "$config" ifname "$ifname"
+	uci_toggle_state network "$config" device "$device"
 }
 
 setup_interface_none() {

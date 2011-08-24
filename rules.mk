@@ -124,6 +124,7 @@ LIBRPC_DEPENDS=+USE_UCLIBC:librpc
 ifndef DUMP
   ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
     -include $(TOOLCHAIN_DIR)/info.mk
+    export GCC_HONOUR_COPTS:=0
     TARGET_CROSS:=$(if $(TARGET_CROSS),$(TARGET_CROSS),$(OPTIMIZE_FOR_CPU)-openwrt-linux$(if $(TARGET_SUFFIX),-$(TARGET_SUFFIX))-)
     TARGET_CFLAGS+= -fhonour-copts
     TARGET_CPPFLAGS+= -I$(TOOLCHAIN_DIR)/usr/include -I$(TOOLCHAIN_DIR)/include
@@ -160,7 +161,6 @@ endif
 
 export PATH:=$(TARGET_PATH)
 export STAGING_DIR
-export GCC_HONOUR_COPTS:=0
 export SH_FUNC:=. $(INCLUDE_DIR)/shell.sh;
 
 PKG_CONFIG:=$(STAGING_DIR_HOST)/bin/pkg-config
@@ -237,6 +237,10 @@ ifeq ($(CONFIG_TAR_VERBOSITY),y)
   TAR_OPTIONS:=-xvf -
 else
   TAR_OPTIONS:=-xf -
+endif
+
+ifeq ($(CONFIG_BUILD_LOG),y)
+  BUILD_LOG:=1
 endif
 
 define shvar

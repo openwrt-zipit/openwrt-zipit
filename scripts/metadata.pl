@@ -56,6 +56,7 @@ sub parse_target_metadata() {
 		/^Linux-Version:\s*(.+)\s*$/ and $target->{version} = $1;
 		/^Linux-Release:\s*(.+)\s*$/ and $target->{release} = $1;
 		/^Linux-Kernel-Arch:\s*(.+)\s*$/ and $target->{karch} = $1;
+		/^Default-Subtarget:\s*(.+)\s*$/ and $target->{def_subtarget} = $1;
 		/^Default-Packages:\s*(.+)\s*$/ and $target->{packages} = [ split(/\s+/, $1) ];
 		/^Target-Profile:\s*(.+)\s*$/ and do {
 			$profile = {
@@ -282,6 +283,14 @@ endchoice
 
 choice
 	prompt "Subtarget" if HAS_SUBTARGETS
+EOF
+	foreach my $target (@target) {
+		next unless $target->{def_subtarget};
+		print <<EOF;
+	default TARGET_$target->{conf}_$target->{def_subtarget} if TARGET_$target->{conf}
+EOF
+	}
+	print <<EOF;
 
 EOF
 	foreach my $target (@target) {
@@ -525,10 +534,12 @@ sub print_package_config_category($) {
 			if ($c > 0) {
 				$title .= ("." x $c). " ". $pkg->{title};
 			}
+			$title = "\"$title\"";
 			print "\t";
 			$pkg->{menu} and print "menu";
 			print "config PACKAGE_".$pkg->{name}."\n";
-			print "\t\t".($pkg->{tristate} ? 'tristate' : 'bool')." \"$title\"\n";
+			$pkg->{hidden} and $title = "";
+			print "\t\t".($pkg->{tristate} ? 'tristate' : 'bool')." $title\n";
 			print "\t\tdefault y if DEFAULT_".$pkg->{name}."\n";
 			foreach my $default (split /\s*,\s*/, $pkg->{default}) {
 				print "\t\tdefault $default\n";
@@ -696,10 +707,10 @@ sub gen_package_mk() {
 				my $depstr = "\$(curdir)/$idx$suffix/compile";
 				my $depline = get_conditional_dep($condition, $depstr);
 				if ($depline) {
-					$deplines{$dep} = $depline;
+					$deplines{$depline}++;
 				}
 			}
-			my $depline = join(" ", values %deplines);
+			my $depline = join(" ", sort keys %deplines);
 			if ($depline) {
 				$line .= "\$(curdir)/".$pkg->{subdir}."$pkg->{src}/$type/compile += $depline\n";
 			}
@@ -756,12 +767,12 @@ sub gen_package_mk() {
 					}
 					$depline = get_conditional_dep($condition, $depstr);
 					if ($depline) {
-						$deplines{$idx.$dep} = $depline;
+						$deplines{$depline}++;
 					}
 				}
 			}
 		}
-		my $depline = join(" ", values %deplines);
+		my $depline = join(" ", sort keys %deplines);
 		if ($depline) {
 			$line .= "\$(curdir)/".$pkg->{subdir}."$pkg->{src}/compile += $depline\n";
 		}

@@ -42,6 +42,7 @@ ifneq ($(CONFIG_JFFS2_LZMA),y)
   JFFS2OPTS += -x lzma
 endif
 
+SQUASHFSCOMP := gzip
 LZMA_XZ_OPTIONS := -Xpreset 9 -Xe -Xlc 0 -Xlp 2 -Xpb 2
 ifeq ($(CONFIG_SQUASHFS_LZMA),y)
   SQUASHFSCOMP := lzma $(LZMA_XZ_OPTIONS)
@@ -56,17 +57,9 @@ define add_jffs2_mark
 	echo -ne '\xde\xad\xc0\xde' >> $(1)
 endef
 
-# pad to 4k, 8k, 64k, 128k and add jffs2 end-of-filesystem mark
+# pad to 4k, 8k, 64k, 128k 256k and add jffs2 end-of-filesystem mark
 define prepare_generic_squashfs
-	dd if=$(1) of=$(KDIR)/tmpfile.0 bs=4k conv=sync
-	$(call add_jffs2_mark,$(KDIR)/tmpfile.0)
-	dd if=$(KDIR)/tmpfile.0 of=$(KDIR)/tmpfile.1 bs=4k conv=sync
-	$(call add_jffs2_mark,$(KDIR)/tmpfile.1)
-	dd if=$(KDIR)/tmpfile.1 of=$(KDIR)/tmpfile.2 bs=64k conv=sync
-	$(call add_jffs2_mark,$(KDIR)/tmpfile.2)
-	dd if=$(KDIR)/tmpfile.2 of=$(1) bs=64k conv=sync
-	$(call add_jffs2_mark,$(1))
-	rm -f $(KDIR)/tmpfile.*
+	$(STAGING_DIR_HOST)/bin/padjffs2 $(1) 4 8 64 128 256
 endef
 
 

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2007-2010 OpenWrt.org
+# Copyright (C) 2007-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -10,10 +10,10 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=mac80211
 
-PKG_VERSION:=2011-05-27
+PKG_VERSION:=2011-08-10
 PKG_RELEASE:=2
 PKG_SOURCE_URL:=http://mirror2.openwrt.org/sources
-PKG_MD5SUM:=3a382b03333aff304dbe8ee94fce6b5a
+PKG_MD5SUM:=fb2ee04eaafbdf4117c475ba78f8f5b9
 
 PKG_SOURCE:=compat-wireless-$(PKG_VERSION).tar.bz2
 PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/compat-wireless-$(PKG_VERSION)
@@ -26,7 +26,7 @@ PKG_DRIVERS = \
 	rtl8180 rtl8187 zd1211rw mac80211-hwsim carl9170 b43 b43legacy \
 	ath9k-common ath9k ath9k-htc ath net-libipw net-ipw2100 net-ipw2200 \
 	mwl8k net-hermes net-hermes-pci net-hermes-plx net-hermes-pcmcia \
-	iwl-legacy iwl3945 iwl4965 iwlagn
+	iwl-legacy iwl3945 iwl4965 iwlagn lib80211
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_kmod-mac80211 \
@@ -48,25 +48,17 @@ define KernelPackage/mac80211/Default
   SUBMENU:=$(WMENU)
   URL:=http://linuxwireless.org/
   MAINTAINER:=Felix Fietkau <nbd@openwrt.org>
-  DEPENDS:=@(!(TARGET_avr32||TARGET_ep93xx||TARGET_ps3||TARGET_pxcab)||BROKEN)
+  DEPENDS:=@(!(TARGET_avr32||TARGET_ep93xx||TARGET_ps3||TARGET_pxcab||LINUX_3_1)||BROKEN)
 endef
 
 define KernelPackage/cfg80211
   $(call KernelPackage/mac80211/Default)
   TITLE:=cfg80211 - wireless configuration API
   DEPENDS+= +wireless-tools +iw +crda
-ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,2.6.33)),1)
   FILES:= \
 	$(PKG_BUILD_DIR)/compat/compat.ko \
 	$(PKG_BUILD_DIR)/net/wireless/cfg80211.ko
   AUTOLOAD:=$(call AutoLoad,20,compat cfg80211)
-else
-  FILES:= \
-	$(PKG_BUILD_DIR)/compat/compat.ko \
-	$(PKG_BUILD_DIR)/compat/compat_firmware_class.ko \
-	$(PKG_BUILD_DIR)/net/wireless/cfg80211.ko
-  AUTOLOAD:=$(call AutoLoad,20,compat compat_firmware_class cfg80211)
-endif
 endef
 
 define KernelPackage/cfg80211/description
@@ -198,6 +190,7 @@ endef
 
 NEED_RT2X00_LIB_CRYPTO:=y
 NEED_RT2X00_LIB_FIRMWARE:=y
+NEED_RT2X00_LIB_EEPROM:=y
 NEED_RT2X00_LIB_HT:=y
 NEED_RT2X00_LIB_LEDS:=y
 
@@ -477,7 +470,6 @@ define KernelPackage/libertas-common
   AUTOLOAD:=$(call AutoLoad,27,libertas)
 endef
 
-
 define KernelPackage/libertas-usb
   $(call KernelPackage/mac80211/Default)
   DEPENDS+= @USB_SUPPORT +kmod-libertas-common +kmod-usb-core 
@@ -503,6 +495,31 @@ define KernelPackage/libertas-spi
   FILES:= \
 	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas_spi.ko
   AUTOLOAD:=$(call AutoLoad,91,libertas_spi)
+endef
+
+define KernelPackage/lib80211
+  $(call KernelPackage/mac80211/Default)
+  TITLE:=802.11 Networking stack
+  FILES:= \
+	$(PKG_BUILD_DIR)/net/wireless/lib80211.ko \
+	$(PKG_BUILD_DIR)/net/wireless/lib80211_crypt_wep.ko \
+	$(PKG_BUILD_DIR)/net/wireless/lib80211_crypt_ccmp.ko \
+	$(PKG_BUILD_DIR)/net/wireless/lib80211_crypt_tkip.ko
+  AUTOLOAD:=$(call AutoLoad,10, \
+	lib80211 \
+	lib80211_crypt_wep \
+	lib80211_crypt_ccmp \
+	lib80211_crypt_tkip \
+  )
+endef
+
+define KernelPackage/lib80211/description
+ Kernel modules for 802.11 Networking stack
+ Includes:
+ - lib80211
+ - lib80211_crypt_wep
+ - lib80211_crypt_tkip
+ - lib80211_crytp_ccmp
 endef
 
 
@@ -844,6 +861,7 @@ endef
 
 define KernelPackage/b43
 $(call KernelPackage/b43-common)
+  DEPENDS+= +@DRIVER_11N_SUPPORT +!TARGET_brcm47xx:kmod-bcma
   TITLE:=Broadcom 43xx wireless support
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/b43/b43.ko
   AUTOLOAD:=$(call AutoLoad,30,b43)
@@ -856,7 +874,7 @@ define KernelPackage/b43/config
 
 	choice
 		prompt "b43 firmware version"
-		default B43_FW_4_150
+		default B43_FW_5_10
 		help
 		  This option allows you to select the version of the b43 firmware.
 
@@ -914,8 +932,7 @@ define KernelPackage/b43/config
 	config B43_FW_SQUASH_COREREVS
 		string "Core revisions to include"
 		depends on B43_FW_SQUASH
-		default "5,6,7,8,9,10,11,13,14,15,16" if PACKAGE_B43_PHY_N
-		default "5,6,7,8,9,10,13,14,15" if !PACKAGE_B43_PHY_N
+		default "5,6,7,8,9,10,11,13,14,15,16"
 		help
 		  This is a comma seperated list of core revision numbers.
 
@@ -928,8 +945,7 @@ define KernelPackage/b43/config
 	config B43_FW_SQUASH_PHYTYPES
 		string "PHY types to include"
 		depends on B43_FW_SQUASH
-		default "G,LP,N" if PACKAGE_B43_PHY_N
-		default "G,LP" if !PACKAGE_B43_PHY_N
+		default "G,LP,N"
 		help
 		  This is a comma seperated list of PHY types:
 		    A  => A-PHY
@@ -965,11 +981,31 @@ define KernelPackage/b43/config
 	config PACKAGE_B43_PHY_N
 		bool "Enable support for N-PHYs"
 		select B43_FW_5_10
-		default n
+		default y
 		help
 		  Enable support for BCM4321 and BCM4322.
 
 		  Currently only 11g speed is available.
+
+		  If unsure, say Y.
+
+	config PACKAGE_B43_PHY_HT
+		bool "Enable support for HT-PHYs"
+		depends on BROKEN
+		select B43_FW_5_10
+		default n
+		help
+		  Currently broken.
+
+		  If unsure, say N.
+
+	config PACKAGE_B43_PHY_LCN
+		bool "Enable support for LCN-PHYs"
+		depends on BROKEN
+		select B43_FW_5_10
+		default n
+		help
+		  Currently broken.
 
 		  If unsure, say N.
 
@@ -1030,19 +1066,25 @@ BUILDFLAGS:= \
 	-DCONFIG_B43_HWRNG -DCONFIG_B43LEGACY_HWRNG \
 	$(if $(CONFIG_PCI),-DCONFIG_ATH9K_PCI) \
 	$(if $(CONFIG_TARGET_ar71xx),-DCONFIG_ATH9K_AHB) \
-	$(if $(CONFIG_PACKAGE_MAC80211_DEBUGFS),-DCONFIG_MAC80211_DEBUGFS -DCONFIG_ATH9K_DEBUGFS -DCONFIG_CARL9170_DEBUGFS -DCONFIG_ATH9K_HTC_DEBUGFS -DCONFIG_ATH5K_DEBUG) \
+	$(if $(CONFIG_PACKAGE_MAC80211_DEBUGFS), -DCONFIG_CFG80211_DEBUGFS -DCONFIG_MAC80211_DEBUGFS -DCONFIG_ATH9K_DEBUGFS -DCONFIG_CARL9170_DEBUGFS -DCONFIG_ATH9K_HTC_DEBUGFS -DCONFIG_ATH5K_DEBUG) \
 	$(if $(CONFIG_PACKAGE_ATH_DEBUG),-DCONFIG_ATH_DEBUG -DCONFIG_ATH9K_PKTLOG) \
 	-D__CONFIG_MAC80211_RC_DEFAULT=minstrel \
 	-DCONFIG_MAC80211_RC_MINSTREL_HT \
 	$(if $(CONFIG_ATH_USER_REGD),-DATH_USER_REGD=1) \
 	$(if $(CONFIG_PACKAGE_B43_DEBUG),-DCONFIG_B43_DEBUG) \
 	$(if $(CONFIG_PACKAGE_B43_PIO),-DCONFIG_B43_PIO) \
+	$(if $(CONFIG_PACKAGE_B43_PIO),-DCONFIG_B43_BCMA_PIO) \
 	$(if $(CONFIG_PACKAGE_B43_PHY_N),-DCONFIG_B43_PHY_N) \
+	$(if $(CONFIG_PACKAGE_B43_PHY_HT),-DCONFIG_B43_PHY_HT) \
+	$(if $(CONFIG_PACKAGE_B43_PHY_LCN),-DCONFIG_B43_PHY_LCN) \
+	-DCONFIG_B43_BCMA \
+	-DCONFIG_B43_SSB \
 	$(if $(CONFIG_PACKAGE_RT2X00_LIB_DEBUGFS),-DCONFIG_RT2X00_LIB_DEBUGFS) \
 	$(if $(CONFIG_PACKAGE_RT2X00_DEBUG),-DCONFIG_RT2X00_DEBUG) \
 	$(if $(NEED_RT2X00_LIB_HT),-DCONFIG_RT2X00_LIB_HT) \
 	$(if $(NEED_RT2X00_LIB_CRYPTO),-DCONFIG_RT2X00_LIB_CRYPTO) \
 	$(if $(NEED_RT2X00_LIB_FIRMWARE),-DCONFIG_RT2X00_LIB_FIRMWARE) \
+	$(if $(NEED_RT2X00_LIB_EEPROM),-DCONFIG_RT2X00_LIB_EEPROM) \
 	$(if $(NEED_RT2X00_LIB_LEDS),-DCONFIG_RT2X00_LIB_LEDS) \
 	$(if $(CONFIG_PACKAGE_kmod-rt2x00-pci),-DCONFIG_RT2X00_LIB_PCI) \
 	$(if $(CONFIG_PACKAGE_kmod-rt2x00-usb),-DCONFIG_RT2X00_LIB_USB) \
@@ -1059,6 +1101,7 @@ MAKE_OPTS:= \
 	CONFIG_MAC80211=$(if $(CONFIG_PACKAGE_kmod-mac80211),m) \
 	CONFIG_MAC80211_RC_MINSTREL=y \
 	CONFIG_MAC80211_LEDS=$(CONFIG_LEDS_TRIGGERS) \
+	CONFIG_CFG80211_DEBUGFS=$(if $(CONFIG_PACKAGE_MAC80211_DEBUGFS),y) \
 	CONFIG_MAC80211_DEBUGFS=$(if $(CONFIG_PACKAGE_MAC80211_DEBUGFS),y) \
 	CONFIG_B43_PCMCIA=n CONFIG_B43_PIO=n \
 	CONFIG_B43_PCI_AUTOSELECT=$(if $(CONFIG_PCI),y) \
@@ -1071,7 +1114,12 @@ MAKE_OPTS:= \
 	CONFIG_B43LEGACY=$(if $(CONFIG_PACKAGE_kmod-b43legacy),m) \
 	CONFIG_B43_DEBUG=$(if $(CONFIG_PACKAGE_B43_DEBUG),y) \
 	CONFIG_B43_PIO=$(if $(CONFIG_PACKAGE_B43_PIO),y) \
+	CONFIG_B43_BCMA_PIO=$(if $(CONFIG_PACKAGE_B43_PIO),y) \
 	CONFIG_B43_PHY_N=$(if $(CONFIG_PACKAGE_B43_PHY_N),y) \
+	CONFIG_B43_PHY_HT=$(if $(CONFIG_PACKAGE_B43_PHY_HT),y) \
+	CONFIG_B43_PHY_LCN=$(if $(CONFIG_PACKAGE_B43_PHY_LCN),y) \
+	CONFIG_B43_BCMA=y \
+	CONFIG_B43_SSB=y \
 	CONFIG_ATH_COMMON=$(if $(CONFIG_PACKAGE_kmod-ath),m) \
 	CONFIG_ATH_DEBUG=$(if $(CONFIG_PACKAGE_ATH_DEBUG),y) \
 	CONFIG_ATH9K_PKTLOG=$(if $(CONFIG_PACKAGE_ATH_DEBUG),y) \
@@ -1103,6 +1151,7 @@ MAKE_OPTS:= \
 	CONFIG_RT2X00_LIB_DEBUGFS=$(CONFIG_PACKAGE_RT2X00_LIB_DEBUGFS) \
 	CONFIG_RT2X00_LIB_CRYPTO=$(NEED_RT2X00_LIB_CRYPTO) \
 	CONFIG_RT2X00_LIB_FIRMWARE=$(NEED_RT2X00_LIB_FIRMWARE) \
+	CONFIG_RT2X00_LIB_EEPROM=$(NEED_RT2X00_LIB_EEPROM) \
 	CONFIG_RT2X00_LIB_HT=$(NEED_RT2X00_LIB_HT) \
 	CONFIG_RT2X00_LIB_LEDS=$(NEED_RT2X00_LIB_LEDS) \
 	CONFIG_RT2400PCI=$(if $(CONFIG_PACKAGE_kmod-rt2400-pci),m) \
@@ -1129,10 +1178,10 @@ MAKE_OPTS:= \
 	CONFIG_IPW2100=$(if $(CONFIG_PACKAGE_kmod-net-ipw2100),m) \
 	CONFIG_IPW2200=$(if $(CONFIG_PACKAGE_kmod-net-ipw2200),m) \
 	CONFIG_NL80211=y \
-	CONFIG_LIB80211= \
-	CONFIG_LIB80211_CRYPT_WEP= \
-	CONFIG_LIB80211_CRYPT_CCMP= \
-	CONFIG_LIB80211_CRYPT_TKIP= \
+	CONFIG_LIB80211=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
+	CONFIG_LIB80211_CRYPT_WEP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
+	CONFIG_LIB80211_CRYPT_CCMP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
+	CONFIG_LIB80211_CRYPT_TKIP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
 	CONFIG_IWLAGN=$(if $(CONFIG_PACKAGE_kmod-iwlagn),m) \
 	CONFIG_IWLWIFI_LEGACY=$(if $(CONFIG_PACKAGE_kmod-iwl-legacy),m) \
 	CONFIG_COMPAT_IWL4965=$(if $(CONFIG_PACKAGE_kmod-iwl4965),m) \
@@ -1163,6 +1212,11 @@ MAKE_OPTS:= \
 	CONFIG_MWIFIEX= \
 	CONFIG_MAC80211_RC_MINSTREL_HT=y \
 	MADWIFI= \
+	CONFIG_B44= \
+	CONFIG_ATL1= \
+	CONFIG_ATL2= \
+	CONFIG_ATL1E= \
+	CONFIG_ATL1C= \
 	KLIB_BUILD="$(LINUX_DIR)" \
 	MODPROBE=: \
 	KLIB=$(TARGET_MODULES_DIR) \
@@ -1183,6 +1237,7 @@ define Build/Prepare
 	$(TAR) -C $(PKG_BUILD_DIR) -xjf $(DL_DIR)/$(ZD1211FW_NAME)-$(ZD1211FW_VERSION).tar.bz2
 	$(TAR) -C $(PKG_BUILD_DIR) -xjf $(DL_DIR)/$(PKG_LINUX_FIRMWARE_SOURCE)
 	rm -rf $(PKG_BUILD_DIR)/include/linux/ssb
+	rm -rf $(PKG_BUILD_DIR)/include/linux/bcma
 	rm -f $(PKG_BUILD_DIR)/include/net/ieee80211.h
 endef
 
@@ -1217,7 +1272,7 @@ define KernelPackage/libertas-usb/install
 endef
 
 define KernelPackage/libertas-sd/install
-	$(INSTALL_DIR) $(1)/lib/firmware
+	$(INSTALL_DIR) $(1)/lib/firmware/libertas
 	$(INSTALL_DATA) \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8385_helper.bin \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8385.bin \
@@ -1227,7 +1282,7 @@ define KernelPackage/libertas-sd/install
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8686_v8.bin \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8688_helper.bin \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/libertas/sd8688.bin \
-		$(1)/lib/firmware/
+		$(1)/lib/firmware/libertas
 endef
 
 define KernelPackage/libertas-spi/install
@@ -1357,6 +1412,7 @@ endef
 
 define Build/b43-common
 	tar xjf "$(DL_DIR)/$(PKG_B43_FWCUTTER_SOURCE)" -C "$(PKG_BUILD_DIR)"
+	patch -p1 -d  "$(PKG_BUILD_DIR)/$(PKG_B43_FWCUTTER_OBJECT)" < ./files/b43-fwcutter-fw-dirname.patch
 	$(MAKE) -C "$(PKG_BUILD_DIR)/$(PKG_B43_FWCUTTER_OBJECT)" \
 		CFLAGS="-I$(STAGING_DIR_HOST)/include -include endian.h" \
 		QUIET_SPARSE=:
@@ -1408,6 +1464,7 @@ $(eval $(call KernelPackage,libertas-common))
 $(eval $(call KernelPackage,libertas-usb))
 $(eval $(call KernelPackage,libertas-sd))
 $(eval $(call KernelPackage,libertas-spi))
+$(eval $(call KernelPackage,lib80211))
 $(eval $(call KernelPackage,cfg80211))
 $(eval $(call KernelPackage,mac80211))
 $(eval $(call KernelPackage,p54-common))

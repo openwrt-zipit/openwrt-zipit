@@ -10,16 +10,16 @@ ARCH:=mips
 BOARD:=lantiq
 BOARDNAME:=Lantiq GPON/XWAY
 FEATURES:=squashfs jffs2
-SUBTARGETS:=xway falcon ase
+DEFAULT_SUBTARGET:=danube
 
-LINUX_VERSION:=2.6.39.1
+LINUX_VERSION:=2.6.39.4
 
 CFLAGS=-Os -pipe -mips32r2 -mtune=mips32r2 -fno-caller-saves
-
-include $(INCLUDE_DIR)/target.mk
 
 define Target/Description
 	Build firmware images for Lantiq SoC
 endef
+
+include $(INCLUDE_DIR)/target.mk
 
 $(eval $(call BuildTarget))

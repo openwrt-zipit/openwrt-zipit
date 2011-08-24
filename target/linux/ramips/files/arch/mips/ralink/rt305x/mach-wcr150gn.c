@@ -25,20 +25,20 @@
 #ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition wcr150gn_partitions[] = {
 	{
-		.name	= "Bootloader",
+		.name	= "bootloader",
 		.offset	= 0,
 		.size	= 0x030000,
 		.mask_flags = MTD_WRITEABLE,
 	}, {
-		.name	= "Config",
+		.name	= "config",
 		.offset	= 0x030000,
 		.size	= 0x040000,
 	}, {
-		.name	= "Factory",
+		.name	= "factory",
 		.offset	= 0x040000,
 		.size	= 0x050000,
 	}, {
-		.name	= "Kernel",
+		.name	= "kernel",
 		.offset	= 0x050000,
 		.size	= 0x120000,
 	}, {
@@ -60,6 +60,7 @@ static void __init wcr150gn_init(void)
 {
 	rt305x_gpio_init(RT305X_GPIO_MODE_GPIO << RT305X_GPIO_MODE_UART0_SHIFT);
 	rt305x_register_flash(0, &wcr150gn_flash_data);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_LLLLW;
 	rt305x_register_ethernet();
 	rt305x_register_wifi();
 	rt305x_register_wdt();

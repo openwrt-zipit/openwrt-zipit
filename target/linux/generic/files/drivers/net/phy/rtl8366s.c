@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
-#include <linux/rtl8366s.h>
+#include <linux/rtl8366.h>
 
 #include "rtl8366_smi.h"
 
@@ -250,7 +250,7 @@ static int rtl8366s_reset_chip(struct rtl8366_smi *smi)
 
 static int rtl8366s_hw_init(struct rtl8366_smi *smi)
 {
-	struct rtl8366s_platform_data *pdata;
+	struct rtl8366_platform_data *pdata;
 	int err;
 
 	pdata = smi->parent->platform_data;
@@ -945,7 +945,7 @@ static int rtl8366s_switch_init(struct rtl8366_smi *smi)
 	dev->ports = RTL8366S_NUM_PORTS;
 	dev->vlans = RTL8366S_NUM_VIDS;
 	dev->ops = &rtl8366_ops;
-	dev->devname = dev_name(smi->parent);
+	dev->alias = dev_name(smi->parent);
 
 	err = register_switch(dev, NULL);
 	if (err)
@@ -1053,7 +1053,7 @@ static struct rtl8366_smi_ops rtl8366s_smi_ops = {
 static int __devinit rtl8366s_probe(struct platform_device *pdev)
 {
 	static int rtl8366_smi_version_printed;
-	struct rtl8366s_platform_data *pdata;
+	struct rtl8366_platform_data *pdata;
 	struct rtl8366_smi *smi;
 	int err;
 

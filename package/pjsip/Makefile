@@ -18,6 +18,8 @@ PKG_INSTALL:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/pjproject-$(PKG_VERSION)
 
+PKG_BUILD_DEPENDS:=TARGET_lantiq:kmod-ltq-tapi TARGET_lantiq:kmod-ltq-vmmc
+
 include $(INCLUDE_DIR)/package.mk
 
 define Package/pjsip-template

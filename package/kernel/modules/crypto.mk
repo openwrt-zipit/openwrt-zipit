@@ -41,7 +41,7 @@ endef
 
 define KernelPackage/crypto-hash
   TITLE:=CryptoAPI hash support
-  KCONFIG:=CONFIG_CRYPTO_HASH
+  KCONFIG:=CONFIG_CRYPTO_HASH2
   FILES:=$(LINUX_DIR)/crypto/crypto_hash.ko
   AUTOLOAD:=$(call AutoLoad,02,crypto_hash)
   $(call AddDepends/crypto)
@@ -61,6 +61,22 @@ define KernelPackage/crypto-manager
   $(call AddDepends/crypto)
 endef
 $(eval $(call KernelPackage,crypto-manager))
+
+define KernelPackage/crypto-user
+  TITLE:=CryptoAPI userspace interface
+  DEPENDS:=+kmod-crypto-hash +kmod-crypto-manager @LINUX_2_6_38||LINUX_2_6_39||LINUX_3_0
+  KCONFIG:= \
+	CONFIG_CRYPTO_USER_API \
+	CONFIG_CRYPTO_USER_API_HASH \
+	CONFIG_CRYPTO_USER_API_SKCIPHER
+  FILES:= \
+	$(LINUX_DIR)/crypto/af_alg.ko \
+	$(LINUX_DIR)/crypto/algif_hash.ko \
+	$(LINUX_DIR)/crypto/algif_skcipher.ko
+  AUTOLOAD:=$(call AutoLoad,09,af_alg algif_hash algif_skcipher)
+  $(call AddDepends/crypto)
+endef
+$(eval $(call KernelPackage,crypto-user))
 
 define KernelPackage/crypto-wq
   TITLE:=CryptoAPI work queue handling
@@ -399,7 +415,7 @@ define KernelPackage/crypto-ocf-hifnhipp
   DEPENDS:=+@OPENSSL_ENGINE @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
   KCONFIG:=CONFIG_OCF_HIFNHIPP
   FILES:=$(LINUX_DIR)/crypto/ocf/hifn/hifnHIPP.ko
-  AUTOLOAD:=$(call AutoLoad,10,hifnhipp)
+  AUTOLOAD:=$(call AutoLoad,10,hifnHIPP)
   $(call AddDepends/crypto)
 endef
 
@@ -455,3 +471,19 @@ define KernelPackage/crypto-mv-cesa
 endef
 
 $(eval $(call KernelPackage,crypto-mv-cesa))
+
+
+define KernelPackage/ocf-ubsec-ssb
+  TITLE:=BCM5365P IPSec Core driver
+  DEPENDS:=@TARGET_brcm47xx +kmod-crypto-ocf
+  KCONFIG:=CONFIG_OCF_UBSEC_SSB
+  FILES:=$(LINUX_DIR)/crypto/ocf/ubsec_ssb/ubsec_ssb.ko
+  AUTOLOAD:=$(call AutoLoad,10,ubsec_ssb)
+  $(call AddDepends/crypto)
+endef
+
+define KernelPackage/ocf-ubsec-ssb/description
+  This package contains the OCF driver for the BCM5365p IPSec Core
+endef
+
+$(eval $(call KernelPackage,ocf-ubsec-ssb))

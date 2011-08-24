@@ -14,7 +14,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 
-#include <linux/rtl8366rb.h>
+#include <linux/rtl8366.h>
 
 #include <asm/mach-ralink/machine.h>
 #include <asm/mach-ralink/dev-gpio-buttons.h>
@@ -109,7 +109,7 @@ static struct physmap_flash_data f5d8235v2_flash_data = {
 };
 
 
-static struct rtl8366rb_platform_data f5d8235v2_switch_data = {
+static struct rtl8366_platform_data f5d8235v2_switch_data = {
 	.gpio_sda	= RT305X_GPIO_I2C_SD,
 	.gpio_sck	= RT305X_GPIO_I2C_SCLK,
 };
@@ -132,10 +132,12 @@ static void __init f5d8235v2_init(void)
 	rt305x_register_flash(0, &f5d8235v2_flash_data);
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(f5d8235v2_leds_gpio),
 						f5d8235v2_leds_gpio);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_NONE;
 	rt305x_register_ethernet();
 	platform_device_register(&f5d8235v2_switch);
 	rt305x_register_wifi();
 	rt305x_register_wdt();
+	rt305x_register_usb();
 }
 
 MIPS_MACHINE(RAMIPS_MACH_F5D8235_V2, "F5D8235_V2", "Belkin F5D8235 v2",

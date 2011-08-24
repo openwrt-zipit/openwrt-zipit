@@ -14,6 +14,8 @@
 #include <linux/clk.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
+#include <linux/spi/spi.h>
+#include <linux/rt2x00_platform.h>
 
 #include <asm/addrspace.h>
 
@@ -176,17 +178,19 @@ static struct resource rt305x_wifi_resources[] = {
 	},
 };
 
+static struct rt2x00_platform_data rt305x_wifi_data;
 static struct platform_device rt305x_wifi_device = {
 	.name			= "rt2800_wmac",
 	.resource		= rt305x_wifi_resources,
 	.num_resources	= ARRAY_SIZE(rt305x_wifi_resources),
 	.dev = {
-		.platform_data = NULL,
+		.platform_data = &rt305x_wifi_data,
 	}
 };
 
 void __init rt305x_register_wifi(void)
 {
+	rt305x_wifi_data.eeprom_file_name = "RT305X.eeprom";
 	platform_device_register(&rt305x_wifi_device);
 }
 
@@ -216,4 +220,51 @@ void __init rt305x_register_wdt(void)
 	rt305x_sysc_wr(t, SYSC_REG_SYSTEM_CONFIG);
 
 	platform_device_register(&rt305x_wdt_device);
+}
+
+static struct resource rt305x_spi_resources[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= RT305X_SPI_BASE,
+		.end	= RT305X_SPI_BASE + RT305X_SPI_SIZE - 1,
+	},
+};
+
+static struct platform_device rt305x_spi_device = {
+	.name		= "ramips-spi",
+	.id		= 0,
+	.resource	= rt305x_spi_resources,
+	.num_resources	= ARRAY_SIZE(rt305x_spi_resources),
+};
+
+void __init rt305x_register_spi(struct spi_board_info *info, int n)
+{
+	spi_register_board_info(info, n);
+	platform_device_register(&rt305x_spi_device);
+}
+
+static struct resource rt305x_usb_resources[] = {
+	{
+		.start	= RT305X_OTG_BASE,
+		.end	= RT305X_OTG_BASE + 0x3FFFF,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= RT305X_INTC_IRQ_OTG,
+		.end	= RT305X_INTC_IRQ_OTG,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rt305x_usb_device = {
+	.name			= "dwc_otg",
+	.resource		= rt305x_usb_resources,
+	.num_resources	= ARRAY_SIZE(rt305x_usb_resources),
+	.dev = {
+		.platform_data = NULL,
+	}
+};
+
+void __init rt305x_register_usb(void)
+{
+	platform_device_register(&rt305x_usb_device);
 }

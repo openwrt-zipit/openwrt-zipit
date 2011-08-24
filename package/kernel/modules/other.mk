@@ -108,6 +108,37 @@ endef
 $(eval $(call KernelPackage,eeprom-93cx6))
 
 
+define KernelPackage/eeprom-at24
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=EEPROM AT24 support
+  KCONFIG:=CONFIG_EEPROM_AT24
+  DEPENDS:=+kmod-i2c-core
+  FILES:=$(LINUX_DIR)/drivers/misc/eeprom/at24.ko
+  AUTOLOAD:=$(call AutoLoad,60,at24)
+endef
+
+define KernelPackage/eeprom-at24/description
+ Kernel module for most I2C EEPROMs
+endef
+
+$(eval $(call KernelPackage,eeprom-at24))
+
+
+define KernelPackage/eeprom-at25
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=EEPROM AT25 support
+  KCONFIG:=CONFIG_EEPROM_AT25
+  FILES:=$(LINUX_DIR)/drivers/misc/eeprom/at25.ko
+  AUTOLOAD:=$(call AutoLoad,61,at25)
+endef
+
+define KernelPackage/eeprom-at25/description
+ Kernel module for most SPI EEPROMs
+endef
+
+$(eval $(call KernelPackage,eeprom-at25))
+
+
 define KernelPackage/gpio-cs5535
   SUBMENU:=$(OTHER_MENU)
   TITLE:=AMD CS5535/CS5536 GPIO driver
@@ -127,7 +158,7 @@ $(eval $(call KernelPackage,gpio-cs5535))
 define KernelPackage/gpio-cs5535-new
   SUBMENU:=$(OTHER_MENU)
   TITLE:=AMD CS5535/CS5536 GPIO driver with improved sysfs support
-  DEPENDS:=@TARGET_x86 @!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32)
+  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd @!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32)
   KCONFIG:=CONFIG_GPIO_CS5535
   FILES:=$(LINUX_DIR)/drivers/gpio/cs5535-gpio.ko
   AUTOLOAD:=$(call AutoLoad,50,cs5535-gpio)
@@ -221,12 +252,11 @@ $(eval $(call KernelPackage,gpio-nxp-74hc164))
 define KernelPackage/hid
   SUBMENU:=$(OTHER_MENU)
   TITLE:=HID Devices
-  DEPENDS:=+kmod-input-evdev
   KCONFIG:=CONFIG_HID
   FILES:=$(LINUX_DIR)/drivers/hid/hid.ko
   AUTOLOAD:=$(call AutoLoad,61,hid)
   $(call SetDepends/hid)
-  $(call AddDepends/input)
+  $(call AddDepends/input,+kmod-input-evdev)
 endef
 
 define KernelPackage/hid/description
@@ -517,6 +547,29 @@ endef
 $(eval $(call KernelPackage,ssb))
 
 
+define KernelPackage/bcma
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=BCMA support
+  DEPENDS:=@PCI_SUPPORT @!TARGET_brcm47xx
+  KCONFIG:=\
+	CONFIG_BCMA \
+	CONFIG_BCMA_POSSIBLE=y \
+	CONFIG_BCMA_BLOCKIO=y \
+	CONFIG_BCMA_HOST_PCI_POSSIBLE=y \
+	CONFIG_BCMA_HOST_PCI=y \
+	CONFIG_BCMA_DRIVER_PCI_HOSTMODE=n \
+	CONFIG_BCMA_DEBUG=n
+  FILES:=$(LINUX_DIR)/drivers/bcma/bcma.ko
+  AUTOLOAD:=$(call AutoLoad,29,bcma)
+endef
+
+define KernelPackage/bcma/description
+   Bus driver for Broadcom specific Advanced Microcontroller Bus Architecture.
+endef
+
+$(eval $(call KernelPackage,bcma))
+
+
 define KernelPackage/wdt-geode
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Geode/LX Watchdog timer
@@ -552,7 +605,7 @@ $(eval $(call KernelPackage,cs5535-clockevt))
 define KernelPackage/cs5535-mfgpt
   SUBMENU:=$(OTHER_MENU)
   TITLE:=CS5535/6 Multifunction General Purpose Timer
-  DEPENDS:=@TARGET_x86
+  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd
   KCONFIG:=CONFIG_CS5535_MFGPT
   FILES:=$(LINUX_DIR)/drivers/misc/cs5535-mfgpt.ko
   AUTOLOAD:=$(call AutoLoad,45,cs5535-mfgpt)
@@ -563,6 +616,24 @@ define KernelPackage/cs5535-mfgpt/description
 endef
 
 $(eval $(call KernelPackage,cs5535-mfgpt))
+
+
+define KernelPackage/cs5535-mfd
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=CS5535/6 Multifunction General Purpose Driver
+  DEPENDS:=@TARGET_x86
+  KCONFIG:=CONFIG_MFD_CS5535
+  FILES:= \
+  	$(LINUX_DIR)/drivers/mfd/mfd-core.ko \
+  	$(LINUX_DIR)/drivers/mfd/cs5535-mfd.ko 
+  AUTOLOAD:=$(call AutoLoad,44,mfd-core cs5535-mfd)
+endef
+
+define KernelPackage/cs5535-mfd/description
+  Core driver for CS5535/CS5536 MFD functions.
+endef
+
+$(eval $(call KernelPackage,cs5535-mfd))
 
 
 define KernelPackage/wdt-omap
@@ -660,7 +731,7 @@ $(eval $(call KernelPackage,pwm-gpio))
 
 define KernelPackage/rtc-core
   SUBMENU:=$(OTHER_MENU)
-  DEPENDS:=@(!LINUX_3_0||BROKEN)
+  DEPENDS:=@LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39||BROKEN
   TITLE:=Real Time Clock class support
   KCONFIG:=CONFIG_RTC_CLASS
   FILES:=$(LINUX_DIR)/drivers/rtc/rtc-core.ko

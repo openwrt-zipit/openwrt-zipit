@@ -51,15 +51,15 @@ static struct mtd_partition dir_300b_partitions[] = {
 	}, {
 		.name	= "kernel",
 		.offset	= 0x050000,
-		.size	= 0x0f0000,
+		.size	= 0x0d0000,
 	}, {
 		.name	= "rootfs",
-		.offset	= 0x140000,
-		.size	= 0x2B0000,
+		.offset	= 0x120000,
+		.size	= 0x2e0000,
 	}, {
-		.name	= "openwrt",
+		.name	= "firmware",
 		.offset	= 0x050000,
-		.size	= 0x3a0000,
+		.size	= 0x3b0000,
 	}
 };
 #endif /* CONFIG_MTD_PARTITIONS */
@@ -73,15 +73,15 @@ static struct physmap_flash_data dir_300b_flash_data = {
 
 static struct gpio_led dir_300b_leds_gpio[] __initdata = {
 	{
-		.name		= "dir-300b:amber:status",
+		.name		= "d-link:amber:status",
 		.gpio		= DIR_300B_GPIO_LED_STATUS_AMBER,
 		.active_low	= 1,
 	}, {
-		.name		= "dir-300b:green:status",
+		.name		= "d-link:green:status",
 		.gpio		= DIR_300B_GPIO_LED_STATUS_GREEN,
 		.active_low	= 1,
 	}, {
-		.name		= "dir-300b:blue:wps",
+		.name		= "d-link:blue:wps",
 		.gpio		= DIR_300B_GPIO_LED_WPS,
 		.active_low	= 1,
 	}
@@ -110,6 +110,7 @@ static void __init dir_300b_init(void)
 	rt305x_gpio_init(RT305X_GPIO_MODE_GPIO << RT305X_GPIO_MODE_UART0_SHIFT);
 
 	rt305x_register_flash(0, &dir_300b_flash_data);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_LLLLW;
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(dir_300b_leds_gpio),
 				  dir_300b_leds_gpio);
@@ -120,5 +121,11 @@ static void __init dir_300b_init(void)
 	rt305x_register_wdt();
 }
 
-MIPS_MACHINE(RAMIPS_MACH_DIR_300_REVB, "DIR-300-revB", "D-Link DIR-300 revB",
+MIPS_MACHINE(RAMIPS_MACH_DIR_300_B1, "DIR-300-B1", "D-Link DIR-300 B1",
+	     dir_300b_init);
+
+MIPS_MACHINE(RAMIPS_MACH_DIR_600_B1, "DIR-600-B1", "D-Link DIR-600 B1",
+	     dir_300b_init);
+
+MIPS_MACHINE(RAMIPS_MACH_DIR_600_B2, "DIR-600-B2", "D-Link DIR-600 B2",
 	     dir_300b_init);

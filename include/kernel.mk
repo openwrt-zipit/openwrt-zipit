@@ -14,7 +14,9 @@ ifeq ($(DUMP),1)
   BOARD?=<BOARD>
   LINUX_VERSION?=<LINUX_VERSION>
 else
-  export GCC_HONOUR_COPTS=s
+  ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
+    export GCC_HONOUR_COPTS=s
+  endif
 
   LINUX_KMOD_SUFFIX=ko
 
@@ -33,7 +35,12 @@ else
   KERNEL_BUILD_DIR ?= $(BUILD_DIR_BASE)/linux-$(BOARD)$(if $(SUBTARGET),_$(SUBTARGET))$(if $(BUILD_SUFFIX),_$(BUILD_SUFFIX))
   LINUX_DIR ?= $(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION)
 
-  MODULES_SUBDIR:=lib/modules/$(LINUX_VERSION)
+  LINUX_UNAME_VERSION:=$(if $(word 3,$(subst ., ,$(KERNEL_BASE))),$(KERNEL_BASE),$(KERNEL_BASE).0)
+  ifneq ($(findstring -rc,$(LINUX_VERSION)),)
+    LINUX_UNAME_VERSION:=$(LINUX_UNAME_VERSION)-$(strip $(lastword $(subst -, ,$(LINUX_VERSION))))
+  endif
+
+  MODULES_SUBDIR:=lib/modules/$(LINUX_UNAME_VERSION)
   TARGET_MODULES_DIR := $(LINUX_TARGET_DIR)/$(MODULES_SUBDIR)
 
   LINUX_KERNEL:=$(KERNEL_BUILD_DIR)/vmlinux
@@ -41,7 +48,11 @@ else
   LINUX_SOURCE:=linux-$(LINUX_VERSION).tar.bz2
   TESTING:=$(if $(findstring -rc,$(LINUX_VERSION)),/testing,)
   ifeq ($(call qstrip,$(CONFIG_EXTERNAL_KERNEL_TREE)),)
-    LINUX_SITE:=@KERNEL/linux/kernel/v$(KERNEL)$(TESTING)
+    ifeq ($(word 1,$(subst ., ,$(KERNEL_BASE))),3)
+      LINUX_SITE:=@KERNEL/linux/kernel/v3.x$(TESTING)
+    else
+      LINUX_SITE:=@KERNEL/linux/kernel/v$(KERNEL)$(TESTING)
+    endif
   endif
 
   ifneq ($(TARGET_BUILD),1)
@@ -139,8 +150,8 @@ $(call KernelPackage/$(1)/config)
   ifneq ($(if $(filter-out %=y %=n %=m,$(KCONFIG)),$(filter m,$(foreach c,$(filter-out %=y %=n %=m,$(KCONFIG)),$($(c)))),.),)
     ifneq ($(strip $(FILES)),)
       define Package/kmod-$(1)/install
-		  mkdir -p $$(1)/lib/modules/$(LINUX_VERSION)
-		  $(CP) -L $$(FILES) $$(1)/lib/modules/$(LINUX_VERSION)/
+		  mkdir -p $$(1)/$(MODULES_SUBDIR)
+		  $(CP) -L $$(FILES) $$(1)/$(MODULES_SUBDIR)/
 		  $(call ModuleAutoLoad,$(1),$$(1),$(AUTOLOAD))
 		  $(call KernelPackage/$(1)/install,$$(1))
       endef

@@ -14,7 +14,7 @@ platform_check_image() {
 	[ "$ARGC" -gt 1 ] && return 1
 
 	case "$board" in
-	dir-300-b1 | fonera20n | v22rw-2x2 | whr-g300n | hw550-3g | mofi3500-3gn)
+	dir-300-b1 | dir-600-b1 | dir-600-b2 | fonera20n | nbg-419n | nw718 | rt-g32-b1 | v22rw-2x2 | whr-g300n | hw550-3g | mofi3500-3gn)
 		[ "$magic" != "2705" ] && {
 			echo "Invalid image type."
 			return 1
@@ -36,3 +36,13 @@ platform_do_upgrade() {
 		;;
 	esac
 }
+
+disable_watchdog() {
+	killall watchdog
+	( ps | grep -v 'grep' | grep '/dev/watchdog' ) && {
+		echo 'Could not disable watchdog'
+		return 1
+	}
+}
+
+append sysupgrade_pre_upgrade disable_watchdog

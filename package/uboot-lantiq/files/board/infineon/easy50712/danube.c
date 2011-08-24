@@ -180,6 +180,7 @@ int checkboard (void)
 	switch (part_num)
 	{
 	case 0x129:
+	case 0x12B:
 	case 0x12D:
 		puts("Danube/Twinpass/Vinax-VE ");
 		break;
@@ -233,6 +234,19 @@ static int external_switch_init(void)
 	unsigned short chipid0=0xdead, chipid1=0xbeef;
 	static char * const name = "lq_cpe_eth";
 
+#ifdef CONFIG_SWITCH_PORT0
+	*DANUBE_GPIO_P0_ALTSEL0 &= ~(1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P0_ALTSEL1 &= ~(1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P0_OD |= (1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P0_DIR |= (1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P0_OUT |= (1<<CONFIG_SWITCH_PIN);
+#elif defined(CONFIG_SWITCH_PORT1)
+	*DANUBE_GPIO_P1_ALTSEL0 &= ~(1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P1_ALTSEL1 &= ~(1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P1_OD |= (1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P1_DIR |= (1<<CONFIG_SWITCH_PIN);
+	*DANUBE_GPIO_P1_OUT |= (1<<CONFIG_SWITCH_PIN);
+#endif
 #ifdef CLK_OUT2_25MHZ
 	*DANUBE_GPIO_P0_DIR=0x0000ae78;
 	*DANUBE_GPIO_P0_ALTSEL0=0x00008078;
@@ -315,8 +329,36 @@ static int external_switch_init(void)
 }
 #endif /* CONFIG_EXTRA_SWITCH */
 
+int board_gpio_init(void)
+{
+#ifdef CONFIG_BUTTON_PORT0
+	*DANUBE_GPIO_P0_ALTSEL0 &= ~(1<<CONFIG_BUTTON_PIN);
+	*DANUBE_GPIO_P0_ALTSEL1 &= ~(1<<CONFIG_BUTTON_PIN);
+	*DANUBE_GPIO_P0_DIR &= ~(1<<CONFIG_BUTTON_PIN);
+	if(!!(*DANUBE_GPIO_P0_IN & (1<<CONFIG_BUTTON_PIN)) == CONFIG_BUTTON_LEVEL)
+	{
+		printf("button is pressed\n");
+		setenv("bootdelay", "0");
+		setenv("bootcmd", "httpd");
+	}
+#elif defined(CONFIG_BUTTON_PORT1)
+	*DANUBE_GPIO_P1_ALTSEL0 &= ~(1<<CONFIG_BUTTON_PIN);
+	*DANUBE_GPIO_P1_ALTSEL1 &= ~(1<<CONFIG_BUTTON_PIN);
+	*DANUBE_GPIO_P1_DIR &= ~(1<<CONFIG_BUTTON_PIN);
+	if(!!(*DANUBE_GPIO_P1_IN & (1<<CONFIG_BUTTON_PIN)) == CONFIG_BUTTON_LEVEL)
+	{
+		printf("button is pressed\n");
+		setenv("bootdelay", "0");
+		setenv("bootcmd", "httpd");
+	}
+#endif
+}
+
 int board_eth_init(bd_t *bis)
 {
+
+	board_gpio_init();
+
 #if defined(CONFIG_IFX_ETOP)
 
 	*DANUBE_PMU_PWDCR &= 0xFFFFEFDF;

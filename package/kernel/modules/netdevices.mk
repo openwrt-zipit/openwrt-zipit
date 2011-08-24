@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2008 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -22,7 +22,8 @@ define KernelPackage/skge
   SUBMENU:=$(NETWORK_DEVICES_MENU)
   TITLE:=SysKonnect Yukon support
   DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_SKGE
+  KCONFIG:=CONFIG_SKGE \
+    CONFIG_SKGE_DEBUG=n
   FILES:=$(LINUX_DIR)/drivers/net/skge.$(LINUX_KMOD_SUFFIX)
   AUTOLOAD:=$(call AutoLoad,50,skge)
 endef
@@ -105,7 +106,7 @@ $(eval $(call KernelPackage,swconfig))
 define KernelPackage/mvswitch
   SUBMENU:=$(NETWORK_DEVICES_MENU)
   TITLE:=Marvell 88E6060 switch support
-  DEPENDS:=+kmod-swconfig
+  DEPENDS:=+kmod-swconfig @!LINUX_3_1||BROKEN
   KCONFIG:=CONFIG_MVSWITCH_PHY
   FILES:=$(LINUX_DIR)/drivers/net/phy/mvswitch.ko
   AUTOLOAD:=$(call AutoLoad,41,mvswitch)
@@ -623,3 +624,19 @@ define KernelPackage/ifb/description
 endef
 
 $(eval $(call KernelPackage,ifb))
+
+define KernelPackage/dm9000
+  SUBMENU:=$(NETWORK_DEVICES_MENU)
+  TITLE:=Davicom 9000 Ethernet support
+  KCONFIG:=CONFIG_DM9000 \
+    CONFIG_DM9000_DEBUGLEVEL=4 \
+    CONFIG_DM9000_FORCE_SIMPLE_PHY_POLL=y
+  FILES:=$(LINUX_DIR)/drivers/net/dm9000.ko
+  AUTOLOAD:=$(call AutoLoad,34,dm9000)
+endef
+
+define KernelPackage/dm9000/description
+ Kernel driver for Davicom 9000 Ethernet adapters.
+endef
+
+$(eval $(call KernelPackage,dm9000))

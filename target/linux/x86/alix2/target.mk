@@ -1,5 +1,5 @@
 BOARDNAME:=PCEngines alix2
-FEATURES:=squashfs pci usb gpio
+FEATURES:=squashfs jffs2 ext4 pci usb gpio
 ALIX2_GPIO = $(if $(findstring 2.6.32,$(LINUX_VERSION)),gpio-cs5535,gpio-cs5535-new)
 DEFAULT_PACKAGES += \
 			kmod-crypto-hw-geode kmod-crypto-ocf \
@@ -13,12 +13,16 @@ DEFAULT_PACKAGES += \
 			kmod-i2c-scx200-acb \
 			kmod-usb-core kmod-usb2 kmod-usb-ohci \
 			kmod-cfg80211 kmod-mac80211 \
-			kmod-mppe kmod-pppoe kmod-pppoa kmod-pppo2ltp \
+			kmod-mppe kmod-pppoe kmod-pppo2ltp \
 			kmod-ath kmod-ath5k kmod-ath9k \
-			bridge ppp ppp-mod-pppoa \
+			kmod-leds-gpio kmod-input-gpio-buttons \
+			kmod-ledtrig-heartbeat kmod-ledtrig-gpio \
+			kmod-ledtrig-netdev kmod-ledtrig-netfilter \
+			kmod-cpu-msr \
+			bridge ppp \
 			libopenssl ocf-crypto-headers zlib hwclock hostapd
 
-CS5535_MASK:=0x0a400000
+CS5535_MASK:=0x0b000042
 
 CFLAGS += -Os -pipe -march=k6-2 -fno-align-functions -fno-align-loops -fno-align-jumps \
 	  -fno-align-labels
@@ -27,6 +31,6 @@ define Target/Description
 	Build firmware images for PCEngines alix2 board
 endef
 
-define KernelPackage/$(GEOS_GPIO)/install
-     sed -i -r -e 's/$$$$$$$$/ mask=$(CS5535_MASK)/' $(1)/etc/modules.d/??-$(GEOS_GPIO)
+define KernelPackage/$(ALIX2_GPIO)/install
+     sed -i -r -e 's/$$$$$$$$/ mask=$(CS5535_MASK)/' $(1)/etc/modules.d/??-$(ALIX2_GPIO)
 endef

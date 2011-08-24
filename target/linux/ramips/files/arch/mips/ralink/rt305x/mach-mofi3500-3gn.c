@@ -127,6 +127,7 @@ static void __init mofi3500_3gn_init(void)
 	rt305x_gpio_init(MOFI3500_3GN_GPIO_MODE);
 
 	rt305x_register_flash(0, &mofi3500_3gn_flash_data);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_LLLLW;
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(mofi3500_3gn_leds_gpio),
 				  mofi3500_3gn_leds_gpio);
@@ -135,6 +136,7 @@ static void __init mofi3500_3gn_init(void)
 				     mofi3500_3gn_gpio_buttons);
 	rt305x_register_wifi();
 	rt305x_register_wdt();
+	rt305x_register_usb();
 }
 
 MIPS_MACHINE(RAMIPS_MACH_MOFI3500_3GN, "MOFI3500-3GN", "MoFi Network MOFI3500-3GN",

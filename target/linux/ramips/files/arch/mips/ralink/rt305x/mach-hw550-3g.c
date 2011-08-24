@@ -53,19 +53,15 @@ static struct mtd_partition hw550_3g_partitions[] = {
 	}, {
 		.name	= "kernel",
 		.offset	= 0x050000,
-		.size	= 0x180000,
+		.size	= 0x0d0000,
 	}, {
 		.name	= "rootfs",
-		.offset	= 0x1d0000,
-		.size	= 0x580000,
-	}, {
-		.name	= "user",
-		.offset	= 0x750000,
-		.size	= 0x0b0000,
+		.offset	= 0x120000,
+		.size	= 0x6e0000,
 	}, {
 		.name	= "firmware",
 		.offset	= 0x050000,
-		.size	= 0x700000,
+		.size	= 0x7b0000,
 	}
 };
 #endif /* CONFIG_MTD_PARTITIONS */
@@ -131,6 +127,7 @@ static void __init hw550_3g_init(void)
 	rt305x_gpio_init(HW550_3G_GPIO_MODE);
 
 	rt305x_register_flash(0, &hw550_3g_flash_data);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_LLLLW;
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(hw550_3g_leds_gpio),
 				  hw550_3g_leds_gpio);
@@ -139,6 +136,7 @@ static void __init hw550_3g_init(void)
 				     hw550_3g_gpio_buttons);
 	rt305x_register_wifi();
 	rt305x_register_wdt();
+	rt305x_register_usb();
 }
 
 MIPS_MACHINE(RAMIPS_MACH_HW550_3G, "HW550-3G", "Aztech HW550-3G",

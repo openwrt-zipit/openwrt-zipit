@@ -1,694 +1,107 @@
---- a/drivers/net/wireless/ath/ath9k/hw.h
-+++ b/drivers/net/wireless/ath/ath9k/hw.h
-@@ -603,7 +603,6 @@ struct ath_hw_ops {
- 				     int power_off);
- 	void (*rx_enable)(struct ath_hw *ah);
- 	void (*set_desc_link)(void *ds, u32 link);
--	void (*get_desc_link)(void *ds, u32 **link);
- 	bool (*calibrate)(struct ath_hw *ah,
- 			  struct ath9k_channel *chan,
- 			  u8 rxchainmask,
---- a/drivers/net/wireless/ath/ath9k/main.c
-+++ b/drivers/net/wireless/ath/ath9k/main.c
-@@ -62,8 +62,6 @@ static bool ath9k_has_pending_frames(str
+--- a/drivers/net/wireless/b43/main.c
++++ b/drivers/net/wireless/b43/main.c
+@@ -320,6 +320,10 @@ static void b43_wireless_core_exit(struc
+ static int b43_wireless_core_init(struct b43_wldev *dev);
+ static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev);
+ static int b43_wireless_core_start(struct b43_wldev *dev);
++static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
++				    struct ieee80211_vif *vif,
++				    struct ieee80211_bss_conf *conf,
++				    u32 changed);
  
- 	if (txq->axq_depth || !list_empty(&txq->axq_acq))
- 		pending = true;
--	else if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
--		pending = !list_empty(&txq->txq_fifo_pending);
- 
- 	spin_unlock_bh(&txq->axq_lock);
- 	return pending;
---- a/drivers/net/wireless/ath/ath9k/ar9002_mac.c
-+++ b/drivers/net/wireless/ath/ath9k/ar9002_mac.c
-@@ -28,11 +28,6 @@ static void ar9002_hw_set_desc_link(void
- 	((struct ath_desc*) ds)->ds_link = ds_link;
- }
- 
--static void ar9002_hw_get_desc_link(void *ds, u32 **ds_link)
--{
--	*ds_link = &((struct ath_desc *)ds)->ds_link;
--}
--
- static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
+ static int b43_ratelimit(struct b43_wl *wl)
  {
- 	u32 isr = 0;
-@@ -437,7 +432,6 @@ void ar9002_hw_attach_mac_ops(struct ath
+@@ -3754,14 +3758,24 @@ static int b43_op_config(struct ieee8021
+ 	struct ieee80211_conf *conf = &hw->conf;
+ 	int antenna;
+ 	int err = 0;
++	bool reload_bss = false;
  
- 	ops->rx_enable = ar9002_hw_rx_enable;
- 	ops->set_desc_link = ar9002_hw_set_desc_link;
--	ops->get_desc_link = ar9002_hw_get_desc_link;
- 	ops->get_isr = ar9002_hw_get_isr;
- 	ops->fill_txdesc = ar9002_hw_fill_txdesc;
- 	ops->proc_txdesc = ar9002_hw_proc_txdesc;
---- a/drivers/net/wireless/ath/ath9k/ar9003_mac.c
-+++ b/drivers/net/wireless/ath/ath9k/ar9003_mac.c
-@@ -43,13 +43,6 @@ static void ar9003_hw_set_desc_link(void
- 	ads->ctl10 |= ar9003_calc_ptr_chksum(ads);
- }
+ 	mutex_lock(&wl->mutex);
  
--static void ar9003_hw_get_desc_link(void *ds, u32 **ds_link)
--{
--	struct ar9003_txc *ads = ds;
--
--	*ds_link = &ads->link;
--}
--
- static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
- {
- 	u32 isr = 0;
-@@ -498,7 +491,6 @@ void ar9003_hw_attach_mac_ops(struct ath
- 
- 	ops->rx_enable = ar9003_hw_rx_enable;
- 	ops->set_desc_link = ar9003_hw_set_desc_link;
--	ops->get_desc_link = ar9003_hw_get_desc_link;
- 	ops->get_isr = ar9003_hw_get_isr;
- 	ops->fill_txdesc = ar9003_hw_fill_txdesc;
- 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
---- a/drivers/net/wireless/ath/ath9k/ath9k.h
-+++ b/drivers/net/wireless/ath/ath9k/ath9k.h
-@@ -179,7 +179,7 @@ enum ATH_AGGR_STATUS {
- struct ath_txq {
- 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
- 	u32 axq_qnum; /* ath9k hardware queue number */
--	u32 *axq_link;
-+	void *axq_link;
- 	struct list_head axq_q;
- 	spinlock_t axq_lock;
- 	u32 axq_depth;
-@@ -188,7 +188,6 @@ struct ath_txq {
- 	bool axq_tx_inprogress;
- 	struct list_head axq_acq;
- 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
--	struct list_head txq_fifo_pending;
- 	u8 txq_headidx;
- 	u8 txq_tailidx;
- 	int pending_frames;
---- a/drivers/net/wireless/ath/ath9k/debug.c
-+++ b/drivers/net/wireless/ath/ath9k/debug.c
-@@ -550,6 +550,7 @@ static ssize_t read_file_xmit(struct fil
- 
- 	PR("MPDUs Queued:    ", queued);
- 	PR("MPDUs Completed: ", completed);
-+	PR("MPDUs XRetried:  ", xretries);
- 	PR("Aggregates:      ", a_aggr);
- 	PR("AMPDUs Queued HW:", a_queued_hw);
- 	PR("AMPDUs Queued SW:", a_queued_sw);
-@@ -587,7 +588,6 @@ static ssize_t read_file_xmit(struct fil
- 
- 	PRQLE("axq_q empty:       ", axq_q);
- 	PRQLE("axq_acq empty:     ", axq_acq);
--	PRQLE("txq_fifo_pending:  ", txq_fifo_pending);
- 	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
- 		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
- 		PRQLE(tmp, txq_fifo[i]);
-@@ -807,7 +807,10 @@ void ath_debug_stat_tx(struct ath_softc
- 		else
- 			TX_STAT_INC(qnum, a_completed);
- 	} else {
--		TX_STAT_INC(qnum, completed);
-+		if (bf_isxretried(bf))
-+			TX_STAT_INC(qnum, xretries);
-+		else
-+			TX_STAT_INC(qnum, completed);
- 	}
- 
- 	if (ts->ts_status & ATH9K_TXERR_FIFO)
---- a/drivers/net/wireless/ath/ath9k/hw-ops.h
-+++ b/drivers/net/wireless/ath/ath9k/hw-ops.h
-@@ -39,11 +39,6 @@ static inline void ath9k_hw_set_desc_lin
- 	ath9k_hw_ops(ah)->set_desc_link(ds, link);
- }
- 
--static inline void ath9k_hw_get_desc_link(struct ath_hw *ah, void *ds,
--					  u32 **link)
--{
--	ath9k_hw_ops(ah)->get_desc_link(ds, link);
--}
- static inline bool ath9k_hw_calibrate(struct ath_hw *ah,
- 				      struct ath9k_channel *chan,
- 				      u8 rxchainmask,
---- a/drivers/net/wireless/ath/ath9k/xmit.c
-+++ b/drivers/net/wireless/ath/ath9k/xmit.c
-@@ -53,7 +53,7 @@ static void ath_tx_complete_buf(struct a
- 				struct ath_txq *txq, struct list_head *bf_q,
- 				struct ath_tx_status *ts, int txok, int sendbar);
- static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
--			     struct list_head *head);
-+			     struct list_head *head, bool internal);
- static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len);
- static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
- 			     struct ath_tx_status *ts, int nframes, int nbad,
-@@ -377,8 +377,7 @@ static void ath_tx_complete_aggr(struct
- 			bf_next = bf->bf_next;
- 
- 			bf->bf_state.bf_type |= BUF_XRETRY;
--			if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) ||
--			    !bf->bf_stale || bf_next != NULL)
-+			if (!bf->bf_stale || bf_next != NULL)
- 				list_move_tail(&bf->list, &bf_head);
- 
- 			ath_tx_rc_status(sc, bf, ts, 1, 1, 0, false);
-@@ -463,20 +462,14 @@ static void ath_tx_complete_aggr(struct
- 			}
- 		}
- 
--		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
--		    bf_next == NULL) {
--			/*
--			 * Make sure the last desc is reclaimed if it
--			 * not a holding desc.
--			 */
--			if (!bf_last->bf_stale)
--				list_move_tail(&bf->list, &bf_head);
--			else
--				INIT_LIST_HEAD(&bf_head);
--		} else {
--			BUG_ON(list_empty(bf_q));
-+		/*
-+		 * Make sure the last desc is reclaimed if it
-+		 * not a holding desc.
-+		 */
-+		if (!bf_last->bf_stale || bf_next != NULL)
- 			list_move_tail(&bf->list, &bf_head);
--		}
-+		else
-+			INIT_LIST_HEAD(&bf_head);
- 
- 		if (!txpending || (tid->state & AGGR_CLEANUP)) {
- 			/*
-@@ -837,7 +830,7 @@ static void ath_tx_sched_aggr(struct ath
- 			bf->bf_state.bf_type &= ~BUF_AGGR;
- 			ath9k_hw_clr11n_aggr(sc->sc_ah, bf->bf_desc);
- 			ath_buf_set_rate(sc, bf, fi->framelen);
--			ath_tx_txqaddbuf(sc, txq, &bf_q);
-+			ath_tx_txqaddbuf(sc, txq, &bf_q, false);
- 			continue;
- 		}
- 
-@@ -849,7 +842,7 @@ static void ath_tx_sched_aggr(struct ath
- 		/* anchor last desc of aggregate */
- 		ath9k_hw_set11n_aggr_last(sc->sc_ah, bf->bf_lastbf->bf_desc);
- 
--		ath_tx_txqaddbuf(sc, txq, &bf_q);
-+		ath_tx_txqaddbuf(sc, txq, &bf_q, false);
- 		TX_STAT_INC(txq->axq_qnum, a_aggr);
- 
- 	} while (txq->axq_ampdu_depth < ATH_AGGR_MIN_QDEPTH &&
-@@ -1085,7 +1078,6 @@ struct ath_txq *ath_txq_setup(struct ath
- 		txq->txq_headidx = txq->txq_tailidx = 0;
- 		for (i = 0; i < ATH_TXFIFO_DEPTH; i++)
- 			INIT_LIST_HEAD(&txq->txq_fifo[i]);
--		INIT_LIST_HEAD(&txq->txq_fifo_pending);
- 	}
- 	return &sc->tx.txq[axq_qnum];
- }
-@@ -1155,13 +1147,8 @@ static bool bf_is_ampdu_not_probing(stru
-     return bf_isampdu(bf) && !(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
- }
- 
--/*
-- * Drain a given TX queue (could be Beacon or Data)
-- *
-- * This assumes output has been stopped and
-- * we do not need to block ath_tx_tasklet.
-- */
--void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
-+static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
-+			       struct list_head *list, bool retry_tx)
- {
- 	struct ath_buf *bf, *lastbf;
- 	struct list_head bf_head;
-@@ -1170,93 +1157,63 @@ void ath_draintxq(struct ath_softc *sc,
- 	memset(&ts, 0, sizeof(ts));
- 	INIT_LIST_HEAD(&bf_head);
- 
--	for (;;) {
--		spin_lock_bh(&txq->axq_lock);
-+	while (!list_empty(list)) {
-+		bf = list_first_entry(list, struct ath_buf, list);
- 
--		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
--			if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
--				txq->txq_headidx = txq->txq_tailidx = 0;
--				spin_unlock_bh(&txq->axq_lock);
--				break;
--			} else {
--				bf = list_first_entry(&txq->txq_fifo[txq->txq_tailidx],
--						      struct ath_buf, list);
--			}
--		} else {
--			if (list_empty(&txq->axq_q)) {
--				txq->axq_link = NULL;
--				spin_unlock_bh(&txq->axq_lock);
--				break;
--			}
--			bf = list_first_entry(&txq->axq_q, struct ath_buf,
--					      list);
--
--			if (bf->bf_stale) {
--				list_del(&bf->list);
--				spin_unlock_bh(&txq->axq_lock);
-+		if (bf->bf_stale) {
-+			list_del(&bf->list);
- 
--				ath_tx_return_buffer(sc, bf);
--				continue;
--			}
-+			ath_tx_return_buffer(sc, bf);
-+			continue;
- 		}
- 
- 		lastbf = bf->bf_lastbf;
--
--		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
--			list_cut_position(&bf_head,
--					  &txq->txq_fifo[txq->txq_tailidx],
--					  &lastbf->list);
--			INCR(txq->txq_tailidx, ATH_TXFIFO_DEPTH);
--		} else {
--			/* remove ath_buf's of the same mpdu from txq */
--			list_cut_position(&bf_head, &txq->axq_q, &lastbf->list);
--		}
-+		list_cut_position(&bf_head, list, &lastbf->list);
- 
- 		txq->axq_depth--;
- 		if (bf_is_ampdu_not_probing(bf))
- 			txq->axq_ampdu_depth--;
--		spin_unlock_bh(&txq->axq_lock);
- 
-+		spin_unlock_bh(&txq->axq_lock);
- 		if (bf_isampdu(bf))
- 			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, 0,
- 					     retry_tx);
- 		else
- 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
-+		spin_lock_bh(&txq->axq_lock);
- 	}
-+}
- 
-+/*
-+ * Drain a given TX queue (could be Beacon or Data)
-+ *
-+ * This assumes output has been stopped and
-+ * we do not need to block ath_tx_tasklet.
-+ */
-+void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
-+{
- 	spin_lock_bh(&txq->axq_lock);
--	txq->axq_tx_inprogress = false;
--	spin_unlock_bh(&txq->axq_lock);
--
- 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
--		spin_lock_bh(&txq->axq_lock);
--		while (!list_empty(&txq->txq_fifo_pending)) {
--			bf = list_first_entry(&txq->txq_fifo_pending,
--					      struct ath_buf, list);
--			list_cut_position(&bf_head,
--					  &txq->txq_fifo_pending,
--					  &bf->bf_lastbf->list);
--			spin_unlock_bh(&txq->axq_lock);
-+		int idx = txq->txq_tailidx;
- 
--			if (bf_isampdu(bf))
--				ath_tx_complete_aggr(sc, txq, bf, &bf_head,
--						     &ts, 0, retry_tx);
--			else
--				ath_tx_complete_buf(sc, bf, txq, &bf_head,
--						    &ts, 0, 0);
--			spin_lock_bh(&txq->axq_lock);
-+		while (!list_empty(&txq->txq_fifo[idx])) {
-+			ath_drain_txq_list(sc, txq, &txq->txq_fifo[idx],
-+					   retry_tx);
++	dev = wl->current_dev;
 +
-+			INCR(idx, ATH_TXFIFO_DEPTH);
- 		}
--		spin_unlock_bh(&txq->axq_lock);
-+		txq->txq_tailidx = idx;
- 	}
- 
-+	txq->axq_link = NULL;
-+	txq->axq_tx_inprogress = false;
-+	ath_drain_txq_list(sc, txq, &txq->axq_q, retry_tx);
+ 	/* Switch the band (if necessary). This might change the active core. */
+ 	err = b43_switch_band(wl, conf->channel);
+ 	if (err)
+ 		goto out_unlock_mutex;
+-	dev = wl->current_dev;
 +
- 	/* flush any pending frames if aggregation is enabled */
--	if (sc->sc_flags & SC_OP_TXAGGR) {
--		if (!retry_tx) {
--			spin_lock_bh(&txq->axq_lock);
--			ath_txq_drain_pending_buffers(sc, txq);
--			spin_unlock_bh(&txq->axq_lock);
--		}
--	}
-+	if ((sc->sc_flags & SC_OP_TXAGGR) && !retry_tx)
-+		ath_txq_drain_pending_buffers(sc, txq);
-+
-+	spin_unlock_bh(&txq->axq_lock);
- }
- 
- bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
-@@ -1370,11 +1327,13 @@ void ath_txq_schedule(struct ath_softc *
-  * assume the descriptors are already chained together by caller.
-  */
- static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
--			     struct list_head *head)
-+			     struct list_head *head, bool internal)
- {
- 	struct ath_hw *ah = sc->sc_ah;
- 	struct ath_common *common = ath9k_hw_common(ah);
--	struct ath_buf *bf;
-+	struct ath_buf *bf, *bf_last;
-+	bool puttxbuf = false;
-+	bool edma;
- 
- 	/*
- 	 * Insert the frame on the outbound list and
-@@ -1384,51 +1343,49 @@ static void ath_tx_txqaddbuf(struct ath_
- 	if (list_empty(head))
- 		return;
- 
-+	edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
- 	bf = list_first_entry(head, struct ath_buf, list);
-+	bf_last = list_entry(head->prev, struct ath_buf, list);
- 
- 	ath_dbg(common, ATH_DBG_QUEUE,
- 		"qnum: %d, txq depth: %d\n", txq->axq_qnum, txq->axq_depth);
- 
--	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
--		if (txq->axq_depth >= ATH_TXFIFO_DEPTH) {
--			list_splice_tail_init(head, &txq->txq_fifo_pending);
--			return;
--		}
--		if (!list_empty(&txq->txq_fifo[txq->txq_headidx]))
--			ath_dbg(common, ATH_DBG_XMIT,
--				"Initializing tx fifo %d which is non-empty\n",
--				txq->txq_headidx);
--		INIT_LIST_HEAD(&txq->txq_fifo[txq->txq_headidx]);
--		list_splice_init(head, &txq->txq_fifo[txq->txq_headidx]);
-+	if (edma && list_empty(&txq->txq_fifo[txq->txq_headidx])) {
-+		list_splice_tail_init(head, &txq->txq_fifo[txq->txq_headidx]);
- 		INCR(txq->txq_headidx, ATH_TXFIFO_DEPTH);
--		TX_STAT_INC(txq->axq_qnum, puttxbuf);
--		ath9k_hw_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
--		ath_dbg(common, ATH_DBG_XMIT, "TXDP[%u] = %llx (%p)\n",
--			txq->axq_qnum, ito64(bf->bf_daddr), bf->bf_desc);
-+		puttxbuf = true;
- 	} else {
- 		list_splice_tail_init(head, &txq->axq_q);
- 
--		if (txq->axq_link == NULL) {
--			TX_STAT_INC(txq->axq_qnum, puttxbuf);
--			ath9k_hw_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
--			ath_dbg(common, ATH_DBG_XMIT, "TXDP[%u] = %llx (%p)\n",
--				txq->axq_qnum, ito64(bf->bf_daddr),
--				bf->bf_desc);
--		} else {
--			*txq->axq_link = bf->bf_daddr;
-+		if (txq->axq_link) {
-+			ath9k_hw_set_desc_link(ah, txq->axq_link, bf->bf_daddr);
- 			ath_dbg(common, ATH_DBG_XMIT,
- 				"link[%u] (%p)=%llx (%p)\n",
- 				txq->axq_qnum, txq->axq_link,
- 				ito64(bf->bf_daddr), bf->bf_desc);
--		}
--		ath9k_hw_get_desc_link(ah, bf->bf_lastbf->bf_desc,
--				       &txq->axq_link);
-+		} else if (!edma)
-+			puttxbuf = true;
-+
-+		txq->axq_link = bf_last->bf_desc;
++	/* Need to reload all settings if the core changed */
++	if (dev != wl->current_dev) {
++		dev = wl->current_dev;
++		changed = ~0;
++		reload_bss = true;
 +	}
 +
-+	if (puttxbuf) {
-+		TX_STAT_INC(txq->axq_qnum, puttxbuf);
-+		ath9k_hw_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-+		ath_dbg(common, ATH_DBG_XMIT, "TXDP[%u] = %llx (%p)\n",
-+			txq->axq_qnum, ito64(bf->bf_daddr), bf->bf_desc);
+ 	phy = &dev->phy;
+ 
+ 	if (conf_is_ht(conf))
+@@ -3822,6 +3836,9 @@ out_mac_enable:
+ out_unlock_mutex:
+ 	mutex_unlock(&wl->mutex);
+ 
++	if (wl->vif && reload_bss)
++		b43_op_bss_info_changed(hw, wl->vif, &wl->vif->bss_conf, ~0);
++
+ 	return err;
+ }
+ 
+@@ -3910,7 +3927,8 @@ static void b43_op_bss_info_changed(stru
+ 	if (changed & BSS_CHANGED_BEACON_INT &&
+ 	    (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+ 	     b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT) ||
+-	     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)))
++	     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) &&
++	    conf->beacon_int)
+ 		b43_set_beacon_int(dev, conf->beacon_int);
+ 
+ 	if (changed & BSS_CHANGED_BASIC_RATES)
+@@ -4691,6 +4709,9 @@ static int b43_op_add_interface(struct i
+  out_mutex_unlock:
+ 	mutex_unlock(&wl->mutex);
+ 
++	if (err == 0)
++		b43_op_bss_info_changed(hw, vif, &vif->bss_conf, ~0);
++
+ 	return err;
+ }
+ 
+@@ -4761,6 +4782,9 @@ static int b43_op_start(struct ieee80211
+  out_mutex_unlock:
+ 	mutex_unlock(&wl->mutex);
+ 
++	/* reload configuration */
++	b43_op_config(hw, ~0);
++
+ 	return err;
+ }
+ 
+@@ -4917,10 +4941,18 @@ out:
+ 	if (err)
+ 		wl->current_dev = NULL; /* Failed to init the dev. */
+ 	mutex_unlock(&wl->mutex);
+-	if (err)
++
++	if (err) {
+ 		b43err(wl, "Controller restart FAILED\n");
+-	else
+-		b43info(wl, "Controller restarted\n");
++		return;
 +	}
 +
-+	if (!edma) {
- 		TX_STAT_INC(txq->axq_qnum, txstart);
- 		ath9k_hw_txstart(ah, txq->axq_qnum);
- 	}
--	txq->axq_depth++;
--	if (bf_is_ampdu_not_probing(bf))
--		txq->axq_ampdu_depth++;
++	/* reload configuration */
++	b43_op_config(wl->hw, ~0);
++	if (wl->vif)
++		b43_op_bss_info_changed(wl->hw, wl->vif, &wl->vif->bss_conf, ~0);
 +
-+	if (!internal) {
-+		txq->axq_depth++;
-+		if (bf_is_ampdu_not_probing(bf))
-+			txq->axq_ampdu_depth++;
-+	}
++	b43info(wl, "Controller restarted\n");
  }
  
- static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
-@@ -1470,7 +1427,7 @@ static void ath_tx_send_ampdu(struct ath
- 	TX_STAT_INC(txctl->txq->axq_qnum, a_queued_hw);
- 	bf->bf_lastbf = bf;
- 	ath_buf_set_rate(sc, bf, fi->framelen);
--	ath_tx_txqaddbuf(sc, txctl->txq, &bf_head);
-+	ath_tx_txqaddbuf(sc, txctl->txq, &bf_head, false);
- }
- 
- static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
-@@ -1490,7 +1447,7 @@ static void ath_tx_send_normal(struct at
- 	bf->bf_lastbf = bf;
- 	fi = get_frame_info(bf->bf_mpdu);
- 	ath_buf_set_rate(sc, bf, fi->framelen);
--	ath_tx_txqaddbuf(sc, txq, bf_head);
-+	ath_tx_txqaddbuf(sc, txq, bf_head, false);
- 	TX_STAT_INC(txq->axq_qnum, queued);
- }
- 
-@@ -2077,6 +2034,38 @@ static void ath_tx_rc_status(struct ath_
- 	tx_info->status.rates[tx_rateindex].count = ts->ts_longretry + 1;
- }
- 
-+static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
-+				  struct ath_tx_status *ts, struct ath_buf *bf,
-+				  struct list_head *bf_head)
-+{
-+	int txok;
-+
-+	txq->axq_depth--;
-+	txok = !(ts->ts_status & ATH9K_TXERR_MASK);
-+	txq->axq_tx_inprogress = false;
-+	if (bf_is_ampdu_not_probing(bf))
-+		txq->axq_ampdu_depth--;
-+
-+	spin_unlock_bh(&txq->axq_lock);
-+
-+	if (!bf_isampdu(bf)) {
-+		/*
-+		 * This frame is sent out as a single frame.
-+		 * Use hardware retry status for this frame.
-+		 */
-+		if (ts->ts_status & ATH9K_TXERR_XRETRY)
-+			bf->bf_state.bf_type |= BUF_XRETRY;
-+		ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok, true);
-+		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok, 0);
-+	} else
-+		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok, true);
-+
-+	spin_lock_bh(&txq->axq_lock);
-+
-+	if (sc->sc_flags & SC_OP_TXAGGR)
-+		ath_txq_schedule(sc, txq);
-+}
-+
- static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
- {
- 	struct ath_hw *ah = sc->sc_ah;
-@@ -2085,20 +2074,18 @@ static void ath_tx_processq(struct ath_s
- 	struct list_head bf_head;
- 	struct ath_desc *ds;
- 	struct ath_tx_status ts;
--	int txok;
- 	int status;
- 
- 	ath_dbg(common, ATH_DBG_QUEUE, "tx queue %d (%x), link %p\n",
- 		txq->axq_qnum, ath9k_hw_gettxbuf(sc->sc_ah, txq->axq_qnum),
- 		txq->axq_link);
- 
-+	spin_lock_bh(&txq->axq_lock);
- 	for (;;) {
--		spin_lock_bh(&txq->axq_lock);
- 		if (list_empty(&txq->axq_q)) {
- 			txq->axq_link = NULL;
- 			if (sc->sc_flags & SC_OP_TXAGGR)
- 				ath_txq_schedule(sc, txq);
--			spin_unlock_bh(&txq->axq_lock);
- 			break;
- 		}
- 		bf = list_first_entry(&txq->axq_q, struct ath_buf, list);
-@@ -2114,13 +2101,11 @@ static void ath_tx_processq(struct ath_s
- 		bf_held = NULL;
- 		if (bf->bf_stale) {
- 			bf_held = bf;
--			if (list_is_last(&bf_held->list, &txq->axq_q)) {
--				spin_unlock_bh(&txq->axq_lock);
-+			if (list_is_last(&bf_held->list, &txq->axq_q))
- 				break;
--			} else {
--				bf = list_entry(bf_held->list.next,
--						struct ath_buf, list);
--			}
-+
-+			bf = list_entry(bf_held->list.next, struct ath_buf,
-+					list);
- 		}
- 
- 		lastbf = bf->bf_lastbf;
-@@ -2128,10 +2113,9 @@ static void ath_tx_processq(struct ath_s
- 
- 		memset(&ts, 0, sizeof(ts));
- 		status = ath9k_hw_txprocdesc(ah, ds, &ts);
--		if (status == -EINPROGRESS) {
--			spin_unlock_bh(&txq->axq_lock);
-+		if (status == -EINPROGRESS)
- 			break;
--		}
-+
- 		TX_STAT_INC(txq->axq_qnum, txprocdesc);
- 
- 		/*
-@@ -2145,42 +2129,14 @@ static void ath_tx_processq(struct ath_s
- 			list_cut_position(&bf_head,
- 				&txq->axq_q, lastbf->list.prev);
- 
--		txq->axq_depth--;
--		txok = !(ts.ts_status & ATH9K_TXERR_MASK);
--		txq->axq_tx_inprogress = false;
--		if (bf_held)
-+		if (bf_held) {
- 			list_del(&bf_held->list);
--
--		if (bf_is_ampdu_not_probing(bf))
--			txq->axq_ampdu_depth--;
--
--		spin_unlock_bh(&txq->axq_lock);
--
--		if (bf_held)
- 			ath_tx_return_buffer(sc, bf_held);
--
--		if (!bf_isampdu(bf)) {
--			/*
--			 * This frame is sent out as a single frame.
--			 * Use hardware retry status for this frame.
--			 */
--			if (ts.ts_status & ATH9K_TXERR_XRETRY)
--				bf->bf_state.bf_type |= BUF_XRETRY;
--			ath_tx_rc_status(sc, bf, &ts, 1, txok ? 0 : 1, txok, true);
- 		}
- 
--		if (bf_isampdu(bf))
--			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, txok,
--					     true);
--		else
--			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, txok, 0);
--
--		spin_lock_bh(&txq->axq_lock);
--
--		if (sc->sc_flags & SC_OP_TXAGGR)
--			ath_txq_schedule(sc, txq);
--		spin_unlock_bh(&txq->axq_lock);
-+		ath_tx_process_buffer(sc, txq, &ts, bf, &bf_head);
- 	}
-+	spin_unlock_bh(&txq->axq_lock);
- }
- 
- static void ath_tx_complete_poll_work(struct work_struct *work)
-@@ -2237,17 +2193,16 @@ void ath_tx_tasklet(struct ath_softc *sc
- 
- void ath_tx_edma_tasklet(struct ath_softc *sc)
- {
--	struct ath_tx_status txs;
-+	struct ath_tx_status ts;
- 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
- 	struct ath_hw *ah = sc->sc_ah;
- 	struct ath_txq *txq;
- 	struct ath_buf *bf, *lastbf;
- 	struct list_head bf_head;
- 	int status;
--	int txok;
- 
- 	for (;;) {
--		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&txs);
-+		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&ts);
- 		if (status == -EINPROGRESS)
- 			break;
- 		if (status == -EIO) {
-@@ -2257,12 +2212,13 @@ void ath_tx_edma_tasklet(struct ath_soft
- 		}
- 
- 		/* Skip beacon completions */
--		if (txs.qid == sc->beacon.beaconq)
-+		if (ts.qid == sc->beacon.beaconq)
- 			continue;
- 
--		txq = &sc->tx.txq[txs.qid];
-+		txq = &sc->tx.txq[ts.qid];
- 
- 		spin_lock_bh(&txq->axq_lock);
-+
- 		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
- 			spin_unlock_bh(&txq->axq_lock);
- 			return;
-@@ -2275,41 +2231,21 @@ void ath_tx_edma_tasklet(struct ath_soft
- 		INIT_LIST_HEAD(&bf_head);
- 		list_cut_position(&bf_head, &txq->txq_fifo[txq->txq_tailidx],
- 				  &lastbf->list);
--		INCR(txq->txq_tailidx, ATH_TXFIFO_DEPTH);
--		txq->axq_depth--;
--		txq->axq_tx_inprogress = false;
--		if (bf_is_ampdu_not_probing(bf))
--			txq->axq_ampdu_depth--;
--		spin_unlock_bh(&txq->axq_lock);
- 
--		txok = !(txs.ts_status & ATH9K_TXERR_MASK);
--
--		if (!bf_isampdu(bf)) {
--			if (txs.ts_status & ATH9K_TXERR_XRETRY)
--				bf->bf_state.bf_type |= BUF_XRETRY;
--			ath_tx_rc_status(sc, bf, &txs, 1, txok ? 0 : 1, txok, true);
--		}
--
--		if (bf_isampdu(bf))
--			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &txs,
--					     txok, true);
--		else
--			ath_tx_complete_buf(sc, bf, txq, &bf_head,
--					    &txs, txok, 0);
-+		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
-+			INCR(txq->txq_tailidx, ATH_TXFIFO_DEPTH);
- 
--		spin_lock_bh(&txq->axq_lock);
-+			if (!list_empty(&txq->axq_q)) {
-+				struct list_head bf_q;
- 
--		if (!list_empty(&txq->txq_fifo_pending)) {
--			INIT_LIST_HEAD(&bf_head);
--			bf = list_first_entry(&txq->txq_fifo_pending,
--					      struct ath_buf, list);
--			list_cut_position(&bf_head,
--					  &txq->txq_fifo_pending,
--					  &bf->bf_lastbf->list);
--			ath_tx_txqaddbuf(sc, txq, &bf_head);
--		} else if (sc->sc_flags & SC_OP_TXAGGR)
--			ath_txq_schedule(sc, txq);
-+				INIT_LIST_HEAD(&bf_q);
-+				txq->axq_link = NULL;
-+				list_splice_tail_init(&txq->axq_q, &bf_q);
-+				ath_tx_txqaddbuf(sc, txq, &bf_q, true);
-+			}
-+		}
- 
-+		ath_tx_process_buffer(sc, txq, &ts, bf, &bf_head);
- 		spin_unlock_bh(&txq->axq_lock);
- 	}
- }
+ static int b43_setup_bands(struct b43_wldev *dev,
 --- a/net/mac80211/agg-rx.c
 +++ b/net/mac80211/agg-rx.c
-@@ -161,6 +161,8 @@ static void ieee80211_send_addba_resp(st
+@@ -184,6 +184,8 @@ static void ieee80211_send_addba_resp(st
  		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
  	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
  		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
@@ -709,7 +122,7 @@
  		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
  	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
  		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
-@@ -388,7 +389,8 @@ int ieee80211_start_tx_ba_session(struct
+@@ -398,7 +399,8 @@ int ieee80211_start_tx_ba_session(struct
  	 */
  	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
  	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
@@ -857,7 +270,7 @@
  static void ieee80211_iface_work(struct work_struct *work)
  {
  	struct ieee80211_sub_if_data *sdata =
-@@ -822,6 +863,9 @@ static void ieee80211_iface_work(struct
+@@ -822,6 +863,9 @@ static void ieee80211_iface_work(struct 
  				break;
  			ieee80211_mesh_rx_queued_mgmt(sdata, skb);
  			break;
@@ -869,7 +282,7 @@
  			break;
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -2137,7 +2137,8 @@ ieee80211_rx_h_action(struct ieee80211_r
+@@ -2147,7 +2147,8 @@ ieee80211_rx_h_action(struct ieee80211_r
  		 */
  		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
  		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
@@ -879,7 +292,7 @@
  			break;
  
  		/* verify action_code is present */
-@@ -2335,13 +2336,14 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_
+@@ -2345,13 +2346,14 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_
  
  	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
  	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
@@ -896,7 +309,7 @@
  		break;
  	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
  	case cpu_to_le16(IEEE80211_STYPE_DISASSOC):
-@@ -2680,10 +2682,16 @@ static int prepare_for_handlers(struct i
+@@ -2692,10 +2694,16 @@ static int prepare_for_handlers(struct i
  		}
  		break;
  	case NL80211_IFTYPE_WDS:
@@ -933,55 +346,636 @@
  	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
  	WLAN_STA_MFP		= 1<<10,
  	WLAN_STA_BLOCK_BA	= 1<<11,
---- a/drivers/net/wireless/ath/ath9k/debug.h
-+++ b/drivers/net/wireless/ath/ath9k/debug.h
-@@ -116,6 +116,7 @@ struct ath_tx_stats {
- 	u32 tx_bytes_all;
- 	u32 queued;
- 	u32 completed;
-+	u32 xretries;
- 	u32 a_aggr;
- 	u32 a_queued_hw;
- 	u32 a_queued_sw;
---- a/drivers/net/wireless/ath/ath9k/ar9003_eeprom.c
-+++ b/drivers/net/wireless/ath/ath9k/ar9003_eeprom.c
-@@ -4645,10 +4645,16 @@ static void ar9003_hw_set_power_per_rate
- 	case 1:
- 		break;
- 	case 2:
--		scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-+		if (scaledPower > REDUCE_SCALED_POWER_BY_TWO_CHAIN)
-+			scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-+		else
-+			scaledPower = 0;
- 		break;
- 	case 3:
--		scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-+		if (scaledPower > REDUCE_SCALED_POWER_BY_THREE_CHAIN)
-+			scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-+		else
-+			scaledPower = 0;
- 		break;
+--- a/drivers/net/wireless/ath/ath9k/xmit.c
++++ b/drivers/net/wireless/ath/ath9k/xmit.c
+@@ -551,7 +551,8 @@ static void ath_tx_complete_aggr(struct 
+ 		if (clear_filter)
+ 			tid->ac->clear_ps_filter = true;
+ 		list_splice(&bf_pending, &tid->buf_q);
+-		ath_tx_queue_tid(txq, tid);
++		if (!an->sleeping)
++			ath_tx_queue_tid(txq, tid);
+ 		spin_unlock_bh(&txq->axq_lock);
  	}
  
---- a/drivers/net/wireless/ath/ath9k/eeprom_9287.c
-+++ b/drivers/net/wireless/ath/ath9k/eeprom_9287.c
-@@ -524,10 +524,16 @@ static void ath9k_hw_set_ar9287_power_pe
- 	case 1:
- 		break;
- 	case 2:
--		scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-+		if (scaledPower > REDUCE_SCALED_POWER_BY_TWO_CHAIN)
-+			scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-+		else
-+			scaledPower = 0;
- 		break;
- 	case 3:
--		scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-+		if (scaledPower > REDUCE_SCALED_POWER_BY_THREE_CHAIN)
-+			scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-+		else
-+			scaledPower = 0;
- 		break;
+@@ -643,8 +644,10 @@ static u32 ath_lookup_rate(struct ath_so
+  * meet the minimum required mpdudensity.
+  */
+ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
+-				  struct ath_buf *bf, u16 frmlen)
++				  struct ath_buf *bf, u16 frmlen,
++				  bool first_subfrm)
+ {
++#define FIRST_DESC_NDELIMS 60
+ 	struct sk_buff *skb = bf->bf_mpdu;
+ 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+ 	u32 nsymbits, nsymbols;
+@@ -667,6 +670,13 @@ static int ath_compute_num_delims(struct
+ 		ndelim += ATH_AGGR_ENCRYPTDELIM;
+ 
+ 	/*
++	 * Add delimiter when using RTS/CTS with aggregation
++	 * and non enterprise AR9003 card
++	 */
++	if (first_subfrm)
++		ndelim = max(ndelim, FIRST_DESC_NDELIMS);
++
++	/*
+ 	 * Convert desired mpdu density from microeconds to bytes based
+ 	 * on highest rate in rate series (i.e. first rate) to determine
+ 	 * required minimum length for subframe. Take into account
+@@ -755,7 +765,6 @@ static enum ATH_AGGR_STATUS ath_tx_form_
+ 			status = ATH_AGGR_LIMITED;
+ 			break;
+ 		}
+-		nframes++;
+ 
+ 		/* add padding for previous frame to aggregation length */
+ 		al += bpad + al_delta;
+@@ -764,9 +773,11 @@ static enum ATH_AGGR_STATUS ath_tx_form_
+ 		 * Get the delimiters needed to meet the MPDU
+ 		 * density for this node.
+ 		 */
+-		ndelim = ath_compute_num_delims(sc, tid, bf_first, fi->framelen);
++		ndelim = ath_compute_num_delims(sc, tid, bf_first, fi->framelen,
++						!nframes);
+ 		bpad = PADBYTES(al_delta) + (ndelim << 2);
+ 
++		nframes++;
+ 		bf->bf_next = NULL;
+ 		ath9k_hw_set_desc_link(sc->sc_ah, bf->bf_desc, 0);
+ 
+@@ -1413,7 +1424,8 @@ static void ath_tx_send_ampdu(struct ath
+ 		 */
+ 		TX_STAT_INC(txctl->txq->axq_qnum, a_queued_sw);
+ 		list_add_tail(&bf->list, &tid->buf_q);
+-		ath_tx_queue_tid(txctl->txq, tid);
++		if (!txctl->an || !txctl->an->sleeping)
++			ath_tx_queue_tid(txctl->txq, tid);
+ 		return;
  	}
- 	scaledPower = max((u16)0, scaledPower);
+ 
+@@ -1572,9 +1584,9 @@ u8 ath_txchainmask_reduction(struct ath_
+ {
+ 	struct ath_hw *ah = sc->sc_ah;
+ 	struct ath9k_channel *curchan = ah->curchan;
+-	if ((sc->sc_flags & SC_OP_ENABLE_APM) &&
+-			(curchan->channelFlags & CHANNEL_5GHZ) &&
+-			(chainmask == 0x7) && (rate < 0x90))
++	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) &&
++	    (curchan->channelFlags & CHANNEL_5GHZ) &&
++	    (chainmask == 0x7) && (rate < 0x90))
+ 		return 0x3;
+ 	else
+ 		return chainmask;
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -421,6 +421,7 @@ struct station_parameters {
+  * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
+  * @STATION_INFO_BSS_PARAM: @bss_param filled
+  * @STATION_INFO_CONNECTED_TIME: @connected_time filled
++ * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
+  */
+ enum station_info_flags {
+ 	STATION_INFO_INACTIVE_TIME	= 1<<0,
+@@ -439,7 +440,8 @@ enum station_info_flags {
+ 	STATION_INFO_SIGNAL_AVG		= 1<<13,
+ 	STATION_INFO_RX_BITRATE		= 1<<14,
+ 	STATION_INFO_BSS_PARAM          = 1<<15,
+-	STATION_INFO_CONNECTED_TIME	= 1<<16
++	STATION_INFO_CONNECTED_TIME	= 1<<16,
++	STATION_INFO_ASSOC_REQ_IES	= 1<<17
+ };
+ 
+ /**
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -2236,7 +2236,7 @@ static int nl80211_send_station(struct s
+ 	}
+ 	nla_nest_end(msg, sinfoattr);
+ 
+-	if (sinfo->assoc_req_ies)
++	if (sinfo->filled & STATION_INFO_ASSOC_REQ_IES)
+ 		NLA_PUT(msg, NL80211_ATTR_IE, sinfo->assoc_req_ies_len,
+ 			sinfo->assoc_req_ies);
+ 
+--- a/drivers/net/wireless/ath/ath9k/ar9003_mac.c
++++ b/drivers/net/wireless/ath/ath9k/ar9003_mac.c
+@@ -415,36 +415,12 @@ static void ar9003_hw_set11n_ratescenari
+ static void ar9003_hw_set11n_aggr_first(struct ath_hw *ah, void *ds,
+ 					u32 aggrLen)
+ {
+-#define FIRST_DESC_NDELIMS 60
+ 	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
+ 
+ 	ads->ctl12 |= (AR_IsAggr | AR_MoreAggr);
+ 
+-	if (ah->ent_mode & AR_ENT_OTP_MPSD) {
+-		u32 ctl17, ndelim;
+-		/*
+-		 * Add delimiter when using RTS/CTS with aggregation
+-		 * and non enterprise AR9003 card
+-		 */
+-		ctl17 = ads->ctl17;
+-		ndelim = MS(ctl17, AR_PadDelim);
+-
+-		if (ndelim < FIRST_DESC_NDELIMS) {
+-			aggrLen += (FIRST_DESC_NDELIMS - ndelim) * 4;
+-			ndelim = FIRST_DESC_NDELIMS;
+-		}
+-
+-		ctl17 &= ~AR_AggrLen;
+-		ctl17 |= SM(aggrLen, AR_AggrLen);
+-
+-		ctl17 &= ~AR_PadDelim;
+-		ctl17 |= SM(ndelim, AR_PadDelim);
+-
+-		ads->ctl17 = ctl17;
+-	} else {
+-		ads->ctl17 &= ~AR_AggrLen;
+-		ads->ctl17 |= SM(aggrLen, AR_AggrLen);
+-	}
++	ads->ctl17 &= ~AR_AggrLen;
++	ads->ctl17 |= SM(aggrLen, AR_AggrLen);
+ }
+ 
+ static void ar9003_hw_set11n_aggr_middle(struct ath_hw *ah, void *ds,
+--- a/drivers/net/wireless/ath/ath9k/main.c
++++ b/drivers/net/wireless/ath/ath9k/main.c
+@@ -565,7 +565,6 @@ set_timer:
+ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
+ {
+ 	struct ath_node *an;
+-	struct ath_hw *ah = sc->sc_ah;
+ 	an = (struct ath_node *)sta->drv_priv;
+ 
+ #ifdef CONFIG_ATH9K_DEBUGFS
+@@ -574,9 +573,6 @@ static void ath_node_attach(struct ath_s
+ 	spin_unlock(&sc->nodes_lock);
+ 	an->sta = sta;
+ #endif
+-	if ((ah->caps.hw_caps) & ATH9K_HW_CAP_APM)
+-		sc->sc_flags |= SC_OP_ENABLE_APM;
+-
+ 	if (sc->sc_flags & SC_OP_TXAGGR) {
+ 		ath_tx_node_init(sc, an);
+ 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+@@ -826,11 +822,9 @@ irqreturn_t ath_isr(int irq, void *dev)
+ 	if (status & ATH9K_INT_TXURN)
+ 		ath9k_hw_updatetxtriglevel(ah, true);
+ 
+-	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+-		if (status & ATH9K_INT_RXEOL) {
+-			ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+-			ath9k_hw_set_interrupts(ah, ah->imask);
+-		}
++	if (status & ATH9K_INT_RXEOL) {
++		ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
++		ath9k_hw_set_interrupts(ah, ah->imask);
+ 	}
+ 
+ 	if (status & ATH9K_INT_MIB) {
+@@ -1680,6 +1674,7 @@ static int ath9k_config(struct ieee80211
+ 
+ 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+ 		struct ieee80211_channel *curchan = hw->conf.channel;
++		struct ath9k_channel old_chan;
+ 		int pos = curchan->hw_value;
+ 		int old_pos = -1;
+ 		unsigned long flags;
+@@ -1696,15 +1691,25 @@ static int ath9k_config(struct ieee80211
+ 			"Set channel: %d MHz type: %d\n",
+ 			curchan->center_freq, conf->channel_type);
+ 
+-		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
+-					  curchan, conf->channel_type);
+-
+ 		/* update survey stats for the old channel before switching */
+ 		spin_lock_irqsave(&common->cc_lock, flags);
+ 		ath_update_survey_stats(sc);
+ 		spin_unlock_irqrestore(&common->cc_lock, flags);
+ 
+ 		/*
++		 * Preserve the current channel values, before updating
++		 * the same channel
++		 */
++		if (old_pos == pos) {
++			memcpy(&old_chan, &sc->sc_ah->channels[pos],
++				sizeof(struct ath9k_channel));
++			ah->curchan = &old_chan;
++		}
++
++		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
++					  curchan, conf->channel_type);
++
++		/*
+ 		 * If the operating channel changes, change the survey in-use flags
+ 		 * along with it.
+ 		 * Reset the survey data for the new channel, unless we're switching
+--- a/drivers/net/wireless/ath/ath9k/recv.c
++++ b/drivers/net/wireless/ath/ath9k/recv.c
+@@ -761,7 +761,7 @@ static struct ath_buf *ath_get_next_rx_b
+ 	 * on.  All this is necessary because of our use of
+ 	 * a self-linked list to avoid rx overruns.
+ 	 */
+-	ret = ath9k_hw_rxprocdesc(ah, ds, rs, 0);
++	ret = ath9k_hw_rxprocdesc(ah, ds, rs);
+ 	if (ret == -EINPROGRESS) {
+ 		struct ath_rx_status trs;
+ 		struct ath_buf *tbf;
+@@ -787,7 +787,7 @@ static struct ath_buf *ath_get_next_rx_b
+ 		 */
+ 
+ 		tds = tbf->bf_desc;
+-		ret = ath9k_hw_rxprocdesc(ah, tds, &trs, 0);
++		ret = ath9k_hw_rxprocdesc(ah, tds, &trs);
+ 		if (ret == -EINPROGRESS)
+ 			return NULL;
+ 	}
+@@ -1978,5 +1978,10 @@ requeue:
+ 
+ 	spin_unlock_bh(&sc->rx.rxbuflock);
+ 
++	if (!(ah->imask & ATH9K_INT_RXEOL)) {
++		ah->imask |= (ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
++		ath9k_hw_set_interrupts(ah, ah->imask);
++	}
++
+ 	return 0;
+ }
+--- a/drivers/net/wireless/ath/ath9k/mac.c
++++ b/drivers/net/wireless/ath/ath9k/mac.c
+@@ -345,21 +345,8 @@ int ath9k_hw_setuptxqueue(struct ath_hw 
+ 	}
+ 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
+ 	qi->tqi_type = type;
+-	if (qinfo == NULL) {
+-		qi->tqi_qflags =
+-			TXQ_FLAG_TXOKINT_ENABLE
+-			| TXQ_FLAG_TXERRINT_ENABLE
+-			| TXQ_FLAG_TXDESCINT_ENABLE | TXQ_FLAG_TXURNINT_ENABLE;
+-		qi->tqi_aifs = INIT_AIFS;
+-		qi->tqi_cwmin = ATH9K_TXQ_USEDEFAULT;
+-		qi->tqi_cwmax = INIT_CWMAX;
+-		qi->tqi_shretry = INIT_SH_RETRY;
+-		qi->tqi_lgretry = INIT_LG_RETRY;
+-		qi->tqi_physCompBuf = 0;
+-	} else {
+-		qi->tqi_physCompBuf = qinfo->tqi_physCompBuf;
+-		(void) ath9k_hw_set_txq_props(ah, q, qinfo);
+-	}
++	qi->tqi_physCompBuf = qinfo->tqi_physCompBuf;
++	(void) ath9k_hw_set_txq_props(ah, q, qinfo);
+ 
+ 	return q;
+ }
+@@ -564,7 +551,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw
+ EXPORT_SYMBOL(ath9k_hw_resettxqueue);
+ 
+ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+-			struct ath_rx_status *rs, u64 tsf)
++			struct ath_rx_status *rs)
+ {
+ 	struct ar5416_desc ads;
+ 	struct ar5416_desc *adsp = AR5416DESC(ds);
+--- a/drivers/net/wireless/ath/ath9k/mac.h
++++ b/drivers/net/wireless/ath/ath9k/mac.h
+@@ -687,7 +687,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw 
+ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
+ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
+ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+-			struct ath_rx_status *rs, u64 tsf);
++			struct ath_rx_status *rs);
+ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
+ 			  u32 size, u32 flags);
+ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
+--- a/drivers/net/wireless/ath/ath9k/ar9003_calib.c
++++ b/drivers/net/wireless/ath/ath9k/ar9003_calib.c
+@@ -839,20 +839,8 @@ static bool ar9003_hw_init_cal(struct at
+ 			       struct ath9k_channel *chan)
+ {
+ 	struct ath_common *common = ath9k_hw_common(ah);
+-	struct ath9k_hw_capabilities *pCap = &ah->caps;
+-	int val;
+ 	bool txiqcal_done = false;
+ 
+-	val = REG_READ(ah, AR_ENT_OTP);
+-	ath_dbg(common, ATH_DBG_CALIBRATE, "ath9k: AR_ENT_OTP 0x%x\n", val);
+-
+-	/* Configure rx/tx chains before running AGC/TxiQ cals */
+-	if (val & AR_ENT_OTP_CHAIN2_DISABLE)
+-		ar9003_hw_set_chain_masks(ah, 0x3, 0x3);
+-	else
+-		ar9003_hw_set_chain_masks(ah, pCap->rx_chainmask,
+-					  pCap->tx_chainmask);
+-
+ 	/* Do Tx IQ Calibration */
+ 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1,
+ 		      AR_PHY_TX_IQCAL_CONTROL_1_IQCORR_I_Q_COFF_DELPT,
+@@ -887,9 +875,6 @@ static bool ar9003_hw_init_cal(struct at
+ 	if (txiqcal_done)
+ 		ar9003_hw_tx_iq_cal_post_proc(ah);
+ 
+-	/* Revert chainmasks to their original values before NF cal */
+-	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
+-
+ 	ath9k_hw_start_nfcal(ah, true);
+ 
+ 	/* Initialize list pointers */
+--- a/drivers/net/wireless/ath/ath9k/ar9003_phy.c
++++ b/drivers/net/wireless/ath/ath9k/ar9003_phy.c
+@@ -540,7 +540,7 @@ static void ar9003_hw_init_bb(struct ath
+ 	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+ }
+ 
+-void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
++static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
+ {
+ 	switch (rx) {
+ 	case 0x5:
+--- a/drivers/net/wireless/ath/ath9k/ar9003_phy.h
++++ b/drivers/net/wireless/ath/ath9k/ar9003_phy.h
+@@ -1124,6 +1124,4 @@
+ #define AR_PHY_CL_TAB_CL_GAIN_MOD		0x1f
+ #define AR_PHY_CL_TAB_CL_GAIN_MOD_S		0
+ 
+-void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
+-
+ #endif  /* AR9003_PHY_H */
+--- a/drivers/net/wireless/ath/ath9k/ath9k.h
++++ b/drivers/net/wireless/ath/ath9k/ath9k.h
+@@ -558,8 +558,7 @@ struct ath_ant_comb {
+ #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
+ #define SC_OP_BT_SCAN		     BIT(13)
+ #define SC_OP_ANI_RUN		     BIT(14)
+-#define SC_OP_ENABLE_APM	     BIT(15)
+-#define SC_OP_PRIM_STA_VIF	     BIT(16)
++#define SC_OP_PRIM_STA_VIF	     BIT(15)
+ 
+ /* Powersave flags */
+ #define PS_WAIT_FOR_BEACON        BIT(0)
+@@ -664,7 +663,6 @@ extern int led_blink;
+ extern bool is_ath9k_unloaded;
+ 
+ irqreturn_t ath_isr(int irq, void *dev);
+-void ath9k_init_crypto(struct ath_softc *sc);
+ int ath9k_init_device(u16 devid, struct ath_softc *sc,
+ 		    const struct ath_bus_ops *bus_ops);
+ void ath9k_deinit_device(struct ath_softc *sc);
+--- a/drivers/net/wireless/ath/ath9k/common.c
++++ b/drivers/net/wireless/ath/ath9k/common.c
+@@ -169,6 +169,32 @@ void ath9k_cmn_update_txpow(struct ath_h
+ }
+ EXPORT_SYMBOL(ath9k_cmn_update_txpow);
+ 
++void ath9k_cmn_init_crypto(struct ath_hw *ah)
++{
++	struct ath_common *common = ath9k_hw_common(ah);
++	int i = 0;
++
++	/* Get the hardware key cache size. */
++	common->keymax = AR_KEYTABLE_SIZE;
++
++	/*
++	 * Check whether the separate key cache entries
++	 * are required to handle both tx+rx MIC keys.
++	 * With split mic keys the number of stations is limited
++	 * to 27 otherwise 59.
++	 */
++	if (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
++		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
++
++	/*
++	 * Reset the key cache since some parts do not
++	 * reset the contents on initial power up.
++	 */
++	for (i = 0; i < common->keymax; i++)
++		ath_hw_keyreset(common, (u16) i);
++}
++EXPORT_SYMBOL(ath9k_cmn_init_crypto);
++
+ static int __init ath9k_cmn_init(void)
+ {
+ 	return 0;
+--- a/drivers/net/wireless/ath/ath9k/common.h
++++ b/drivers/net/wireless/ath/ath9k/common.h
+@@ -62,3 +62,4 @@ void ath9k_cmn_btcoex_bt_stomp(struct at
+ 				  enum ath_stomp_type stomp_type);
+ void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
+ 			    u16 new_txpow, u16 *txpower);
++void ath9k_cmn_init_crypto(struct ath_hw *ah);
+--- a/drivers/net/wireless/ath/ath9k/htc_drv_init.c
++++ b/drivers/net/wireless/ath/ath9k/htc_drv_init.c
+@@ -572,25 +572,6 @@ err:
+ 	return -EINVAL;
+ }
+ 
+-static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
+-{
+-	struct ath_common *common = ath9k_hw_common(priv->ah);
+-	int i = 0;
+-
+-	/* Get the hardware key cache size. */
+-	common->keymax = AR_KEYTABLE_SIZE;
+-
+-	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+-		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+-
+-	/*
+-	 * Reset the key cache since some parts do not
+-	 * reset the contents on initial power up.
+-	 */
+-	for (i = 0; i < common->keymax; i++)
+-		ath_hw_keyreset(common, (u16) i);
+-}
+-
+ static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
+ {
+ 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
+@@ -720,7 +701,7 @@ static int ath9k_init_priv(struct ath9k_
+ 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
+ 		priv->cur_beacon_conf.bslot[i] = NULL;
+ 
+-	ath9k_init_crypto(priv);
++	ath9k_cmn_init_crypto(ah);
+ 	ath9k_init_channels_rates(priv);
+ 	ath9k_init_misc(priv);
+ 
+--- a/drivers/net/wireless/ath/ath9k/init.c
++++ b/drivers/net/wireless/ath/ath9k/init.c
+@@ -404,31 +404,6 @@ fail:
+ 	return error;
+ }
+ 
+-void ath9k_init_crypto(struct ath_softc *sc)
+-{
+-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+-	int i = 0;
+-
+-	/* Get the hardware key cache size. */
+-	common->keymax = AR_KEYTABLE_SIZE;
+-
+-	/*
+-	 * Reset the key cache since some parts do not
+-	 * reset the contents on initial power up.
+-	 */
+-	for (i = 0; i < common->keymax; i++)
+-		ath_hw_keyreset(common, (u16) i);
+-
+-	/*
+-	 * Check whether the separate key cache entries
+-	 * are required to handle both tx+rx MIC keys.
+-	 * With split mic keys the number of stations is limited
+-	 * to 27 otherwise 59.
+-	 */
+-	if (sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+-		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+-}
+-
+ static int ath9k_init_btcoex(struct ath_softc *sc)
+ {
+ 	struct ath_txq *txq;
+@@ -630,7 +605,7 @@ static int ath9k_init_softc(u16 devid, s
+ 	if (ret)
+ 		goto err_btcoex;
+ 
+-	ath9k_init_crypto(sc);
++	ath9k_cmn_init_crypto(sc->sc_ah);
+ 	ath9k_init_misc(sc);
+ 
+ 	return 0;
+--- a/drivers/net/wireless/ath/ath9k/pci.c
++++ b/drivers/net/wireless/ath/ath9k/pci.c
+@@ -129,7 +129,7 @@ static void ath_pci_aspm_init(struct ath
+ 		return;
+ 
+ 	parent = pdev->bus->self;
+-	if (WARN_ON(!parent))
++	if (!parent)
+ 		return;
+ 
+ 	pos = pci_pcie_cap(parent);
+@@ -338,7 +338,7 @@ static int ath_pci_resume(struct device 
+ 	   * semi-random values after suspend/resume.
+ 	   */
+ 	ath9k_ps_wakeup(sc);
+-	ath9k_init_crypto(sc);
++	ath9k_cmn_init_crypto(sc->sc_ah);
+ 	ath9k_ps_restore(sc);
+ 
+ 	sc->ps_idle = true;
+--- a/drivers/net/wireless/ath/ath9k/calib.c
++++ b/drivers/net/wireless/ath/ath9k/calib.c
+@@ -82,7 +82,6 @@ static void ath9k_hw_update_nfcal_hist_b
+ 					      int16_t *nfarray)
+ {
+ 	struct ath_common *common = ath9k_hw_common(ah);
+-	struct ieee80211_conf *conf = &common->hw->conf;
+ 	struct ath_nf_limits *limit;
+ 	struct ath9k_nfcal_hist *h;
+ 	bool high_nf_mid = false;
+@@ -94,7 +93,7 @@ static void ath9k_hw_update_nfcal_hist_b
+ 
+ 	for (i = 0; i < NUM_NF_READINGS; i++) {
+ 		if (!(chainmask & (1 << i)) ||
+-		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
++		    ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(ah->curchan)))
+ 			continue;
+ 
+ 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
+--- a/drivers/net/wireless/ath/ath9k/debug.c
++++ b/drivers/net/wireless/ath/ath9k/debug.c
+@@ -1163,6 +1163,59 @@ static const struct file_operations fops
+ 	.llseek = default_llseek,/* read accesses f_pos */
+ };
+ 
++static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
++				    size_t count, loff_t *ppos)
++{
++	struct ath_softc *sc = file->private_data;
++	struct ath_hw *ah = sc->sc_ah;
++	struct ath9k_nfcal_hist *h = sc->caldata.nfCalHist;
++	struct ath_common *common = ath9k_hw_common(ah);
++	struct ieee80211_conf *conf = &common->hw->conf;
++	u32 len = 0, size = 1500;
++	u32 i, j;
++	ssize_t retval = 0;
++	char *buf;
++	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
++	u8 nread;
++
++	buf = kzalloc(size, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++
++	len += snprintf(buf + len, size - len,
++			"Channel Noise Floor : %d\n", ah->noise);
++	len += snprintf(buf + len, size - len,
++			"Chain | privNF | # Readings | NF Readings\n");
++	for (i = 0; i < NUM_NF_READINGS; i++) {
++		if (!(chainmask & (1 << i)) ||
++		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
++			continue;
++
++		nread = AR_PHY_CCA_FILTERWINDOW_LENGTH - h[i].invalidNFcount;
++		len += snprintf(buf + len, size - len, " %d\t %d\t %d\t\t",
++				i, h[i].privNF, nread);
++		for (j = 0; j < nread; j++)
++			len += snprintf(buf + len, size - len,
++					" %d", h[i].nfCalBuffer[j]);
++		len += snprintf(buf + len, size - len, "\n");
++	}
++
++	if (len > size)
++		len = size;
++
++	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
++	kfree(buf);
++
++	return retval;
++}
++
++static const struct file_operations fops_dump_nfcal = {
++	.read = read_file_dump_nfcal,
++	.open = ath9k_debugfs_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
+ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
+ 				     size_t count, loff_t *ppos)
+ {
+@@ -1262,6 +1315,8 @@ int ath9k_init_debug(struct ath_hw *ah)
+ 			    &ah->config.cwm_ignore_extcca);
+ 	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
+ 			    &fops_regdump);
++	debugfs_create_file("dump_nfcal", S_IRUSR, sc->debug.debugfs_phy, sc,
++			    &fops_dump_nfcal);
+ 	debugfs_create_file("base_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
+ 			    &fops_base_eeprom);
+ 	debugfs_create_file("modal_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
+--- a/drivers/net/wireless/ath/ath9k/ar9003_eeprom.c
++++ b/drivers/net/wireless/ath/ath9k/ar9003_eeprom.c
+@@ -69,7 +69,7 @@ static int ar9003_hw_power_interpolate(i
+ static const struct ar9300_eeprom ar9300_default = {
+ 	.eepromVersion = 2,
+ 	.templateVersion = 2,
+-	.macAddr = {1, 2, 3, 4, 5, 6},
++	.macAddr = {0, 2, 3, 4, 5, 6},
+ 	.custData = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 		     0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+ 	.baseEepHeader = {
+--- a/drivers/net/wireless/ath/ath9k/eeprom_4k.c
++++ b/drivers/net/wireless/ath/ath9k/eeprom_4k.c
+@@ -349,10 +349,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct
+ 	case EEP_ANT_DIV_CTL1:
+ 		return pModal->antdiv_ctl1;
+ 	case EEP_TXGAIN_TYPE:
+-		if (ver_minor >= AR5416_EEP_MINOR_VER_19)
+-			return pBase->txGainType;
+-		else
+-			return AR5416_EEP_TXGAIN_ORIGINAL;
++		return pBase->txGainType;
+ 	default:
+ 		return 0;
+ 	}

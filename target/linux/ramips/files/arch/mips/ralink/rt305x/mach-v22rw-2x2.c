@@ -55,7 +55,7 @@ static struct mtd_partition v22rw_2x2_partitions[] = {
 		.offset	= 0x150000,
 		.size	= 0x2b0000,
 	}, {
-		.name	= "openwrt",
+		.name	= "firmware",
 		.offset	= 0x050000,
 		.size	= 0x3b0000,
 	}
@@ -104,6 +104,7 @@ static void __init v22rw_2x2_init(void)
 	rt305x_gpio_init(RT305X_GPIO_MODE_GPIO << RT305X_GPIO_MODE_UART0_SHIFT);
 
 	rt305x_register_flash(0, &v22rw_2x2_flash_data);
+	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_LLLLW;
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(v22rw_2x2_leds_gpio),
 				  v22rw_2x2_leds_gpio);
@@ -112,6 +113,7 @@ static void __init v22rw_2x2_init(void)
 				     v22rw_2x2_gpio_buttons);
 	rt305x_register_wifi();
 	rt305x_register_wdt();
+	rt305x_register_usb();
 }
 
 MIPS_MACHINE(RAMIPS_MACH_V22RW_2X2, "V22RW-2X2", "Ralink AP-RT3052-V22RW-2X2",

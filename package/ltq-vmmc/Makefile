@@ -22,7 +22,7 @@ define KernelPackage/ltq-vmmc
   SUBMENU:=Voice over IP
   TITLE:=TAPI LL driver for Voice Macro
   URL:=http://www.lantiq.com/
-  DEPENDS:=+kmod-ltq-tapi @TARGET_lantiq_xway
+  DEPENDS:=+kmod-ltq-tapi @TARGET_lantiq
   FILES:=$(PKG_BUILD_DIR)/src/drv_vmmc.ko
   AUTOLOAD:=$(call AutoLoad,25,drv_vmmc)
   MAINTAINER:=John Crispin <blogic@openwrt.org>
@@ -86,6 +86,31 @@ ifeq ($(CONFIG_VOICE_CPE_VMMC_WITH_DEVICE_AR9),y)
   # TODO: add fw/coef
 endif
 
+COEF_SRC:=$(COEF_TARGET)
+
+ifeq ($(CONFIG_VOICE_VMMC_WITH_DEVICE_FALCON),y)
+  CONFIGURE_ARGS += --with-device=FALCON
+  FW_SOURCE:=voip_R1.1.0.6.0-enc.bin
+  FW_MD5SUM:=cd4366a52a8010b76793e3810a4f14b3
+  FW_TARGET:=falcon_voip_fw.bin
+  FW_FILE=fw_voip_falcon-1.1.0.6.0.tar.gz
+  FW_DOWNLOAD:=1
+  COEF_TARGET:=falcon_bbd.bin
+# FXS part
+ifeq ($(CONFIG_LTQ_VOICE_CPE_VMMC_COEF_FALCON_ETSI),y)
+	COEF_SRC:=ETSI_3_10.BIN
+endif
+ifeq ($(CONFIG_LTQ_VOICE_CPE_VMMC_COEF_FALCON_US600R),y)
+	COEF_SRC:=R600_3_10.BIN
+endif
+ifeq ($(CONFIG_LTQ_VOICE_CPE_VMMC_COEF_FALCON_USE_CUSTOM_FILE),y)
+	COEF_SRC:=$(CONFIG_LTQ_VOICE_CPE_VMMC_COEF_FALCON_CUSTOM_FILE)
+endif
+  COEF_FILE:=coef_voip_falcon.tar.gz
+  COEF_MD5SUM:=56c5a838f2bb9bd87d0e8dce271f810b
+  COEF_DOWNLOAD:=1
+endif
+
 ifeq ($(CONFIG_VOICE_CPE_VMMC_WITH_DEVICE_VR9),y)
   CONFIGURE_ARGS += --with-device=VR9
   # TODO: add fw/coef
@@ -118,20 +143,18 @@ define Build/Configure
 	$(call Build/Configure/Default)
 endef
 
-ifdef CONFIG_TARGET_lantiq
-  define Build/InstallDev
+define Build/InstallDev
 	$(INSTALL_DIR) $(1)/usr/include
 	mkdir -p $(1)/usr/include/drv_vmmc
 	$(CP) -v --dereference $(PKG_BUILD_DIR)/include/* $(1)/usr/include/drv_vmmc
 	(cd $(1)/usr/include/drv_vmmc && ln -snf . include)
-  endef
+endef
 
-  define KernelPackage/ltq-vmmc/install
+define KernelPackage/ltq-vmmc/install
 	$(INSTALL_DIR) $(1)/etc/init.d $(1)/$(FW_DIR)
 	$(INSTALL_BIN) ./files/vmmc.init $(1)/etc/init.d/vmmc
 	$(CP) $(PKG_BUILD_DIR)/firmware/$(FW_SOURCE) $(1)/$(FW_DIR)/$(FW_TARGET)
 	$(CP) $(PKG_BUILD_DIR)/coef/$(COEF_SRC) $(1)/$(FW_DIR)/$(COEF_TARGET)
-  endef
-endif
+endef
 
 $(eval $(call KernelPackage,ltq-vmmc))

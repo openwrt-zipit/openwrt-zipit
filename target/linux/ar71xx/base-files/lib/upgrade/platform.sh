@@ -69,14 +69,14 @@ platform_check_image() {
 	[ "$ARGC" -gt 1 ] && return 1
 
 	case "$board" in
-	ap121 | ap121-mini)
-		[ "$magic_long" != "68737173" ] && {
+	ap121 | ap121-mini | ap96 | db120 | zcn-1523h-2 | zcn-1523h-5)
+		[ "$magic" != "68737173" -a "$magic" != "19852003" ] && {
 			echo "Invalid image type."
 			return 1
 		}
 		return 0
 		;;
-	ap81 | ap83 | dir-600-a1 | dir-615-c1 | dir-825-b1 | mzk-w04nu | mzk-w300nh | tew-632brp | wrt400n | bullet-m | nanostation-m | rocket-m | wzr-hp-g300nh | wzr-hp-g301nh | nbg460n_550n_550nh | unifi )
+	ap81 | ap83 | dir-600-a1 | dir-615-c1 | dir-825-b1 | mzk-w04nu | mzk-w300nh | tew-632brp | wrt400n | bullet-m | nanostation-m | rocket-m | wzr-hp-g300nh | wzr-hp-ag300h | nbg460n_550n_550nh | unifi )
 		[ "$magic" != "2705" ] && {
 			echo "Invalid image type."
 			return 1
@@ -106,13 +106,6 @@ platform_check_image() {
 		;;
 	wrt160nl)
 		[ "$magic" != "4e4c" ] && {
-			echo "Invalid image type."
-			return 1
-		}
-		return 0
-		;;
-	zcn-1523h-2 | zcn-1523h-5)
-		[ "$magic" != "6873" -a "$magic" != "1985" ] && {
 			echo "Invalid image type."
 			return 1
 		}

@@ -30,23 +30,35 @@ status_led_off() {
 
 get_status_led() {
 	case $(ramips_board_name) in
-	dir-300-b1)
-		status_led="dir-300b:green:status"
+	dir-300-b1 | dir-600-b1 | dir-600-b2)
+		status_led="d-link:green:status"
 		;;
 	fonera20n)
 		status_led="fonera20n:green:power"
-		;;
-	v22rw-2x2)
-		status_led="v22rw-2x2:green:security"
-		;;
-	whr-g300n)
-		status_led="whr-g300n:red:diag"
 		;;
 	hw550-3g)
 		status_led="hw550-3g:green:status"
 		;;
 	mofi3500-3gn)
 		status_led="mofi3500-3gn:green:status"
+		;;
+	nbg-419n)
+		status_led="nbg-419n:green:power"
+		;;
+	nw718)
+		status_led="nw718:amber:cpu"
+		;;
+	pwh2004)
+		status_led="pwh2004:green:power"
+		;;
+	rt-n15)
+		status_led="rt-n15:blue:power"
+		;;
+	v22rw-2x2)
+		status_led="v22rw-2x2:green:security"
+		;;
+	whr-g300n)
+		status_led="whr-g300n:green:router"
 		;;
 	esac
 }

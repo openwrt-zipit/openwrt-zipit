@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Copyright (C) 2011 OpenWrt.org
+#
+
+nw718_set_macs() {
+	local part
+	local lan_mac
+	local wan_mac
+
+	[ -z $(which maccalc) ] && return
+
+	. /etc/functions.sh
+
+	part=$(find_mtd_part "factory")
+	[ -z $part ] && return
+
+	lan_mac=$(dd bs=1 skip=4 count=6 if=$part 2>/dev/null | maccalc bin2mac)
+	[ -z $lan_mac ] && return
+
+	wan_mac=$(maccalc add $lan_mac 1)
+
+	uci batch <<EOF
+set network.lan.macaddr='$lan_mac'
+set network.wan.macaddr='$wan_mac'
+commit network
+EOF
+}
+
+nw718_set_leds() {
+	uci batch <<EOF
+set system.usb_led=led
+set system.usb_led.name='USB'
+set system.usb_led.sysfs='nw718:amber:usb'
+set system.usb_led.trigger='usbdev'
+set system.usb_led.dev='1-1'
+set system.usb_led.interval='50'
+commit system
+EOF
+}
+
+. /lib/ramips.sh
+
+board=$(ramips_board_name)
+
+if [ "${board}" == "nw718" ]; then
+	nw718_set_leds
+	nw718_set_macs
+fi

@@ -12,10 +12,11 @@ PKG_VERSION:=$(call qstrip,$(CONFIG_UCLIBC_VERSION))
 ifeq ($(PKG_VERSION),0.9.32)
   PKG_SOURCE_URL:=git://git.busybox.net/uClibc
   PKG_SOURCE_PROTO:=git
-  PKG_SOURCE_VERSION:=f6450b67cc92027352367be299cc28dd29cd8486
+  PKG_SOURCE_VERSION:=9152c4d67c763fde5712e2d181d92c0d7e1e2ab9
   PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
   PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-  LIBC_SO_VERSION:=$(PKG_VERSION)-rc3-git
+  PKG_MIRROR_MD5SUM:=723dfa4f1f766cbd675d2c9a8238abb0
+  LIBC_SO_VERSION:=$(PKG_VERSION).1-git
 else
   PKG_SOURCE_URL:=http://www.uclibc.org/downloads
   PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -59,7 +60,9 @@ endef
 GEN_CONFIG=$(SCRIPT_DIR)/kconfig.pl -n \
 	$(if $(wildcard $(CONFIG_DIR)/common),'+' $(CONFIG_DIR)/common) \
 	$(if $(CONFIG_UCLIBC_ENABLE_DEBUG),$(if $(wildcard $(CONFIG_DIR)/debug),'+' $(CONFIG_DIR)/debug)) \
-	$(CONFIG_DIR)/$(ARCH)$(if $(wildcard $(CONFIG_DIR)/$(ARCH).$(BOARD)),.$(BOARD))
+	$(CONFIG_DIR)/$(ARCH)$(strip \
+		$(if $(wildcard $(CONFIG_DIR)/$(ARCH).$(BOARD)),.$(BOARD), \
+			$(if $(CONFIG_HAS_SPE_FPU),$(if $(wildcard $(CONFIG_DIR)/$(ARCH).e500),.e500))))
 
 define Host/Prepare
 	$(call Host/Prepare/Default)
