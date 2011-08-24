@@ -95,6 +95,9 @@
 #define CONFIG_SYS_MEMTEST_START	0x80100000
 #define CONFIG_SYS_MEMTEST_END		0x80800000
 
+#define CONFIG_SILENT_CONSOLE		1		/* Enable support for silent boot */
+#define CONFIG_SYS_DEVICE_NULLDEV	1		/* Enable output sink */
+
 /*
  * Environment
  */
