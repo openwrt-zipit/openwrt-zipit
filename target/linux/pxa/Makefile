@@ -12,7 +12,7 @@ BOARDNAME:=Marvell/Intel PXA2xx
 SUBTARGETS=verdex zipitz2
 MAINTAINER:=Imre Kaloz <kaloz@openwrt.org>
 
-LINUX_VERSION:=2.6.37.6
+LINUX_VERSION:=3.0
 
 include $(INCLUDE_DIR)/target.mk
 
