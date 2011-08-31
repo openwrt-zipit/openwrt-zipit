@@ -194,3 +194,19 @@ define KernelPackage/sound-soc-n810
 endef
 
 $(eval $(call KernelPackage,sound-soc-n810))
+
+
+define KernelPackage/sound-zipit-z2
+  TITLE:=Zipit Z2 sound support
+  KCONFIG:= \
+	CONFIG_SND_PXA2XX_SOC \
+	SND_PXA2XX_SOC_Z2
+  FILES:= \
+	$(LINUX_DIR)/sound/soc/pxa/snd-soc-pxa2xx.ko \
+	$(LINUX_DIR)/sound/arm/snd-pxa2xx-lib.ko
+  AUTOLOAD:=$(call AutoLoad,65,snd-pxa2xx-lib snd-soc-pxa2xx)
+  DEPENDS:=@TARGET_pxa_zipitz2
+  $(call AddDepends/sound)
+endef
+
+$(eval $(call KernelPackage,sound-zipit-z2))
