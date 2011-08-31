@@ -109,11 +109,11 @@ define KernelPackage/misdn
   TITLE:=mISDN (ISDN) Support
   KCONFIG:= \
 	CONFIG_ISDN=y \
-  	CONFIG_MISDN \
+	CONFIG_MISDN \
 	CONFIG_MISDN_DSP \
 	CONFIG_MISDN_L1OIP
   FILES:= \
-  	$(LINUX_DIR)/drivers/isdn/mISDN/mISDN_core.ko \
+	$(LINUX_DIR)/drivers/isdn/mISDN/mISDN_core.ko \
 	$(LINUX_DIR)/drivers/isdn/mISDN/mISDN_dsp.ko \
 	$(LINUX_DIR)/drivers/isdn/mISDN/l1oip.ko
   AUTOLOAD:=$(call AutoLoad,30,mISDN_core mISDN_dsp l1oip)
@@ -174,7 +174,6 @@ $(eval $(call KernelPackage,ipip))
 
 
 IPSEC-m:= \
-	key/af_key \
 	xfrm/xfrm_ipcomp \
 	xfrm/xfrm_user \
 
@@ -194,7 +193,6 @@ endef
 define KernelPackage/ipsec/description
  Kernel modules for IPsec support in both IPv4 and IPv6.
  Includes:
- - af_key
  - xfrm_ipcomp
  - xfrm_user
 endef
@@ -489,7 +487,7 @@ define KernelPackage/pptp
 endef
 
 $(eval $(call KernelPackage,pptp))
-	
+
 
 define KernelPackage/pppol2tp
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
