@@ -403,6 +403,23 @@ endef
 $(eval $(call KernelPackage,input-polldev))
 
 
+define KernelPackage/input-userlevel
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=User level input driver support (uinput)
+  KCONFIG:=CONFIG_INPUT_UINPUT
+  FILES:=$(LINUX_DIR)/drivers/input/misc/uinput.ko
+  AUTOLOAD:=$(call AutoLoad,20,uinput)
+  $(call AddDepends/input)
+endef
+
+define KernelPackage/input-userlevel/description
+ Kernel module for support of user level input devices, via /dev/input/uinput
+endef
+
+$(eval $(call KernelPackage,input-userlevel))
+
+
+
 define KernelPackage/lp
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Parallel port and line printer support
