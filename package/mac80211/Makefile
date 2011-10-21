@@ -10,10 +10,10 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=mac80211
 
-PKG_VERSION:=2011-08-26
+PKG_VERSION:=2011-10-05
 PKG_RELEASE:=1
 PKG_SOURCE_URL:=http://mirror2.openwrt.org/sources
-PKG_MD5SUM:=37218b56e8a30b351662087d68948825
+PKG_MD5SUM:=328dd4c42fb5baa2d96c78009b11af7e
 
 PKG_SOURCE:=compat-wireless-$(PKG_VERSION).tar.bz2
 PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/compat-wireless-$(PKG_VERSION)
@@ -38,7 +38,7 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_B43_N_PHY \
 	CONFIG_ATH_USER_REGD \
 
-CARL9170_FW_VERSION:=1.9.2
+CARL9170_FW_VERSION:=1.9.4
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -97,10 +97,11 @@ Generic IEEE 802.11 Networking Stack (mac80211)
 endef
 
 PKG_LINUX_FIRMWARE_NAME:=linux-firmware
-PKG_LINUX_FIRMWARE_VERSION:=97649b1e5449029c845ebf7500e780a8867c3e89
+PKG_LINUX_FIRMWARE_VERSION:=d543c1d98fc240267ee59fff93f7a0f36d9e2fc3
 PKG_LINUX_FIRMWARE_SOURCE:=$(PKG_LINUX_FIRMWARE_NAME)-$(PKG_LINUX_FIRMWARE_VERSION).tar.bz2
 PKG_LINUX_FIRMWARE_PROTO:=git
-PKG_LINUX_FIRMWARE_SOURCE_URL:=git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+# PKG_LINUX_FIRMWARE_SOURCE_URL:=git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+PKG_LINUX_FIRMWARE_SOURCE_URL:=git://git.infradead.org/users/dwmw2/linux-firmware.git
 PKG_LINUX_FIRMWARE_SUBDIR:=$(PKG_LINUX_FIRMWARE_NAME)-$(PKG_LINUX_FIRMWARE_VERSION)
 
 define Download/linux-firmware
@@ -143,7 +144,7 @@ $(eval $(call Download,p54spi))
 define Download/carl9170
   FILE:=$(CARL9170_FW)-$(CARL9170_FW_VERSION)
   URL:=http://downloads.openwrt.org/sources/
-  MD5SUM:=9e33ac39dcd610aa1ad80bbf4f1abccf
+  MD5SUM:=30e2ae80c33b3008d271556d1a14e3ea
 endef
 $(eval $(call Download,carl9170))
 
@@ -440,7 +441,7 @@ define KernelPackage/ath9k-htc
   DEPENDS+= @USB_SUPPORT +kmod-ath9k-common +kmod-usb-core
   FILES:= \
 	$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath9k/ath9k_htc.ko
-  AUTOLOAD:=$(call AutoLoad,28,ath9k_htc)
+  AUTOLOAD:=$(call AutoLoad,55,ath9k_htc)
 endef
 
 define KernelPackage/ath9k-htc/description
@@ -522,6 +523,25 @@ define KernelPackage/lib80211/description
  - lib80211_crytp_ccmp
 endef
 
+define KernelPackage/libertas-usb
+  $(call KernelPackage/mac80211/Default)
+  DEPENDS+= @USB_SUPPORT +kmod-cfg80211 +kmod-usb-core +kmod-lib80211 +@DRIVER_WEXT_SUPPORT
+  TITLE:=Marvell 88W8015 Wireless Driver
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas.ko \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/usb8xxx.ko
+  AUTOLOAD:=$(call AutoLoad,27,libertas usb8xxx)
+endef
+
+define KernelPackage/libertas-sd
+  $(call KernelPackage/mac80211/Default)
+  DEPENDS+= +kmod-cfg80211 +kmod-lib80211 +@DRIVER_WEXT_SUPPORT
+  TITLE:=Marvell 88W8686 Wireless Driver
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas.ko \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/libertas/libertas_sdio.ko
+  AUTOLOAD:=$(call AutoLoad,91,libertas libertas_sdio)
+endef
 
 define KernelPackage/mac80211-hwsim
   $(call KernelPackage/mac80211/Default)
@@ -534,7 +554,7 @@ endef
 define KernelPackage/net-libipw
   $(call KernelPackage/mac80211/Default)
   TITLE:=libipw for ipw2100 and ipw2200
-  DEPENDS:=@PCI_SUPPORT +kmod-crypto-core +kmod-crypto-arc4 +kmod-crypto-aes +kmod-crypto-michael-mic +kmod-lib80211 +kmod-cfg80211
+  DEPENDS:=@PCI_SUPPORT +kmod-crypto-core +kmod-crypto-arc4 +kmod-crypto-aes +kmod-crypto-michael-mic +kmod-lib80211 +kmod-cfg80211 +@DRIVER_WEXT_SUPPORT
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/ipw2x00/libipw.ko
   AUTOLOAD:=$(call AutoLoad,49,libipw)
 endef
@@ -607,7 +627,7 @@ endef
 define KernelPackage/net-hermes-pci
   $(call KernelPackage/mac80211/Default)
   TITLE:=Intersil Prism 2.5 PCI support
-  DEPENDS:=@PCI_SUPPORT +kmod-net-hermes +kmod-cfg80211
+  DEPENDS:=@PCI_SUPPORT +kmod-net-hermes
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/orinoco/orinoco_pci.ko
   AUTOLOAD:=$(call AutoLoad,55,orinoco_pci)
 endef
@@ -619,7 +639,7 @@ endef
 define KernelPackage/net-hermes-plx
   $(call KernelPackage/mac80211/Default)
   TITLE:=PLX9052 based PCI adaptor
-  DEPENDS:=@PCI_SUPPORT +kmod-net-hermes +kmod-cfg80211
+  DEPENDS:=@PCI_SUPPORT +kmod-net-hermes
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/orinoco/orinoco_plx.ko
   AUTOLOAD:=$(call AutoLoad,55,orinoco_plx)
 endef
@@ -631,7 +651,7 @@ endef
 define KernelPackage/net-hermes-pcmcia
   $(call KernelPackage/mac80211/Default)
   TITLE:=Hermes based PCMCIA adaptors
-  DEPENDS:=@PCMCIA_SUPPORT +kmod-net-hermes +kmod-cfg80211 @BROKEN
+  DEPENDS:=@PCMCIA_SUPPORT +kmod-net-hermes @BROKEN
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/orinoco/orinoco_cs.ko
   AUTOLOAD:=$(call AutoLoad,55,orinoco_cs)
 endef
@@ -644,7 +664,7 @@ define KernelPackage/iwlagn
   $(call KernelPackage/mac80211/Default)
   DEPENDS:= +kmod-mac80211 @PCI_SUPPORT
   TITLE:=Intel AGN Wireless support
-  FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/iwlwifi/iwlagn.$(LINUX_KMOD_SUFFIX)
+  FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/iwlwifi/iwlwifi.$(LINUX_KMOD_SUFFIX)
   AUTOLOAD:=$(call AutoLoad,60,iwlagn)
   MENU:=1
 endef
@@ -1098,6 +1118,7 @@ MAKE_OPTS:= \
 	ARCH="$(LINUX_KARCH)" \
 	EXTRA_CFLAGS="$(BUILDFLAGS)" \
 	$(foreach opt,$(CONFOPTS),CONFIG_$(opt)=m) \
+	CONFIG_CFG80211=$(if $(CONFIG_PACKAGE_kmod-cfg80211),m) \
 	CONFIG_MAC80211=$(if $(CONFIG_PACKAGE_kmod-mac80211),m) \
 	CONFIG_MAC80211_RC_MINSTREL=y \
 	CONFIG_MAC80211_LEDS=$(CONFIG_LEDS_TRIGGERS) \
@@ -1182,7 +1203,7 @@ MAKE_OPTS:= \
 	CONFIG_LIB80211_CRYPT_WEP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
 	CONFIG_LIB80211_CRYPT_CCMP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
 	CONFIG_LIB80211_CRYPT_TKIP=$(if $(CONFIG_PACKAGE_kmod-lib80211),m) \
-	CONFIG_IWLAGN=$(if $(CONFIG_PACKAGE_kmod-iwlagn),m) \
+	CONFIG_IWLWIFI=$(if $(CONFIG_PACKAGE_kmod-iwlagn),m) \
 	CONFIG_IWLWIFI_LEGACY=$(if $(CONFIG_PACKAGE_kmod-iwl-legacy),m) \
 	CONFIG_COMPAT_IWL4965=$(if $(CONFIG_PACKAGE_kmod-iwl4965),m) \
 	CONFIG_IWL3945=$(if $(CONFIG_PACKAGE_kmod-iwl3945),m) \
@@ -1241,7 +1262,7 @@ define Build/Prepare
 	rm -f $(PKG_BUILD_DIR)/include/net/ieee80211.h
 endef
 
-ifneq ($(CONFIG_PACKAGE_kmod-cfg80211),)
+ifneq ($(CONFIG_PACKAGE_kmod-cfg80211)$(CONFIG_PACKAGE_kmod-lib80211),)
  define Build/Compile/kmod
 	rm -rf $(PKG_BUILD_DIR)/modules
 	$(MAKE) $(PKG_JOBS) -C "$(PKG_BUILD_DIR)" $(MAKE_OPTS) all
@@ -1346,8 +1367,8 @@ endef
 define KernelPackage/ath9k-htc/install
 	$(INSTALL_DIR) $(1)/lib/firmware
 	$(INSTALL_DATA) \
-		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/ar9271.fw \
-		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/ar7010.fw \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/htc_9271.fw \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/htc_7010.fw \
 		$(1)/lib/firmware/
 endef
 

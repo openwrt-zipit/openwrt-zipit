@@ -36,14 +36,14 @@ define autoreconf
 		$(foreach p,$(3), \
 			if [ -f $(p)/configure.ac ] || [ -f $(p)/configure.in ]; then \
 				[ -d $(p)/autom4te.cache ] && rm -rf autom4te.cache; \
-				touch NEWS AUTHORS COPYING ChangeLog; \
+				[ -e $(p)/config.rpath ] || \
+						ln -s $(SCRIPT_DIR)/config.rpath $(p)/config.rpath; \
+				touch NEWS AUTHORS COPYING ABOUT-NLS ChangeLog; \
 				$(AM_TOOL_PATHS) $(STAGING_DIR_HOST)/bin/autoreconf -v -f -i -s \
 					$(if $(word 2,$(3)),--no-recursive) \
 					-B $(STAGING_DIR_HOST)/share/aclocal \
 					$(patsubst %,-I %,$(5)) \
 					$(patsubst %,-I %,$(4)) $(4) || true; \
-				[ -e $(p)/config.rpath ] || \
-						ln -s $(SCRIPT_DIR)/config.rpath $(p)/config.rpath;
 			fi; \
 		) \
 	);
@@ -56,7 +56,7 @@ define patch_libtool
 			lt_version="$$$$($$(STAGING_DIR_HOST)/bin/sed -ne 's,^[[:space:]]*VERSION=\([0-9]\.[0-9]\+\).*,\1,p' $$$$lt)"; \
 			case "$$$$lt_version" in \
 				1.5|2.2|2.4) echo "autotools.mk: Found libtool v$$$$lt_version - applying patch to $$$$lt"; \
-					(cd $$$$(dirname $$$$lt) && $$(PATCH) -s -p1 < $$(TOPDIR)/tools/libtool/files/libtool-v$$$$lt_version.patch) ;; \
+					(cd $$$$(dirname $$$$lt) && $$(PATCH) -N -s -p1 < $$(TOPDIR)/tools/libtool/files/libtool-v$$$$lt_version.patch || true) ;; \
 				*) echo "autotools.mk: error: Unsupported libtool version v$$$$lt_version - cannot patch $$$$lt"; exit 1 ;; \
 			esac; \
 		done; \

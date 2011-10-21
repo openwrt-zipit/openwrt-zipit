@@ -48,9 +48,11 @@
 #include <lantiq_soc.h>
 #include "ifxmips_compat.h"
 #include "ifxmips_atm_core.h"
-#include "ifxmips_atm_fw_danube.h"
-
-
+#if defined(ENABLE_ATM_RETX) && ENABLE_ATM_RETX
+  #include "ifxmips_atm_fw_danube_retx.h"
+#else
+  #include "ifxmips_atm_fw_danube.h"
+#endif
 
 /*
  * ####################################
@@ -81,6 +83,7 @@
  */
 static inline void init_pmu(void);
 static inline void uninit_pmu(void);
+static inline void reset_ppe(void);
 static inline void init_ema(void);
 static inline void init_mailbox(void);
 static inline void init_atm_tc(void);
@@ -105,7 +108,7 @@ static inline void clear_share_buffer(void);
 static inline void init_pmu(void)
 {
     //*(unsigned long *)0xBF10201C &= ~((1 << 15) | (1 << 13) | (1 << 9));
-    PPE_TOP_PMU_SETUP(IFX_PMU_ENABLE);
+    //PPE_TOP_PMU_SETUP(IFX_PMU_ENABLE);
     PPE_SLL01_PMU_SETUP(IFX_PMU_ENABLE);
     PPE_TC_PMU_SETUP(IFX_PMU_ENABLE);
     PPE_EMA_PMU_SETUP(IFX_PMU_ENABLE);
@@ -122,7 +125,32 @@ static inline void uninit_pmu(void)
     PPE_QSB_PMU_SETUP(IFX_PMU_DISABLE);
     PPE_TPE_PMU_SETUP(IFX_PMU_DISABLE);
     DSL_DFE_PMU_SETUP(IFX_PMU_DISABLE);
-    PPE_TOP_PMU_SETUP(IFX_PMU_DISABLE);
+    //PPE_TOP_PMU_SETUP(IFX_PMU_DISABLE);
+}
+
+static inline void reset_ppe(void)
+{
+#if 0 //def MODULE
+    unsigned int etop_cfg;
+    unsigned int etop_mdio_cfg;
+    unsigned int etop_ig_plen_ctrl;
+    unsigned int enet_mac_cfg;
+
+    etop_cfg            = *IFX_PP32_ETOP_CFG;
+    etop_mdio_cfg       = *IFX_PP32_ETOP_MDIO_CFG;
+    etop_ig_plen_ctrl   = *IFX_PP32_ETOP_IG_PLEN_CTRL;
+    enet_mac_cfg        = *IFX_PP32_ENET_MAC_CFG;
+
+    *IFX_PP32_ETOP_CFG &= ~0x03C0;
+
+    //  reset PPE
+    ifx_rcu_rst(IFX_RCU_DOMAIN_PPE, IFX_RCU_MODULE_ATM);
+
+    *IFX_PP32_ETOP_MDIO_CFG     = etop_mdio_cfg;
+    *IFX_PP32_ETOP_IG_PLEN_CTRL = etop_ig_plen_ctrl;
+    *IFX_PP32_ENET_MAC_CFG      = enet_mac_cfg;
+    *IFX_PP32_ETOP_CFG          = etop_cfg;
+#endif
 }
 
 static inline void init_ema(void)
@@ -143,9 +171,25 @@ static inline void init_mailbox(void)
 
 static inline void init_atm_tc(void)
 {
-    //  for ReTX expansion in future
-    //*FFSM_CFG0 = SET_BITS(*FFSM_CFG0, 5, 0, 6); //  pnum = 6
-    //*FFSM_CFG1 = SET_BITS(*FFSM_CFG1, 5, 0, 6); //  pnum = 6
+    IFX_REG_W32(0x0000,     DREG_AT_CTRL);
+    IFX_REG_W32(0x0000,     DREG_AR_CTRL);
+    IFX_REG_W32(0x0,        DREG_AT_IDLE0);
+    IFX_REG_W32(0x0,        DREG_AT_IDLE1);
+    IFX_REG_W32(0x0,        DREG_AR_IDLE0);
+    IFX_REG_W32(0x0,        DREG_AR_IDLE1);
+    IFX_REG_W32(0x40,       RFBI_CFG);
+    IFX_REG_W32(0x1600,     SFSM_DBA0);
+    IFX_REG_W32(0x1718,     SFSM_DBA1);
+    IFX_REG_W32(0x1830,     SFSM_CBA0);
+    IFX_REG_W32(0x1844,     SFSM_CBA1);
+    IFX_REG_W32(0x14014,    SFSM_CFG0);
+    IFX_REG_W32(0x14014,    SFSM_CFG1);
+    IFX_REG_W32(0x1858,     FFSM_DBA0);
+    IFX_REG_W32(0x18AC,     FFSM_DBA1);
+    IFX_REG_W32(0x10006,    FFSM_CFG0);
+    IFX_REG_W32(0x10006,    FFSM_CFG1);
+    IFX_REG_W32(0x00000001, FFSM_IDLE_HEAD_BC0);
+    IFX_REG_W32(0x00000001, FFSM_IDLE_HEAD_BC1);
 }
 
 static inline void clear_share_buffer(void)
@@ -178,7 +222,7 @@ static inline int pp32_download_code(u32 *code_src, unsigned int code_dword_len,
     if ( code_dword_len <= CDM_CODE_MEMORYn_DWLEN(0) )
         IFX_REG_W32(0x00, CDM_CFG);
     else
-        IFX_REG_W32(0x02, CDM_CFG);
+        IFX_REG_W32(0x04, CDM_CFG);
 
     /*  copy code   */
     dest = CDM_CODE_MEMORY(0, 0);
@@ -206,13 +250,20 @@ extern void ifx_atm_get_fw_ver(unsigned int *major, unsigned int *minor)
     ASSERT(major != NULL, "pointer is NULL");
     ASSERT(minor != NULL, "pointer is NULL");
 
+#if (defined(ENABLE_ATM_RETX) && ENABLE_ATM_RETX) || defined(VER_IN_FIRMWARE)
+    *major = FW_VER_ID->major;
+    *minor = FW_VER_ID->minor;
+#else
     *major = ATM_FW_VER_MAJOR;
     *minor = ATM_FW_VER_MINOR;
+#endif
 }
 
 void ifx_atm_init_chip(void)
 {
     init_pmu();
+
+    reset_ppe();
 
     init_ema();
 

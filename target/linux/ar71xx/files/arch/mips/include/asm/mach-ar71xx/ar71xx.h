@@ -678,6 +678,9 @@ void ar71xx_ddr_flush(u32 reg);
 #define AR933X_RESET_GE0_MDIO		BIT(22)
 #define AR933X_RESET_GE1_MAC		BIT(13)
 #define AR933X_RESET_GE0_MAC		BIT(9)
+#define AR933X_RESET_USB_HOST		BIT(5)
+#define AR933X_RESET_USB_PHY		BIT(4)
+#define AR933X_RESET_USBSUS_OVERRIDE	BIT(3)
 
 #define REV_ID_MAJOR_MASK	0xfff0
 #define REV_ID_MAJOR_AR71XX	0x00a0
@@ -724,6 +727,7 @@ static inline u32 ar71xx_reset_rr(unsigned reg)
 
 void ar71xx_device_stop(u32 mask);
 void ar71xx_device_start(u32 mask);
+void ar71xx_device_reset_rmw(u32 clear, u32 set);
 int ar71xx_device_stopped(u32 mask);
 
 /*

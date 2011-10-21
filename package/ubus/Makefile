@@ -1,15 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ubus
-PKG_VERSION:=2011-07-30
+PKG_VERSION:=2011-10-10
 PKG_RELEASE=$(PKG_SOURCE_VERSION)
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=git://nbd.name/luci2/ubus.git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=52ce4320ed44d8ca1aed61b1eae4bb651082679a
+PKG_SOURCE_VERSION:=1ad3493658fe3a3782e51efe960c07549f117a28
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_MD5SUM:=8f31d931d8f95036d07afb7f885d32e3
+PKG_MIRROR_MD5SUM:=e52e88902b3a065c168d1dbeeac5b4ce
 CMAKE_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -46,7 +46,8 @@ define Package/ubus/install
 endef
 
 define Package/ubusd/install
-	$(INSTALL_DIR) $(1)/sbin
+	$(INSTALL_DIR) $(1)/sbin $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/ubus.init $(1)/etc/init.d/ubus
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/ubusd $(1)/sbin/
 endef
 

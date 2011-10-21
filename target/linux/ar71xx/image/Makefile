@@ -274,6 +274,20 @@ define Image/Build/TPLINK/initramfs
 		-o $(call imgname,$(1),$(2))-uImage.bin
 endef
 
+define Image/Build/TPLINK-LZMA
+	$(call PatchKernelLzma,$(2),$(3))
+	-$(STAGING_DIR_HOST)/bin/mktplinkfw \
+		-B $(4) -N OpenWrt -V $(REVISION)\
+		-k $(KDIR)/vmlinux-$(2).bin.lzma \
+		-r $(BIN_DIR)/$(IMG_PREFIX)-root.$(1) \
+		-o $(call factoryname,$(1),$(2))
+	-$(STAGING_DIR_HOST)/bin/mktplinkfw \
+		-B $(4) -N OpenWrt -V $(REVISION) -s \
+		-k $(KDIR)/vmlinux-$(2).bin.lzma \
+		-r $(BIN_DIR)/$(IMG_PREFIX)-root.$(1) \
+		-o $(call sysupname,$(1),$(2))
+endef
+
 define Image/Build/CyberTAN
 	$(call MkuImageGzip,$(2),$(3))
 	$(STAGING_DIR_HOST)/bin/trx -o $(KDIR)/image.tmp -f $(KDIR)/vmlinux-$(2).uImage \
@@ -591,6 +605,15 @@ define Image/Build/Profile/TLWR740NV1
 	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v1,$(tlwe740nv1_cmdline),TL-WR740Nv1)
 endef
 
+tlwe740nv3_cmdline=board=TL-WR741ND console=ttyS0,115200
+define Image/Build/Profile/TLWR740NV3
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v3,$(tlwe740nv3_cmdline),TL-WR740Nv3)
+endef
+
+define Image/Build/Profile/TLWR743NDV1
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr743nd-v1,$(tlwe741ndv1_cmdline),TL-WR743NDv1)
+endef
+
 tlwr841nv15_cmdline=board=TL-WR841N-v1.5 console=ttyS0,115200
 define Image/Build/Profile/TLWR841NV15
 	$(call Image/Build/Template/$(fs_squash)/$(1),TPLINK,tl-wr841n-v1.5,$(tlwr841nv15_cmdline),TL-WR841Nv1.5)
@@ -629,6 +652,11 @@ endef
 tlwr1043nd_cmdline=board=TL-WR1043ND console=ttyS0,115200
 define Image/Build/Profile/TLWR1043NDV1
 	$(call Image/Build/Template/$(fs_squash)/$(1),TPLINK,tl-wr1043nd-v1,$(tlwr1043nd_cmdline),TL-WR1043NDv1)
+endef
+
+tlwr703n_cmdline=board=TL-WR703N console=ttyATH0,115200
+define Image/Build/Profile/TLWR703NV1
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK-LZMA,tl-wr703n-v1,$(tlwr703n_cmdline),TL-WR703Nv1)
 endef
 
 wndr3700_cmdline=board=WNDR3700 console=ttyS0,115200
@@ -703,6 +731,8 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/TLWA901NDV2,$(1))
 	$(call Image/Build/Profile/TLWR741NDV1,$(1))
 	$(call Image/Build/Profile/TLWR740NV1,$(1))
+	$(call Image/Build/Profile/TLWR740NV3,$(1))
+	$(call Image/Build/Profile/TLWR743NDV1,$(1))
 	$(call Image/Build/Profile/TLWR841NV15,$(1))
 	$(call Image/Build/Profile/TLWR841NDV3,$(1))
 	$(call Image/Build/Profile/TLWR841NDV5,$(1))
@@ -711,6 +741,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/TLWR941NDV3,$(1))
 	$(call Image/Build/Profile/TLWR941NDV4,$(1))
 	$(call Image/Build/Profile/TLWR1043NDV1,$(1))
+	$(call Image/Build/Profile/TLWR703NV1,$(1))
 	$(call Image/Build/Profile/UBNT,$(1))
 	$(call Image/Build/Profile/WP543,$(1))
 	$(call Image/Build/Profile/WNDR3700,$(1))

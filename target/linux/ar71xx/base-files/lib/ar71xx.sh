@@ -91,6 +91,9 @@ ar71xx_board_name() {
 	*"RouterBOARD 493/AH")
 		name="rb-493"
 		;;
+	*"RouterBOARD 493G")
+		name="rb-493g"
+		;;
 	*"RouterBOARD 750")
 		name="rb-750"
 		;;
@@ -132,6 +135,9 @@ ar71xx_board_name() {
 		;;
 	*TL-WR941ND)
 		name="tl-wr941nd"
+		;;
+	*"TL-WR703N v1")
+		name="tl-wr703n"
 		;;
 	*UniFi)
 		name="unifi"
