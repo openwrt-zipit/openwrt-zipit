@@ -48,7 +48,12 @@ pivot() { # <new_root> <old_root>
 }
 
 run_ramfs() { # <command> [...]
-	install_bin /bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount /sbin/pivot_root /usr/bin/wget /sbin/reboot /bin/sync /bin/dd /bin/grep /bin/cp /bin/mv /bin/tar /usr/bin/md5sum "/usr/bin/[" /bin/vi /bin/ls /bin/cat /usr/bin/awk /usr/bin/hexdump /bin/sleep /bin/zcat /usr/bin/bzcat
+	install_bin /bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount        \
+		/sbin/pivot_root /usr/bin/wget /sbin/reboot /bin/sync /bin/dd   \
+		/bin/grep /bin/cp /bin/mv /bin/tar /usr/bin/md5sum "/usr/bin/[" \
+		/bin/vi /bin/ls /bin/cat /usr/bin/awk /usr/bin/hexdump          \
+		/bin/sleep /bin/zcat /usr/bin/bzcat /usr/bin/printf /usr/bin/wc
+
 	install_bin /sbin/mtd
 	for file in $RAMFS_COPY_BIN; do
 		install_bin $file
@@ -70,6 +75,30 @@ run_ramfs() { # <command> [...]
 
 	# spawn a new shell from ramdisk to reduce the probability of cache issues
 	exec /bin/busybox ash -c "$*"
+}
+
+kill_remaining() { # [ <signal> ]
+	local sig="${1:-TERM}"
+	echo -n "Sending $sig to remaing processes ... "
+	top -bn1 | while read pid ppid user stat vsz pvsz pcpu cmd args; do
+		case "$pid" in
+			[0-9]*) : ;;
+			*) continue ;;
+		esac
+		case "$cmd" in
+			# Skip kernel threads and essential services
+			\[*\]|*ash*|*init*|*watchdog*|*ssh*|*dropbear*|*telnet*|*login*) : ;;
+
+			# Killable process
+			*)
+				if [ $pid -ne $$ ] && [ $ppid -ne $$ ]; then
+					echo -n "${cmd##*/} "
+					kill -$sig $pid 2>/dev/null
+				fi
+			;;
+		esac
+	done
+	echo ""
 }
 
 run_hooks() {

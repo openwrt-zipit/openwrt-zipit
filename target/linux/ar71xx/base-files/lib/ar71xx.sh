@@ -10,6 +10,9 @@ ar71xx_board_name() {
 	machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /machine/ {print $2}' /proc/cpuinfo)
 
 	case "$machine" in
+	*ALL0258N)
+		name="all0258n"
+		;;
 	*AP121)
 		name="ap121"
 		;;
@@ -60,6 +63,9 @@ ar71xx_board_name() {
 		;;
 	*"NBG460N/550N/550NH")
 		name="nbg460n_550n_550nh"
+		;;
+	*OM2P)
+		name="om2p"
 		;;
 	*PB42)
 		name="pb42"
@@ -165,6 +171,9 @@ ar71xx_board_name() {
 		;;
 	*WZR-HP-G300NH)
 		name="wzr-hp-g300nh"
+		;;
+	*WHR-HP-G300N)
+		name="whr-hp-g300n"
 		;;
 	*ZCN-1523H-2)
 		name="zcn-1523h-2"

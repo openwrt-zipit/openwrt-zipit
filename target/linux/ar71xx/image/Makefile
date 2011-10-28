@@ -144,6 +144,24 @@ define Image/Build/WZRHPG30XNH
 	fi
 endef
 
+define Image/Build/WHRHPG300N
+	$(call MkuImageLzma,$(2),$(3))
+	$(call Sysupgrade/KR,$(1),$(2),917504,2883584)
+	if [ -e "$(call sysupname,$(1),$(2))" ]; then \
+		( \
+			echo -n -e "# Airstation Public Fmt1\x00\x00\x00\x00\x00\x00\x00\x00"; \
+			dd if=$(call sysupname,$(1),$(2)); \
+		) > $(call imgname,$(1),$(2))-tftp.bin; \
+		buffalo-enc -p $(4) -v 1.76 \
+			-i $(call sysupname,$(1),$(2)) \
+			-o $(KDIR)/$(2).enc; \
+		buffalo-tag -b $(4) -p $(4) -a ath -v 1.76 -m 1.01 -l mlang8 \
+			-w 3 -c 0x80041000 -d 0x801e8000 -f 1 -r M_ \
+			-i $(KDIR)/$(2).enc \
+			-o $(call factoryname,$(1),$(2)); \
+	fi
+endef
+
 define Image/Build/Cameo
 	$(call MkuImageLzma,$(2),$(3) $($(4)))
 	$(call Sysupgrade/KR,$(1),$(2),$(5),$(6))
@@ -595,23 +613,23 @@ define Image/Build/Profile/TLWA901NDV2
 	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wa901nd-v2,$(tlwa901ndv2_cmdline),TL-WA901NDv2)
 endef
 
-tlwe741ndv1_cmdline=board=TL-WR741ND console=ttyS0,115200
+tlwr741ndv1_cmdline=board=TL-WR741ND console=ttyS0,115200
 define Image/Build/Profile/TLWR741NDV1
-	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr741nd-v1,$(tlwe741ndv1_cmdline),TL-WR741NDv1)
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr741nd-v1,$(tlwr741ndv1_cmdline),TL-WR741NDv1)
 endef
 
-tlwe740nv1_cmdline=board=TL-WR741ND console=ttyS0,115200
+tlwr740nv1_cmdline=board=TL-WR741ND console=ttyS0,115200
 define Image/Build/Profile/TLWR740NV1
-	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v1,$(tlwe740nv1_cmdline),TL-WR740Nv1)
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v1,$(tlwr740nv1_cmdline),TL-WR740Nv1)
 endef
 
-tlwe740nv3_cmdline=board=TL-WR741ND console=ttyS0,115200
+tlwr740nv3_cmdline=board=TL-WR741ND console=ttyS0,115200
 define Image/Build/Profile/TLWR740NV3
-	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v3,$(tlwe740nv3_cmdline),TL-WR740Nv3)
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr740n-v3,$(tlwr740nv3_cmdline),TL-WR740Nv3)
 endef
 
 define Image/Build/Profile/TLWR743NDV1
-	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr743nd-v1,$(tlwe741ndv1_cmdline),TL-WR743NDv1)
+	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK,tl-wr743nd-v1,$(tlwr741ndv1_cmdline),TL-WR743NDv1)
 endef
 
 tlwr841nv15_cmdline=board=TL-WR841N-v1.5 console=ttyS0,115200
@@ -666,6 +684,7 @@ wndr3700v2_mtdlayout=mtdparts=spi0.0:320k(u-boot)ro,128k(u-boot-env)ro,1024k(ker
 define Image/Build/Profile/WNDR3700
 	$(call Image/Build/Template/$(fs_64k)/$(1),Netgear,wndr3700,$(wndr3700_cmdline),wndr3700_mtdlayout,3700,WNDR3700,"" NA,)
 	$(call Image/Build/Template/$(fs_64k)/$(1),Netgear,wndr3700v2,$(wndr3700v2_cmdline),wndr3700v2_mtdlayout,3701,WNDR3700v2,"",-H 29763654+16+64)
+	$(call Image/Build/Template/$(fs_64k)/$(1),Netgear,wndr3800,$(wndr3700v2_cmdline),wndr3700v2_mtdlayout,3701,WNDR3800,"",-H 29763654+16+128)
 endef
 
 wr400n_cmdline=board=WRT400N console=ttyS0,115200
@@ -681,6 +700,11 @@ endef
 wrt160nl_cmdline=board=WRT160NL console=ttyS0,115200
 define Image/Build/Profile/WRT160NL
 	$(call Image/Build/Template/$(fs_64k)/$(1),CyberTAN,wrt160nl,$(wrt160nl_cmdline),1.00.01)
+endef
+
+whrhpg300n_cmdline=board=WHR-HP-G300N console=ttyS0,115200
+define Image/Build/Profile/WHRHPG300N
+	$(call Image/Build/Template/$(fs_64k)/$(1),WHRHPG300N,whr-hp-g300n,$(whrhpg300n_cmdline),whrhpg300n_mtdlayout,WHR-HP-G300N)
 endef
 
 wzrhpg300nh_cmdline=board=WZR-HP-G300NH console=ttyS0,115200
@@ -703,7 +727,13 @@ define Image/Build/Profile/ZCN1523H516
 	$(call Image/Build/Template/$(fs_64k)/$(1),Zcomax,zcn-1523h-5-16,$(zcn1523h516_cmdline))
 endef
 
+all0258n_cmdline=board=ALL0258N console=ttyS0,115200
+define Image/Build/Profile/ALL0258N
+	$(call Image/Build/Template/$(fs_64k)/$(1),AthLzma,all0258n,$(all0258n_cmdline),,917504,5505024,KR)
+endef
+
 define Image/Build/Profile/Default
+	$(call Image/Build/Profile/ALL0258N,$(1))
 	$(call Image/Build/Profile/AP121,$(1))
 	$(call Image/Build/Profile/AP121MINI,$(1))
 	$(call Image/Build/Profile/AP81,$(1))
@@ -748,6 +778,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/AP96,$(1))
 	$(call Image/Build/Profile/WRT400N,$(1))
 	$(call Image/Build/Profile/WRT160NL,$(1))
+	$(call Image/Build/Profile/WHRHPG300N,$(1))
 	$(call Image/Build/Profile/WZRHPG300NH,$(1))
 	$(call Image/Build/Profile/WZRHPAG300H,$(1))
 	$(call Image/Build/Profile/ZCN1523H28,$(1))

@@ -74,21 +74,8 @@ fw__exec() { # <action> <family> <table> <chain> <target> <position> { <rules> }
 			fw__rc $(($? & 1))
 			return
 		fi
-		local mod
-		eval "mod=\$FW_${fam#G}_${tab}"
-		if [ "$mod" ]; then
-			fw__rc $mod
-			return
-		fi
-		case "$fam" in
-			*4) mod=iptable_${tab} ;;
-			*6) mod=ip6table_${tab} ;;
-			*) mod=. ;;
-		esac
-		grep -q "^${mod} " /proc/modules
-		mod=$?
-		export FW_${fam}_${tab}=$mod
-		fw__rc $mod
+		[ "$app" != ip6tables ] || [ "$tab" != nat ]
+		fw__rc $?
 	}
 
 	fw__err() {
@@ -225,12 +212,17 @@ fw_get_family_mode() {
 	local _mode="$4"
 
 	local _ipv4 _ipv6
-	[ -n "$FW_ZONES4$FW_ZONES6" ] && {
-		list_contains FW_ZONES4 $_zone && _ipv4=1 || _ipv4=0
-		list_contains FW_ZONES6 $_zone && _ipv6=1 || _ipv6=0
+	[ "$_zone" != "*" ] && {
+		[ -n "$FW_ZONES4$FW_ZONES6" ] && {
+			list_contains FW_ZONES4 "$_zone" && _ipv4=1 || _ipv4=0
+			list_contains FW_ZONES6 "$_zone" && _ipv6=1 || _ipv6=0
+		} || {
+			_ipv4=$(uci_get_state firewall core "${_zone}_ipv4" 0)
+			_ipv6=$(uci_get_state firewall core "${_zone}_ipv6" 0)
+		}
 	} || {
-		_ipv4=$(uci_get_state firewall core ${_zone}_ipv4 0)
-		_ipv6=$(uci_get_state firewall core ${_zone}_ipv6 0)
+		_ipv4=1
+		_ipv6=1
 	}
 
 	case "$_hint:$_ipv4:$_ipv6" in
@@ -263,9 +255,12 @@ fw_get_subnet4() {
 			[ "${_name#!}" != "$_name" ] && \
 				export -n -- "$_var=! $_flag $_ipaddr/${_netmask:-255.255.255.255}" || \
 				export -n -- "$_var=$_flag $_ipaddr/${_netmask:-255.255.255.255}"
+			return 0
 		;;
-		*) export -n -- "$_var=" ;;
 	esac
+
+	export -n -- "$_var="
+	return 1
 }
 
 fw_check_icmptype4() {

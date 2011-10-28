@@ -72,6 +72,9 @@ get_status_led() {
 	nbg460n_550n_550nh)
 		status_led="nbg460n:green:power"
 		;;
+	om2p)
+		status_led="om2p:blue:power"
+		;;
 	pb44)
 		status_led="pb44:amber:jump1"
 		;;
@@ -110,6 +113,9 @@ get_status_led() {
 		;;
 	unifi)
 		status_led="ubnt:green:dome"
+		;;
+	whr-hp-g300n)
+		status_led="whr-hp-g300n:green:router"
 		;;
 	wndr3700 | wndr3700v2)
 		status_led="wndr3700:green:power"

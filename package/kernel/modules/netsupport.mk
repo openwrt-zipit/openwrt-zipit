@@ -180,7 +180,7 @@ IPSEC-m:= \
 define KernelPackage/ipsec
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=IPsec related modules (IPv4 and IPv6)
-  DEPENDS:=+kmod-crypto-iv +kmod-crypto-des +kmod-crypto-hmac +kmod-crypto-md5 +kmod-crypto-sha1 +kmod-crypto-deflate +kmod-crypto-cbc
+  DEPENDS:=+kmod-crypto-authenc +kmod-crypto-iv +kmod-crypto-des +kmod-crypto-hmac +kmod-crypto-md5 +kmod-crypto-sha1 +kmod-crypto-deflate +kmod-crypto-cbc
   KCONFIG:= \
 	CONFIG_NET_KEY \
 	CONFIG_XFRM_USER \
@@ -730,7 +730,7 @@ define KernelPackage/netem
   TITLE:=Network emulation functionality
   DEPENDS:=+kmod-sched
   KCONFIG:=CONFIG_NET_SCH_NETEM
-  FILES:=$(LINUX_DIR)/net/sched/sch_netem.$(LINUX_KMOD_SUFFIX)
+  FILES:=$(LINUX_DIR)/net/sched/sch_netem.ko
   AUTOLOAD:=$(call AutoLoad,99,netem)
 endef
 
