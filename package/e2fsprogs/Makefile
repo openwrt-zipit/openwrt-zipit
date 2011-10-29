@@ -79,6 +79,7 @@ $(call Package/e2fsprogs/Default)
   SECTION:=libs
   CATEGORY:=Libraries
   TITLE:=ext2/3/4 filesystem library
+  DEPENDS:=+libcom_err
 endef
 
 define Package/libext2fs/description
