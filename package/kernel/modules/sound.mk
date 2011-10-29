@@ -200,7 +200,8 @@ define KernelPackage/sound-zipit-z2
   TITLE:=Zipit Z2 sound support
   KCONFIG:= \
 	CONFIG_SND_PXA2XX_SOC \
-	SND_PXA2XX_SOC_Z2
+	CONFIG_SND_PXA2XX_SOC_I2S \
+	CONFIG_SND_PXA2XX_SOC_Z2 \
   FILES:= \
 	$(LINUX_DIR)/sound/soc/pxa/snd-soc-pxa2xx.ko \
 	$(LINUX_DIR)/sound/arm/snd-pxa2xx-lib.ko
