@@ -201,11 +201,14 @@ define KernelPackage/sound-zipit-z2
   KCONFIG:= \
 	CONFIG_SND_PXA2XX_SOC \
 	CONFIG_SND_PXA2XX_SOC_I2S \
-	CONFIG_SND_PXA2XX_SOC_Z2 \
+	CONFIG_SND_PXA2XX_SOC_Z2
   FILES:= \
+	$(LINUX_DIR)/sound/arm/snd-pxa2xx-lib.ko \
 	$(LINUX_DIR)/sound/soc/pxa/snd-soc-pxa2xx.ko \
-	$(LINUX_DIR)/sound/arm/snd-pxa2xx-lib.ko
-  AUTOLOAD:=$(call AutoLoad,65,snd-pxa2xx-lib snd-soc-pxa2xx)
+	$(LINUX_DIR)/sound/soc/pxa/snd-soc-pxa2xx-i2s.ko \
+	$(LINUX_DIR)/sound/soc/pxa/snd-soc-z2.ko \
+	$(LINUX_DIR)/sound/soc/codecs/snd-soc-wm8750.ko
+  AUTOLOAD:=$(call AutoLoad,65,snd-pxa2xx-lib snd-soc-pxa2xx snd-soc-pxa2xx-i2s snd-soc-wm8750 snd-soc-z2)
   DEPENDS:=@TARGET_pxa_zipitz2
   $(call AddDepends/sound)
 endef
