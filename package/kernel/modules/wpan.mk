@@ -95,7 +95,6 @@ define KernelPackage/at86rf230
 	CONFIG_SPI_MASTER=y
   DEPENDS:=+kmod-mac802154
   FILES:=$(LINUX_DIR)/drivers/ieee802154/at86rf230.ko
-  AUTOLOAD:=$(call AutoLoad,92,at86rf230)
 endef
 
 $(eval $(call KernelPackage,at86rf230))
@@ -121,7 +120,6 @@ define KernelPackage/spi_atben
   KCONFIG:=CONFIG_SPI_ATBEN
   DEPENDS:=+kmod-at86rf230 @TARGET_xburst
   FILES:=$(LINUX_DIR)/drivers/ieee802154/spi_atben.ko
-  AUTOLOAD:=$(call AutoLoad,93,spi_atben)
 endef
 
 define KernelPackage/fakehard/description
