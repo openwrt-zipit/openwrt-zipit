@@ -1,7 +1,7 @@
 From c7700fa672bf0a171ceb9f4b092de33e3b306243 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sat, 24 Apr 2010 12:23:28 +0200
-Subject: [PATCH 14/29] Framebuffer notifier: Call notifier callbacks prior to blanking the screen
+Subject: [PATCH 14/32] Framebuffer notifier: Call notifier callbacks prior to blanking the screen
 
 ---
  drivers/video/fbmem.c |    8 ++++++--

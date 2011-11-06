@@ -1,7 +1,7 @@
 From ecd72bc68f9b9a39cb0f1ec456787c61f03be978 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
 Date: Tue, 13 Sep 2011 16:07:41 +0800
-Subject: [PATCH 13/29] Add jz4740 udc driver
+Subject: [PATCH 13/32] Add jz4740 udc driver
 
 ---
  drivers/usb/gadget/Kconfig        |   13 +

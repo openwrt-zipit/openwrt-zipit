@@ -1,7 +1,7 @@
 From 15bd698ca3f4104f3e3c28dcc7619dcef21f40ad Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:40:08 +0800
-Subject: [PATCH 15/29] 500-modifier-keys.patch
+Subject: [PATCH 15/32] 500-modifier-keys.patch
 
 ---
  drivers/tty/vt/defkeymap.c_shipped |  326 +++++++++++++++++++++++++++---------

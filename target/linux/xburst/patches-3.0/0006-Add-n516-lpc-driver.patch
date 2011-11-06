@@ -1,7 +1,7 @@
 From b02e39f1ba2310fedf212d2a6e5d99c4a14fc297 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Wed, 12 May 2010 14:22:36 +0200
-Subject: [PATCH 06/29] Add n516 lpc driver
+Subject: [PATCH 06/32] Add n516 lpc driver
 
 ---
  drivers/misc/Kconfig    |    8 +

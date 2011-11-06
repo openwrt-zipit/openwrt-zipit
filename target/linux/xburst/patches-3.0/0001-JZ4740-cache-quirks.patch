@@ -1,7 +1,7 @@
 From 2f669aa98831b7248402bab6a07b1b6f722cb6e9 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sat, 24 Apr 2010 17:34:29 +0200
-Subject: [PATCH 01/29] JZ4740 cache quirks
+Subject: [PATCH 01/32] JZ4740 cache quirks
 
 ---
  arch/mips/include/asm/r4kcache.h |  231 ++++++++++++++++++++++++++++++++++++++

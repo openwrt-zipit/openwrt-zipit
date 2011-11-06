@@ -1,7 +1,7 @@
 From b0b7794018b75ce33be133664fb58ab3e6efc2e8 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
 Date: Wed, 14 Sep 2011 14:29:52 +0800
-Subject: [PATCH 28/29] Add cpufreq support
+Subject: [PATCH 28/32] Add cpufreq support
 
 ---
  drivers/cpufreq/cpufreq_stats.c |  161 ++++++++++++++++++++-------------------

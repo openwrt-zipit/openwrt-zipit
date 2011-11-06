@@ -1,7 +1,7 @@
 From 71e0648ad022c6f05e1bed1fcca69abc8abde4d9 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 5 Sep 2010 20:45:08 +0200
-Subject: [PATCH 11/29] input: Add touchscreen driver for the JZ4740 SoC
+Subject: [PATCH 11/32] input: Add touchscreen driver for the JZ4740 SoC
 
 This patch adds a touchscreen driver for the Ingenic JZ4740 SoC.
 The touchscreen controller is part of the ADC unit and thus this driver is a mfd

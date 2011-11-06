@@ -1,7 +1,7 @@
 From 659b0bb01c8e567d4593ffbd7acd6b8ceab0edf3 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 5 Sep 2010 20:36:59 +0200
-Subject: [PATCH 10/29] MFD: jz4740-adc: Add support for the touchscreen part of the adc unit
+Subject: [PATCH 10/32] MFD: jz4740-adc: Add support for the touchscreen part of the adc unit
 
 ---
  drivers/mfd/jz4740-adc.c   |   27 ++++++++++++++++++++++++---

@@ -1,7 +1,7 @@
 From 87eb40e63e1b149ef87fe05765b97328bfbd1c1f Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
 Date: Wed, 14 Sep 2011 14:29:37 +0800
-Subject: [PATCH 24/29] forward code to linux 3.0
+Subject: [PATCH 24/32] forward code to linux 3.0
 
 ---
  arch/mips/Kconfig                             |    2 +

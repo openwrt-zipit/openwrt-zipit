@@ -1,7 +1,7 @@
 From 19d5c8c334a79951d927a1b6eb25bf6a896c9ab5 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sat, 24 Apr 2010 12:38:41 +0200
-Subject: [PATCH 07/29] Add N526 sound SoC board driver
+Subject: [PATCH 07/32] Add N526 sound SoC board driver
 
 ---
  sound/soc/jz4740/Kconfig  |    8 ++

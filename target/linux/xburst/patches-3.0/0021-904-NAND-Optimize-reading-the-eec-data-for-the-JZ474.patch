@@ -1,7 +1,7 @@
 From 5fa159fe903240a78136ba90bfefc91d899fcfe3 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:46:14 +0800
-Subject: [PATCH 21/29] 904-NAND-Optimize-reading-the-eec-data-for-the-JZ4740-ev.patch
+Subject: [PATCH 21/32] 904-NAND-Optimize-reading-the-eec-data-for-the-JZ4740-ev.patch
 
 ---
  drivers/mtd/nand/nand_base.c |   14 ++++----------

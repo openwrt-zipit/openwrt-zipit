@@ -1,7 +1,7 @@
 From 5e219770079a61b8c8e59abe5510678361c94696 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 5 Sep 2010 03:19:10 +0200
-Subject: [PATCH 08/29] i2c: Add i2c driver for JZ47XX SoCs
+Subject: [PATCH 08/32] i2c: Add i2c driver for JZ47XX SoCs
 
 This patch adds a driver for the i2c controller found in Ingenic JZ47XX based
 SoCs.

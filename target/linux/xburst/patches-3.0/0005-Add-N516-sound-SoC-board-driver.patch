@@ -1,7 +1,7 @@
 From 523f9ca02b5c2c8b79f1d01fff03b1191a6aed6c Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 1 Aug 2010 21:34:54 +0200
-Subject: [PATCH 05/29] Add N516 sound SoC board driver
+Subject: [PATCH 05/32] Add N516 sound SoC board driver
 
 ---
  sound/soc/jz4740/Kconfig  |    8 ++

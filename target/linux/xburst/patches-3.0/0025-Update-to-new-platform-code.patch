@@ -1,7 +1,7 @@
 From 8a760f273f94b72e882d7f82b04ade72ae739a6b Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@sharism.cc>
 Date: Wed, 14 Sep 2011 15:12:41 +0800
-Subject: [PATCH 25/29] Update to new platform code
+Subject: [PATCH 25/32] Update to new platform code
 
 ---
  drivers/mtd/nand/jz4740_nand.c |    2 +-

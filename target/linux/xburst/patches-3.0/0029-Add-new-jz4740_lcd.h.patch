@@ -1,7 +1,7 @@
 From 2dc84f90409839e6a85bd9e25394a387c86d12a1 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
 Date: Wed, 14 Sep 2011 14:29:58 +0800
-Subject: [PATCH 29/29] Add new jz4740_lcd.h
+Subject: [PATCH 29/32] Add new jz4740_lcd.h
 
 ---
  drivers/video/jz4740_fb.c  |   78 +----------------------------------

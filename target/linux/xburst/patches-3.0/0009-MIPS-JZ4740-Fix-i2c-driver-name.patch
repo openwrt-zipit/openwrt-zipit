@@ -1,7 +1,7 @@
 From 05bc4140f9da08fa48d81131ffa785e3026773a8 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 5 Sep 2010 03:21:51 +0200
-Subject: [PATCH 09/29] MIPS: JZ4740: Fix i2c driver name.
+Subject: [PATCH 09/32] MIPS: JZ4740: Fix i2c driver name.
 
 The i2c driver is generic to all JZ47XX based SoCs not only the JZ4740. Reflect
 this in the driver name.

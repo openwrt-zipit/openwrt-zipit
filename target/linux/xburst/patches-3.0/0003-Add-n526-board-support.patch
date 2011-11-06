@@ -1,7 +1,7 @@
 From dcc0d9f15146c100a843dfa62ba259e208330f07 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sat, 24 Apr 2010 17:25:23 +0200
-Subject: [PATCH 03/29] Add n526 board support
+Subject: [PATCH 03/32] Add n526 board support
 
 ---
  arch/mips/jz4740/Kconfig      |    4 +

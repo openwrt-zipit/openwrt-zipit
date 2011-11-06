@@ -1,7 +1,7 @@
 From a5d4cdf6165b2e324f6f55a0c6b2e3d29d303382 Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Wed, 12 May 2010 14:18:47 +0200
-Subject: [PATCH 17/29] 900-add-openwrt-logo
+Subject: [PATCH 17/32] 900-add-openwrt-logo
 
 ---
  drivers/video/logo/Kconfig                  |    4 +

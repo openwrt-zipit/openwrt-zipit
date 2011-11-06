@@ -1,7 +1,7 @@
 From e4e1ca7caccf399366d8dbbf6539217e2c7ea852 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:45:59 +0800
-Subject: [PATCH 20/29] 903-NAND-Add-support-for-subpage-reads-for-NAND_ECC_HW_O.patch
+Subject: [PATCH 20/32] 903-NAND-Add-support-for-subpage-reads-for-NAND_ECC_HW_O.patch
 
 ---
  drivers/mtd/nand/nand_base.c |   78 ++++++++++++++++++++++++++++++++++++++++--

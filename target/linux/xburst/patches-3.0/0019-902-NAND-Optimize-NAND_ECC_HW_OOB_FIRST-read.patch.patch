@@ -1,7 +1,7 @@
 From a525f2fabe86dfd4a1acc057afcb31de319ca3e5 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:45:39 +0800
-Subject: [PATCH 19/29] 902-NAND-Optimize-NAND_ECC_HW_OOB_FIRST-read.patch
+Subject: [PATCH 19/32] 902-NAND-Optimize-NAND_ECC_HW_OOB_FIRST-read.patch
 
 ---
  drivers/mtd/nand/nand_base.c |   14 ++++++++++----

@@ -1,7 +1,7 @@
 From 322d8e1ccf544f576d60622dc304f136cef64a3b Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 5 Sep 2010 20:34:08 +0200
-Subject: [PATCH 04/29] MIPS: JZ4740: Add id800wt board
+Subject: [PATCH 04/32] MIPS: JZ4740: Add id800wt board
 
 ---
  arch/mips/jz4740/Kconfig         |    4 +

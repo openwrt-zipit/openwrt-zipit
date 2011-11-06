@@ -1,7 +1,7 @@
 From f4c9a977dc405856676cd1ca435394faf49b5f1c Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:44:15 +0800
-Subject: [PATCH 16/29] 850-ks7010-support.patch
+Subject: [PATCH 16/32] 850-ks7010-support.patch
 
 ---
  drivers/mmc/core/core.c     |    4 ++--

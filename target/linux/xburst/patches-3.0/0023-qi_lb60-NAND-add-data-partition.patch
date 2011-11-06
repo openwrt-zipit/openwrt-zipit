@@ -1,7 +1,7 @@
 From 1878b22649c3ecde1795d6695b92ca02fa9110c2 Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.(none)>
 Date: Fri, 19 Aug 2011 15:46:52 +0800
-Subject: [PATCH 23/29] qi_lb60: NAND: add data partition
+Subject: [PATCH 23/32] qi_lb60: NAND: add data partition
 
 ---
  arch/mips/jz4740/board-qi_lb60.c |    7 ++++++-

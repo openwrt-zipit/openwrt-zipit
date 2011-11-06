@@ -1,7 +1,7 @@
 From d7a92f8ccdca40672a2a242c756fb52c31b2bdba Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sun, 1 Aug 2010 21:19:40 +0200
-Subject: [PATCH 12/29] Add ili8960 lcd driver
+Subject: [PATCH 12/32] Add ili8960 lcd driver
 
 ---
  drivers/video/backlight/Kconfig   |    7 +

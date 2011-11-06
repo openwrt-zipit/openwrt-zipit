@@ -1,7 +1,7 @@
 From ab59753a9df09b990822b15d2593c5c98905684c Mon Sep 17 00:00:00 2001
 From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
 Date: Wed, 14 Sep 2011 14:29:51 +0800
-Subject: [PATCH 27/29] Add DEVMEM support
+Subject: [PATCH 27/32] Add DEVMEM support
 
 ---
  drivers/char/Kconfig |   10 ++++++++++

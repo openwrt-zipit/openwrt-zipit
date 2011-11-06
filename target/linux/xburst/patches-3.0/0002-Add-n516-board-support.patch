@@ -1,7 +1,7 @@
 From 633a1f02f183675e3448c45a5ddd5e942ecbc37c Mon Sep 17 00:00:00 2001
 From: Lars-Peter Clausen <lars@metafoo.de>
 Date: Sat, 24 Apr 2010 17:25:01 +0200
-Subject: [PATCH 02/29] Add n516 board support
+Subject: [PATCH 02/32] Add n516 board support
 
 ---
  arch/mips/include/asm/mach-jz4740/board-n516.h |   39 +++
