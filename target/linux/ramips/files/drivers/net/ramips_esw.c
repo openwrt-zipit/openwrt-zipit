@@ -19,6 +19,11 @@
 #define RT305X_ESW_REG_FPA2		0xc8
 #define RT305X_ESW_REG_FCT2		0xcc
 #define RT305X_ESW_REG_SGC2		0xe4
+#define RT305X_ESW_REG_P0LED	0xa4
+#define RT305X_ESW_REG_P1LED	0xa8
+#define RT305X_ESW_REG_P2LED	0xac
+#define RT305X_ESW_REG_P3LED	0xb0
+#define RT305X_ESW_REG_P4LED	0xb4
 
 #define RT305X_ESW_PCR0_WT_NWAY_DATA_S	16
 #define RT305X_ESW_PCR0_WT_PHY_CMD	BIT(13)
@@ -213,7 +218,7 @@ rt305x_esw_hw_init(struct rt305x_esw *esw)
 		       (RT305X_ESW_PORTS_NOCPU << RT305X_ESW_POC3_UNTAG_EN_S)),
 		      RT305X_ESW_REG_POC3);
 
-	rt305x_esw_wr(esw, 0x00d6500c, RT305X_ESW_REG_FCT2);
+	rt305x_esw_wr(esw, esw->pdata->reg_initval_fct2, RT305X_ESW_REG_FCT2);
 	rt305x_esw_wr(esw, 0x0008a301, RT305X_ESW_REG_SGC);
 
 	/* Setup SoC Port control register */
@@ -224,8 +229,15 @@ rt305x_esw_hw_init(struct rt305x_esw *esw)
 		       (RT305X_ESW_PORTS_CPU << RT305X_ESW_SOCPC_DISBC2CPU_S)),
 		      RT305X_ESW_REG_SOCPC);
 
-	rt305x_esw_wr(esw, 0x3f502b28, RT305X_ESW_REG_FPA2);
+	rt305x_esw_wr(esw, esw->pdata->reg_initval_fpa2, RT305X_ESW_REG_FPA2);
 	rt305x_esw_wr(esw, 0x00000000, RT305X_ESW_REG_FPA);
+
+	/* Force Link/Activity on ports */
+	rt305x_esw_wr(esw, 0x00000005, RT305X_ESW_REG_P0LED);
+	rt305x_esw_wr(esw, 0x00000005, RT305X_ESW_REG_P1LED);
+	rt305x_esw_wr(esw, 0x00000005, RT305X_ESW_REG_P2LED);
+	rt305x_esw_wr(esw, 0x00000005, RT305X_ESW_REG_P3LED);
+	rt305x_esw_wr(esw, 0x00000005, RT305X_ESW_REG_P4LED);
 
 	rt305x_mii_write(esw, 0, 31, 0x8000);
 	for (i = 0; i < 5; i++) {
@@ -263,6 +275,18 @@ rt305x_esw_hw_init(struct rt305x_esw *esw)
 
 	switch (esw->pdata->vlan_config) {
 	case RT305X_ESW_VLAN_CONFIG_NONE:
+		break;
+
+	case RT305X_ESW_VLAN_CONFIG_BYPASS:
+		/* Pass all vlan tags to all ports */
+		for (i = 0; i < RT305X_ESW_NUM_VLANS; i++) {
+			rt305x_esw_set_vlan_id(esw, i, i+1);
+			rt305x_esw_set_vmsc(esw, i, RT305X_ESW_PORTS_ALL);
+		}
+		/* Disable VLAN TAG removal, keep aging on. */
+		rt305x_esw_wr(esw,
+			      RT305X_ESW_PORTS_ALL << RT305X_ESW_POC3_ENAGING_S,
+			      RT305X_ESW_REG_POC3);
 		break;
 
 	case RT305X_ESW_VLAN_CONFIG_LLLLW:

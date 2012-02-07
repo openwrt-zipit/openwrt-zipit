@@ -1,0 +1,66 @@
+From f4c9a977dc405856676cd1ca435394faf49b5f1c Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@macbook.(none)>
+Date: Fri, 19 Aug 2011 15:44:15 +0800
+Subject: [PATCH 16/32] 850-ks7010-support.patch
+
+---
+ drivers/mmc/core/core.c     |    4 ++--
+ drivers/mmc/core/sdio_cis.c |    7 ++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/mmc/core/core.c b/drivers/mmc/core/core.c
+index 7843efe..9b904b8 100644
+--- a/drivers/mmc/core/core.c
++++ b/drivers/mmc/core/core.c
+@@ -1020,7 +1020,7 @@ static void mmc_power_up(struct mmc_host *host)
+ 	 * This delay should be sufficient to allow the power supply
+ 	 * to reach the minimum voltage.
+ 	 */
+-	mmc_delay(10);
++	mmc_delay(200);
+ 
+ 	host->ios.clock = host->f_init;
+ 
+@@ -1031,7 +1031,7 @@ static void mmc_power_up(struct mmc_host *host)
+ 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
+ 	 * time required to reach a stable voltage.
+ 	 */
+-	mmc_delay(10);
++	mmc_delay(200);
+ }
+ 
+ static void mmc_power_off(struct mmc_host *host)
+diff --git a/drivers/mmc/core/sdio_cis.c b/drivers/mmc/core/sdio_cis.c
+index 541bdb8..3ed300c 100644
+--- a/drivers/mmc/core/sdio_cis.c
++++ b/drivers/mmc/core/sdio_cis.c
+@@ -156,7 +156,8 @@ static int cistpl_funce_common(struct mmc_card *card, struct sdio_func *func,
+ 	/* TPLFE_MAX_TRAN_SPEED */
+ 	card->cis.max_dtr = speed_val[(buf[3] >> 3) & 15] *
+ 			    speed_unit[buf[3] & 7];
+-
++	if(card->cis.max_dtr > 25000000 && card->cccr.sdio_vsn < SDIO_SDIO_REV_2_00)
++		card->cis.max_dtr = 25000000;
+ 	return 0;
+ }
+ 
+@@ -177,14 +178,14 @@ static int cistpl_funce_func(struct mmc_card *card, struct sdio_func *func,
+ 	vsn = func->card->cccr.sdio_vsn;
+ 	min_size = (vsn == SDIO_SDIO_REV_1_00) ? 28 : 42;
+ 
+-	if (size < min_size)
++	if (buf[0] != 1)
+ 		return -EINVAL;
+ 
+ 	/* TPLFE_MAX_BLK_SIZE */
+ 	func->max_blksize = buf[12] | (buf[13] << 8);
+ 
+ 	/* TPLFE_ENABLE_TIMEOUT_VAL, present in ver 1.1 and above */
+-	if (vsn > SDIO_SDIO_REV_1_00)
++	if (vsn > SDIO_SDIO_REV_1_00 && size >= min_size)
+ 		func->enable_timeout = (buf[28] | (buf[29] << 8)) * 10;
+ 	else
+ 		func->enable_timeout = jiffies_to_msecs(HZ);
+-- 
+1.7.4.1
+

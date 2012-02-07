@@ -15,24 +15,16 @@ PKG_MD5SUM:=c2972c4d9b3e29c03d5f2af86249876f
 
 include $(INCLUDE_DIR)/host-build.mk
 
-define Host/Configure
-	$(call Host/Configure/Default,\
-		--datarootdir=$(STAGING_DIR_HOST)/share \
-	)
-endef
-
-define Host/Compile
-	$(MAKE) -C $(HOST_BUILD_DIR)
-endef
+HOST_CONFIGURE_ARGS += --datarootdir=$(STAGING_DIR_HOST)/share
 
 define Host/Install
 	$(MAKE) -C $(HOST_BUILD_DIR) install
 	mv $(STAGING_DIR_HOST)/bin/aclocal $(STAGING_DIR_HOST)/bin/aclocal.real
 	$(INSTALL_BIN) ./files/aclocal $(STAGING_DIR_HOST)/bin
-	ln -sf $(STAGING_DIR_HOST)/bin/aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.9
-	ln -sf $(STAGING_DIR_HOST)/bin/aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.10
-	ln -sf $(STAGING_DIR_HOST)/bin/aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.11
-	ln -sf $(STAGING_DIR_HOST)/bin/aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.11.1
+	ln -sf aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.9
+	ln -sf aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.10
+	ln -sf aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.11
+	ln -sf aclocal $(STAGING_DIR_HOST)/bin/aclocal-1.11.1
 endef
 
 define Host/Clean

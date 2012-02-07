@@ -1,0 +1,25 @@
+From e4334870d2348cc326cb9135e9da83cdbec9e95e Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@macbook.(none)>
+Date: Fri, 19 Aug 2011 15:45:19 +0800
+Subject: [PATCH 18/32] 901-ubi-Read-only-the-vid-header-instead-of-the-whole-pa.patch
+
+---
+ drivers/mtd/ubi/io.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mtd/ubi/io.c b/drivers/mtd/ubi/io.c
+index 8c1b1c7..b0346e4 100644
+--- a/drivers/mtd/ubi/io.c
++++ b/drivers/mtd/ubi/io.c
+@@ -1031,7 +1031,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
+ 
+ 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
+ 	read_err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,
+-			  ubi->vid_hdr_alsize);
++			  UBI_VID_HDR_SIZE + ubi->vid_hdr_shift);
+ 	if (read_err && read_err != UBI_IO_BITFLIPS && read_err != -EBADMSG)
+ 		return read_err;
+ 
+-- 
+1.7.4.1
+

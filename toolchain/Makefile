@@ -28,7 +28,7 @@
 curdir:=toolchain
 
 # subdirectories to descend into
-$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC) $(if $(CONFIG_GLIBC_PORTS),glibc-ports))
+$(curdir)/builddirs := $(if $(CONFIG_GDB),gdb) $(if $(CONFIG_INSIGHT),insight) $(if $(CONFIG_EXTERNAL_TOOLCHAIN),wrapper,kernel-headers binutils gcc/minimal gcc/initial gcc/final $(LIBC) $(if $(CONFIG_GLIBC_PORTS),glibc-ports))
 $(curdir)/builddirs-compile:=$($(curdir)/builddirs-prepare)
 $(curdir)/builddirs-install:=$($(curdir)/builddirs-compile)
 
@@ -60,6 +60,7 @@ ifneq ($(ARCH),)
 		$(if $(QUIET),,set -x;) \
 		mkdir -p "$$dir"; \
 		cd "$$dir"; \
+		ln -sf lib lib64; \
 		mkdir -p stamp lib usr/include usr/lib ; \
 	); done
 	@grep GCC_VERSION $@ >/dev/null 2>&1 || $(INSTALL_DATA) $(TOPDIR)/toolchain/info.mk $@

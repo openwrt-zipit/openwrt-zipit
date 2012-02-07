@@ -23,6 +23,15 @@ wpa_supplicant_setup_vif() {
 		config_set "$vif" bridge "$bridge"
 	}
 
+	local mode ifname wds
+	config_get mode "$vif" mode
+	config_get ifname "$vif" ifname
+	config_get_bool wds "$vif" wds 0
+	[ -z "$bridge" ] || [ "$mode" = ap ] || [ "$mode" = sta -a $wds -eq 1 ] || {
+		echo "wpa_supplicant_setup_vif($ifname): Refusing to bridge $mode mode interface"
+		return 1
+	}
+
 	case "$enc" in
 		*none*)
 			key_mgmt='NONE'
@@ -78,9 +87,11 @@ wpa_supplicant_setup_vif() {
 					pairwise='pairwise=CCMP'
 					group='group=CCMP'
 					config_get identity "$vif" identity
+					config_get client_cert "$vif" client_cert
 					config_get priv_key "$vif" priv_key
 					config_get priv_key_pwd "$vif" priv_key_pwd
 					identity="identity=\"$identity\""
+					client_cert="client_cert=\"$client_cert\""
 					priv_key="private_key=\"$priv_key\""
 					priv_key_pwd="private_key_passwd=\"$priv_key_pwd\""
 				;;
@@ -123,6 +134,7 @@ network={
 	$group
 	$eap_type
 	$ca_cert
+	$client_cert
 	$priv_key
 	$priv_key_pwd
 	$phase2

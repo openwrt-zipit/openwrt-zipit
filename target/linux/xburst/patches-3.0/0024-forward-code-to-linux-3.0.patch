@@ -1,0 +1,1275 @@
+From 87eb40e63e1b149ef87fe05765b97328bfbd1c1f Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
+Date: Wed, 14 Sep 2011 14:29:37 +0800
+Subject: [PATCH 24/32] forward code to linux 3.0
+
+---
+ arch/mips/Kconfig                             |    2 +
+ arch/mips/include/asm/cacheflush.h            |    6 +
+ arch/mips/include/asm/mach-jz4740/gpio.h      |    5 +
+ arch/mips/include/asm/mach-jz4740/jz4740_fb.h |    8 +
+ arch/mips/jz4740/Makefile                     |    1 +
+ arch/mips/jz4740/clock.c                      |  230 +++++++++++++++++++++++-
+ arch/mips/jz4740/clock.h                      |    4 +
+ arch/mips/jz4740/cpufreq.c                    |  226 ++++++++++++++++++++++++
+ arch/mips/jz4740/gpio.c                       |  148 ++++------------
+ arch/mips/jz4740/irq.c                        |   92 ++++------
+ arch/mips/jz4740/irq.h                        |    6 +-
+ arch/mips/jz4740/platform.c                   |   20 ++-
+ arch/mips/jz4740/pm.c                         |    3 -
+ arch/mips/jz4740/reset.c                      |   46 +++++-
+ arch/mips/kernel/cpufreq/Kconfig              |   13 ++-
+ 15 files changed, 623 insertions(+), 187 deletions(-)
+ create mode 100644 arch/mips/jz4740/cpufreq.c
+
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 653da62..42c4e6a 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -211,6 +211,8 @@ config MACH_JZ4740
+ 	select SYS_HAS_EARLY_PRINTK
+ 	select HAVE_PWM
+ 	select HAVE_CLK
++	select CPU_SUPPORTS_CPUFREQ
++	select GENERIC_IRQ_CHIP
+ 
+ config LANTIQ
+ 	bool "Lantiq based platforms"
+diff --git a/arch/mips/include/asm/cacheflush.h b/arch/mips/include/asm/cacheflush.h
+index 40bb9fd..2a26af0 100644
+--- a/arch/mips/include/asm/cacheflush.h
++++ b/arch/mips/include/asm/cacheflush.h
+@@ -114,4 +114,10 @@ unsigned long run_uncached(void *func);
+ extern void *kmap_coherent(struct page *page, unsigned long addr);
+ extern void kunmap_coherent(void);
+ 
++#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
++static inline void flush_kernel_dcache_page(struct page *page)
++{
++	flush_dcache_page(page);
++}
++
+ #endif /* _ASM_CACHEFLUSH_H */
+diff --git a/arch/mips/include/asm/mach-jz4740/gpio.h b/arch/mips/include/asm/mach-jz4740/gpio.h
+index 7b74703..5a3675e 100644
+--- a/arch/mips/include/asm/mach-jz4740/gpio.h
++++ b/arch/mips/include/asm/mach-jz4740/gpio.h
+@@ -253,6 +253,9 @@ uint32_t jz_gpio_port_get_value(int port, uint32_t mask);
+ #define JZ_GPIO_MEM_WAIT		JZ_GPIO_PORTC(27)
+ #define JZ_GPIO_MEM_FRE			JZ_GPIO_PORTC(28)
+ #define JZ_GPIO_MEM_FWE			JZ_GPIO_PORTC(29)
++/* Pins have different assignment in SLCD mode */
++#define JZ_GPIO_SLCD_RS			JZ_GPIO_PORTC(19)
++#define JZ_GPIO_SLCD_CS			JZ_GPIO_PORTC(20)
+ 
+ #define JZ_GPIO_FUNC_LCD_DATA0		JZ_GPIO_FUNC1
+ #define JZ_GPIO_FUNC_LCD_DATA1		JZ_GPIO_FUNC1
+@@ -284,6 +287,8 @@ uint32_t jz_gpio_port_get_value(int port, uint32_t mask);
+ #define JZ_GPIO_FUNC_MEM_WAIT		JZ_GPIO_FUNC1
+ #define JZ_GPIO_FUNC_MEM_FRE		JZ_GPIO_FUNC1
+ #define JZ_GPIO_FUNC_MEM_FWE		JZ_GPIO_FUNC1
++#define JZ_GPIO_FUNC_SLCD_RS		JZ_GPIO_FUNC1
++#define JZ_GPIO_FUNC_SLCD_CS		JZ_GPIO_FUNC1
+ 
+ 
+ #define JZ_GPIO_MEM_ADDR19		JZ_GPIO_PORTB(22)
+diff --git a/arch/mips/include/asm/mach-jz4740/jz4740_fb.h b/arch/mips/include/asm/mach-jz4740/jz4740_fb.h
+index 6a50e6f..b2b6dba 100644
+--- a/arch/mips/include/asm/mach-jz4740/jz4740_fb.h
++++ b/arch/mips/include/asm/mach-jz4740/jz4740_fb.h
+@@ -30,6 +30,12 @@ enum jz4740_fb_lcd_type {
+ 	JZ_LCD_TYPE_DUAL_COLOR_STN = 10,
+ 	JZ_LCD_TYPE_DUAL_MONOCHROME_STN = 11,
+ 	JZ_LCD_TYPE_8BIT_SERIAL = 12,
++	JZ_LCD_TYPE_SMART_PARALLEL_8_BIT = 1 | (1 << 5),
++	JZ_LCD_TYPE_SMART_PARALLEL_16_BIT = 0 | (1 << 5),
++	JZ_LCD_TYPE_SMART_PARALLEL_18_BIT = 2 | (1 << 5),
++	JZ_LCD_TYPE_SMART_SERIAL_8_BIT = 1 | (3 << 5),
++	JZ_LCD_TYPE_SMART_SERIAL_16_BIT = 0 | (3 << 5),
++	JZ_LCD_TYPE_SMART_SERIAL_18_BIT = 2 | (3 << 5),
+ };
+ 
+ #define JZ4740_FB_SPECIAL_TFT_CONFIG(start, stop) (((start) << 16) | (stop))
+@@ -62,6 +68,8 @@ struct jz4740_fb_platform_data {
+ 
+ 	unsigned pixclk_falling_edge:1;
+ 	unsigned date_enable_active_low:1;
++	unsigned chip_select_active_low:1;
++	unsigned register_select_active_low:1;
+ };
+ 
+ #endif
+diff --git a/arch/mips/jz4740/Makefile b/arch/mips/jz4740/Makefile
+index 72eb2ad..e88ab59 100644
+--- a/arch/mips/jz4740/Makefile
++++ b/arch/mips/jz4740/Makefile
+@@ -19,5 +19,6 @@ obj-$(CONFIG_JZ4740_ID800WT)	+= board-id800wt.o
+ # PM support
+ 
+ obj-$(CONFIG_PM) += pm.o
++obj-$(CONFIG_CPU_FREQ_JZ) += cpufreq.o
+ 
+ ccflags-y := -Werror -Wall
+diff --git a/arch/mips/jz4740/clock.c b/arch/mips/jz4740/clock.c
+index 118a8a5..da423d1 100644
+--- a/arch/mips/jz4740/clock.c
++++ b/arch/mips/jz4740/clock.c
+@@ -1,5 +1,8 @@
+ /*
++ *  Copyright (c) 2006-2007, Ingenic Semiconductor Inc.
+  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
++ *  Copyright (c) 2010, Ulrich Hecht <ulrich.hecht@gmail.com>
++ *  Copyright (c) 2010, Maarten ter Huurne <maarten@treewalker.org>
+  *  JZ4740 SoC clock support
+  *
+  *  This program is free software; you can redistribute it and/or modify it
+@@ -41,16 +44,20 @@
+ #define JZ_CLOCK_CTRL_I2S_SRC_PLL	BIT(31)
+ #define JZ_CLOCK_CTRL_KO_ENABLE		BIT(30)
+ #define JZ_CLOCK_CTRL_UDC_SRC_PLL	BIT(29)
+-#define JZ_CLOCK_CTRL_UDIV_MASK		0x1f800000
+ #define JZ_CLOCK_CTRL_CHANGE_ENABLE	BIT(22)
+ #define JZ_CLOCK_CTRL_PLL_HALF		BIT(21)
+-#define JZ_CLOCK_CTRL_LDIV_MASK		0x001f0000
+ #define JZ_CLOCK_CTRL_UDIV_OFFSET	23
+ #define JZ_CLOCK_CTRL_LDIV_OFFSET	16
+ #define JZ_CLOCK_CTRL_MDIV_OFFSET	12
+ #define JZ_CLOCK_CTRL_PDIV_OFFSET	 8
+ #define JZ_CLOCK_CTRL_HDIV_OFFSET	 4
+ #define JZ_CLOCK_CTRL_CDIV_OFFSET	 0
++#define JZ_CLOCK_CTRL_UDIV_MASK		(0x3f << JZ_CLOCK_CTRL_UDIV_OFFSET)
++#define JZ_CLOCK_CTRL_LDIV_MASK		(0x1f << JZ_CLOCK_CTRL_LDIV_OFFSET)
++#define JZ_CLOCK_CTRL_MDIV_MASK		(0x0f << JZ_CLOCK_CTRL_MDIV_OFFSET)
++#define JZ_CLOCK_CTRL_PDIV_MASK		(0x0f << JZ_CLOCK_CTRL_PDIV_OFFSET)
++#define JZ_CLOCK_CTRL_HDIV_MASK		(0x0f << JZ_CLOCK_CTRL_HDIV_OFFSET)
++#define JZ_CLOCK_CTRL_CDIV_MASK		(0x0f << JZ_CLOCK_CTRL_CDIV_OFFSET)
+ 
+ #define JZ_CLOCK_GATE_UART0	BIT(0)
+ #define JZ_CLOCK_GATE_TCU	BIT(1)
+@@ -90,6 +97,7 @@
+ #define JZ_CLOCK_PLL_M_OFFSET		23
+ #define JZ_CLOCK_PLL_N_OFFSET		18
+ #define JZ_CLOCK_PLL_OD_OFFSET		16
++#define JZ_CLOCK_PLL_STABILIZE_OFFSET	0
+ 
+ #define JZ_CLOCK_LOW_POWER_MODE_DOZE BIT(2)
+ #define JZ_CLOCK_LOW_POWER_MODE_SLEEP BIT(0)
+@@ -97,10 +105,15 @@
+ #define JZ_CLOCK_SLEEP_CTRL_SUSPEND_UHC BIT(7)
+ #define JZ_CLOCK_SLEEP_CTRL_ENABLE_UDC BIT(6)
+ 
++#define JZ_REG_EMC_RTCNT	0x88
++#define JZ_REG_EMC_RTCOR	0x8C
++
+ static void __iomem *jz_clock_base;
+ static spinlock_t jz_clock_lock;
+ static LIST_HEAD(jz_clocks);
+ 
++static void __iomem *jz_emc_base;
++
+ struct main_clk {
+ 	struct clk clk;
+ 	uint32_t div_offset;
+@@ -204,25 +217,88 @@ static int jz_clk_ko_is_enabled(struct clk *clk)
+ 	return !!(jz_clk_reg_read(JZ_REG_CLOCK_CTRL) & JZ_CLOCK_CTRL_KO_ENABLE);
+ }
+ 
++static struct static_clk jz_clk_ext;
++
++static unsigned long jz_clk_pll_calc_rate(
++	unsigned int in_div, unsigned int feedback, unsigned int out_div)
++{
++	return ((jz_clk_ext.rate / in_div) * feedback) / out_div;
++}
++
++static void jz_clk_pll_calc_dividers(unsigned long rate,
++	unsigned int *in_div, unsigned int *feedback, unsigned int *out_div)
++{
++	unsigned int target;
++
++	/* The frequency after the input divider must be between 1 and 15 MHz.
++	   The highest divider yields the best resolution. */
++	*in_div = jz_clk_ext.rate / 1000000;
++	if (*in_div >= 34)
++		*in_div = 33;
++
++	/* The frequency before the output divider must be between 100 and
++	   500 MHz. The lowest target rate is more energy efficient. */
++	if (rate < 25000000) {
++		*out_div = 4;
++		target = 25000000 * 4;
++	} else if (rate <= 50000000) {
++		*out_div = 4;
++		target = rate * 4;
++	} else if (rate <= 100000000) {
++		*out_div = 2;
++		target = rate * 2;
++	} else if (rate <= 500000000) {
++		*out_div = 1;
++		target = rate;
++	} else {
++		*out_div = 1;
++		target = 500000000;
++	}
++
++	/* Compute the feedback divider.
++	   Since the divided input is at least 1 MHz and the target frequency
++	   at most 500 MHz, the feedback will be at most 500 and will therefore
++	   always fit in the 9-bit register.
++	   Similarly, the divided input is at most 15 MHz and the target
++	   frequency at least 100 MHz, so the feedback will be at least 6
++	   where the minimum supported value is 2. */
++	*feedback = ((target / 1000) * *in_div) / (jz_clk_ext.rate / 1000);
++}
++
++static unsigned long jz_clk_pll_round_rate(struct clk *clk, unsigned long rate)
++{
++	unsigned int in_div, feedback, out_div;
++	/* The PLL frequency must be a multiple of 24 MHz, since the LCD pixel
++	 * clock must be exactly 12 MHz for the TV-out to work.
++	 * TODO: A multiple of 12 MHz for the PLL would work if the PLL would
++	 *       not be divided by 2 before being passed to the set of derived
++	 *       clocks that includes the LCD pixel clock.
++	 * TODO: Systemwide decisions like this should be made by the board
++	 *       support code, so add some kind of hook for that.
++	 */
++	unsigned long rate24 = (rate / 24000000) * 24000000;
++
++	jz_clk_pll_calc_dividers(rate24, &in_div, &feedback, &out_div);
++	return jz_clk_pll_calc_rate(in_div, feedback, out_div);
++}
++
+ static const int pllno[] = {1, 2, 2, 4};
+ 
+ static unsigned long jz_clk_pll_get_rate(struct clk *clk)
+ {
+ 	uint32_t val;
+-	int m;
+-	int n;
+-	int od;
++	unsigned int in_div, feedback, out_div;
+ 
+ 	val = jz_clk_reg_read(JZ_REG_CLOCK_PLL);
+ 
+ 	if (val & JZ_CLOCK_PLL_BYPASS)
+ 		return clk_get_rate(clk->parent);
+ 
+-	m = ((val >> 23) & 0x1ff) + 2;
+-	n = ((val >> 18) & 0x1f) + 2;
+-	od = (val >> 16) & 0x3;
++	feedback = ((val >> 23) & 0x1ff) + 2;
++	in_div = ((val >> 18) & 0x1f) + 2;
++	out_div = pllno[(val >> 16) & 0x3];
+ 
+-	return ((clk_get_rate(clk->parent) / n) * m) / pllno[od];
++	return jz_clk_pll_calc_rate(in_div, feedback, out_div);
+ }
+ 
+ static unsigned long jz_clk_pll_half_get_rate(struct clk *clk)
+@@ -235,7 +311,77 @@ static unsigned long jz_clk_pll_half_get_rate(struct clk *clk)
+ 	return jz_clk_pll_get_rate(clk->parent) >> 1;
+ }
+ 
+-static const int jz_clk_main_divs[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32};
++#define SDRAM_TREF 15625   /* Refresh period: 4096 refresh cycles/64ms */
++
++static void sdram_set_pll(unsigned int pllin)
++{
++	unsigned int ns, sdramclock;
++
++	ns = 1000000000 / pllin;
++	sdramclock = (SDRAM_TREF / ns) / 64 + 1;
++	if (sdramclock > 0xff) sdramclock = 0xff;
++	/* Set refresh registers */
++	writew(sdramclock, jz_emc_base + JZ_REG_EMC_RTCOR);
++	writew(sdramclock, jz_emc_base + JZ_REG_EMC_RTCNT);
++}
++
++static int jz_clk_pll_set_rate(struct clk *clk, unsigned long rate)
++{
++	unsigned int ctrl, plcr1;
++	unsigned int feedback, in_div, out_div, pllout, pllout2;
++
++	jz_clk_pll_calc_dividers(rate, &in_div, &feedback, &out_div);
++
++	ctrl = jz_clk_reg_read(JZ_REG_CLOCK_CTRL);
++	pllout = jz_clk_pll_calc_rate(in_div, feedback, out_div);
++	pllout2 = (ctrl & JZ_CLOCK_CTRL_PLL_HALF) ? pllout : (pllout / 2);
++
++	/* Init UHC clock */
++	writel(pllout2 / 48000000 - 1, jz_clock_base + JZ_REG_CLOCK_UHC);
++
++	plcr1 = ((feedback - 2) << JZ_CLOCK_PLL_M_OFFSET) |
++		((in_div - 2) << JZ_CLOCK_PLL_N_OFFSET) |
++		((out_div - 1) << JZ_CLOCK_PLL_OD_OFFSET) |
++		(0x20 << JZ_CLOCK_PLL_STABILIZE_OFFSET) |
++		JZ_CLOCK_PLL_ENABLED;
++
++	sdram_set_pll(pllout);
++
++	/* LCD pixclock */
++	writel(pllout2 / 12000000 - 1, jz_clock_base + JZ_REG_CLOCK_LCD);
++
++	/* configure PLL */
++	__asm__ __volatile__(
++		".set noreorder\n\t"
++		".align 5\n"
++		"sw %1,0(%0)\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		".set reorder\n\t"
++		:
++		: "r" (jz_clock_base + JZ_REG_CLOCK_PLL), "r" (plcr1));
++
++	/* MtH: For some reason the MSC will have problems if this flag is not
++	        restored, even though the MSC is supposedly the only divider
++	        that is not affected by this flag. */
++	jz_clk_reg_set_bits(JZ_REG_CLOCK_CTRL, JZ_CLOCK_CTRL_CHANGE_ENABLE);
++
++	return 0;
++}
++
++static const unsigned int jz_clk_main_divs[] = {
++	1, 2, 3, 4, 6, 8, 12, 16, 24, 32
++};
++static const unsigned int jz_clk_main_divs_inv[] = {
++	-1,  0,  1,  2,  3, -1,  4, -1,  5, -1, -1, -1,  6, -1, -1, -1,
++	 7, -1, -1, -1, -1, -1, -1, -1,  8, -1, -1, -1, -1, -1, -1, -1,
++	 9
++};
+ 
+ static unsigned long jz_clk_main_round_rate(struct clk *clk, unsigned long rate)
+ {
+@@ -290,6 +436,64 @@ static int jz_clk_main_set_rate(struct clk *clk, unsigned long rate)
+ 	return 0;
+ }
+ 
++static struct main_clk jz_clk_cpu;
++
++int clk_main_set_dividers(bool immediate, unsigned int cdiv, unsigned int hdiv,
++			  unsigned int mdiv, unsigned int pdiv)
++{
++	unsigned int cdiv_enc, hdiv_enc, mdiv_enc, pdiv_enc;
++	unsigned int ctrl;
++	unsigned int tmp, wait;
++
++	if (cdiv >= ARRAY_SIZE(jz_clk_main_divs_inv) ||
++	    hdiv >= ARRAY_SIZE(jz_clk_main_divs_inv) ||
++	    mdiv >= ARRAY_SIZE(jz_clk_main_divs_inv) ||
++	    pdiv >= ARRAY_SIZE(jz_clk_main_divs_inv))
++		return -EINVAL;
++	cdiv_enc = jz_clk_main_divs_inv[cdiv];
++	hdiv_enc = jz_clk_main_divs_inv[hdiv];
++	mdiv_enc = jz_clk_main_divs_inv[mdiv];
++	pdiv_enc = jz_clk_main_divs_inv[pdiv];
++	if (cdiv_enc == (unsigned int)-1 ||
++	    hdiv_enc == (unsigned int)-1 ||
++	    mdiv_enc == (unsigned int)-1 ||
++	    pdiv_enc == (unsigned int)-1)
++		return -EINVAL;
++
++	ctrl = jz_clk_reg_read(JZ_REG_CLOCK_CTRL);
++	ctrl &= ~(JZ_CLOCK_CTRL_CHANGE_ENABLE |
++		  JZ_CLOCK_CTRL_CDIV_MASK | JZ_CLOCK_CTRL_HDIV_MASK |
++		  JZ_CLOCK_CTRL_MDIV_MASK | JZ_CLOCK_CTRL_PDIV_MASK);
++	if (immediate) ctrl |= JZ_CLOCK_CTRL_CHANGE_ENABLE;
++	ctrl |= (cdiv_enc << JZ_CLOCK_CTRL_CDIV_OFFSET) |
++		(hdiv_enc << JZ_CLOCK_CTRL_HDIV_OFFSET) |
++		(mdiv_enc << JZ_CLOCK_CTRL_MDIV_OFFSET) |
++		(pdiv_enc << JZ_CLOCK_CTRL_PDIV_OFFSET);
++
++	/* set dividers */
++	/* delay loops lifted from the old Ingenic cpufreq driver */
++	wait = ((clk_get_rate(&jz_clk_cpu.clk) / 1000000) * 500) / 1000;
++	__asm__ __volatile__(
++		".set noreorder\n\t"
++		".align 5\n"
++		"sw %2,0(%1)\n\t"
++		"li %0,0\n\t"
++		"1:\n\t"
++		"bne %0,%3,1b\n\t"
++		"addi %0, 1\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		"nop\n\t"
++		".set reorder\n\t"
++		: "=r" (tmp)
++		: "r" (jz_clock_base + JZ_REG_CLOCK_CTRL), "r" (ctrl),
++		  "r" (wait));
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(clk_main_set_dividers);
++
+ static struct clk_ops jz_clk_static_ops = {
+ 	.get_rate = jz_clk_static_get_rate,
+ 	.enable = jz_clk_enable_gating,
+@@ -307,6 +511,8 @@ static struct static_clk jz_clk_ext = {
+ 
+ static struct clk_ops jz_clk_pll_ops = {
+ 	.get_rate = jz_clk_pll_get_rate,
++	.set_rate = jz_clk_pll_set_rate,
++	.round_rate = jz_clk_pll_round_rate,
+ };
+ 
+ static struct clk jz_clk_pll = {
+@@ -897,6 +1103,10 @@ static int jz4740_clock_init(void)
+ 	if (!jz_clock_base)
+ 		return -EBUSY;
+ 
++	jz_emc_base = ioremap(JZ4740_EMC_BASE_ADDR, 0x100);
++	if (!jz_emc_base)
++		return -EBUSY;
++
+ 	spin_lock_init(&jz_clock_lock);
+ 
+ 	jz_clk_ext.rate = jz4740_clock_bdata.ext_rate;
+diff --git a/arch/mips/jz4740/clock.h b/arch/mips/jz4740/clock.h
+index 5d07499..cc8d1db 100644
+--- a/arch/mips/jz4740/clock.h
++++ b/arch/mips/jz4740/clock.h
+@@ -17,6 +17,7 @@
+ #define __MIPS_JZ4740_CLOCK_H__
+ 
+ #include <linux/list.h>
++#include <linux/types.h>
+ 
+ struct jz4740_clock_board_data {
+ 	unsigned long ext_rate;
+@@ -63,6 +64,9 @@ struct clk {
+ 
+ int clk_is_enabled(struct clk *clk);
+ 
++int clk_main_set_dividers(bool immediate, unsigned int cdiv, unsigned int hdiv,
++			  unsigned int mdiv, unsigned int pdiv);
++
+ #ifdef CONFIG_DEBUG_FS
+ void jz4740_clock_debugfs_init(void);
+ void jz4740_clock_debugfs_add_clk(struct clk *clk);
+diff --git a/arch/mips/jz4740/cpufreq.c b/arch/mips/jz4740/cpufreq.c
+new file mode 100644
+index 0000000..aa41e9f
+--- /dev/null
++++ b/arch/mips/jz4740/cpufreq.c
+@@ -0,0 +1,226 @@
++/*
++ * linux/arch/mips/jz4740/cpufreq.c
++ *
++ * cpufreq driver for JZ4740
++ *
++ * Copyright (c) 2010       Ulrich Hecht <ulrich.hecht@gmail.com>
++ * Copyright (c) 2010       Maarten ter Huurne <maarten@treewalker.org>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/err.h>
++
++#include <linux/cpufreq.h>
++
++#include <linux/clk.h>
++#include <asm/mach-jz4740/base.h>
++
++#include "clock.h"
++
++#define DEBUG_CPUFREQ
++
++#ifdef DEBUG_CPUFREQ
++#define dprintk(X...) printk(KERN_INFO X)
++#else
++#define dprintk(X...) do { } while(0)
++#endif
++
++#define HCLK_MIN 30000
++/* TODO: The maximum MCLK most likely depends on the SDRAM chips used,
++         so it is board-specific. */
++#define MCLK_MAX 140000
++
++/* Same as jz_clk_main_divs, but with 24 and 32 removed because the hardware
++   spec states those dividers must not be used for CCLK or HCLK. */
++static const unsigned int jz4740_freq_cpu_divs[] = {1, 2, 3, 4, 6, 8, 12, 16};
++
++struct jz4740_freq_percpu_info {
++	unsigned int pll_rate;
++	struct cpufreq_frequency_table table[
++		ARRAY_SIZE(jz4740_freq_cpu_divs) + 1];
++};
++
++static struct clk *pll;
++static struct clk *cclk;
++
++static struct jz4740_freq_percpu_info jz4740_freq_info;
++
++static struct cpufreq_driver cpufreq_jz4740_driver;
++
++static void jz4740_freq_fill_table(struct cpufreq_policy *policy,
++				   unsigned int pll_rate)
++{
++	struct cpufreq_frequency_table *table = &jz4740_freq_info.table[0];
++	int i;
++
++#ifdef CONFIG_CPU_FREQ_STAT_DETAILS
++	/* for showing /sys/devices/system/cpu/cpuX/cpufreq/stats/ */
++	static bool init = false;
++	if (init)
++		cpufreq_frequency_table_put_attr(policy->cpu);
++	else
++		init = true;
++#endif
++
++	jz4740_freq_info.pll_rate = pll_rate;
++
++	for (i = 0; i < ARRAY_SIZE(jz4740_freq_cpu_divs); i++) {
++		unsigned int freq = pll_rate / jz4740_freq_cpu_divs[i];
++		if (freq < HCLK_MIN) break;
++		table[i].index = i;
++		table[i].frequency = freq;
++	}
++	table[i].index = i;
++	table[i].frequency = CPUFREQ_TABLE_END;
++
++	policy->min = table[i - 1].frequency;
++	policy->max = table[0].frequency;
++
++#ifdef CONFIG_CPU_FREQ_STAT_DETAILS
++	cpufreq_frequency_table_get_attr(table, policy->cpu);
++#endif
++}
++
++static unsigned int jz4740_freq_get(unsigned int cpu)
++{
++	return clk_get_rate(cclk) / 1000;
++}
++
++static int jz4740_freq_verify(struct cpufreq_policy *policy)
++{
++	unsigned int new_pll;
++
++	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
++				     policy->cpuinfo.max_freq);
++
++	new_pll = clk_round_rate(pll, policy->max * 1000) / 1000;
++	if (jz4740_freq_info.pll_rate != new_pll)
++		jz4740_freq_fill_table(policy, new_pll);
++
++	return 0;
++}
++
++static int jz4740_freq_target(struct cpufreq_policy *policy,
++			  unsigned int target_freq,
++			  unsigned int relation)
++{
++	struct cpufreq_frequency_table *table = &jz4740_freq_info.table[0];
++	struct cpufreq_freqs freqs;
++	unsigned int new_index = 0;
++	unsigned int old_pll = clk_get_rate(pll) / 1000;
++	unsigned int new_pll = jz4740_freq_info.pll_rate;
++	int ret = 0;
++
++	if (cpufreq_frequency_table_target(policy, table,
++					   target_freq, relation, &new_index))
++		return -EINVAL;
++	freqs = (struct cpufreq_freqs) {
++		.old = jz4740_freq_get(policy->cpu),
++		.new = table[new_index].frequency,
++		.cpu = policy->cpu,
++		.flags = cpufreq_jz4740_driver.flags,
++	};
++	if (freqs.new != freqs.old || new_pll != old_pll) {
++		unsigned int cdiv, hdiv, mdiv, pdiv;
++		cdiv = jz4740_freq_cpu_divs[new_index];
++		hdiv = (cdiv == 3 || cdiv == 6) ? cdiv * 2 : cdiv * 3;
++		while (new_pll < HCLK_MIN * hdiv)
++			hdiv -= cdiv;
++		mdiv = hdiv;
++		if (new_pll > MCLK_MAX * mdiv) {
++			/* 4,4 performs better than 3,6 */
++			if (new_pll > MCLK_MAX * 4)
++				mdiv *= 2;
++			else
++				hdiv = mdiv = cdiv * 4;
++		}
++		pdiv = mdiv;
++		dprintk(KERN_INFO "%s: cclk %p, setting from %d to %d, "
++			"dividers %d, %d, %d, %d\n",
++			__FUNCTION__, cclk, freqs.old, freqs.new,
++			cdiv, hdiv, mdiv, pdiv);
++		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
++		ret = clk_main_set_dividers(new_pll == old_pll,
++					    cdiv, hdiv, mdiv, pdiv);
++		if (ret) {
++			dprintk(KERN_INFO "failed to set dividers\n");
++		} else if (new_pll != old_pll) {
++			dprintk(KERN_INFO "%s: pll %p, setting from %d to %d\n",
++				__FUNCTION__, pll, old_pll, new_pll);
++			ret = clk_set_rate(pll, new_pll * 1000);
++		}
++		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
++	}
++
++	return ret;
++}
++
++static int jz4740_cpufreq_driver_init(struct cpufreq_policy *policy)
++{
++	int ret;
++
++	dprintk(KERN_INFO "Jz4740 cpufreq driver\n");
++
++	if (policy->cpu != 0)
++		return -EINVAL;
++
++	pll = clk_get(NULL, "pll");
++	if (IS_ERR(pll)) {
++		ret = PTR_ERR(pll);
++		goto err_exit;
++	}
++
++	cclk = clk_get(NULL, "cclk");
++	if (IS_ERR(cclk)) {
++		ret = PTR_ERR(cclk);
++		goto err_clk_put_pll;
++	}
++
++	policy->cpuinfo.min_freq = HCLK_MIN;
++	policy->cpuinfo.max_freq = 500000;
++	policy->cpuinfo.transition_latency = 100000; /* in nanoseconds */
++	policy->cur = jz4740_freq_get(policy->cpu);
++	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
++	/* min and max are set by jz4740_freq_fill_table() */
++
++	jz4740_freq_fill_table(policy, clk_get_rate(pll) / 1000 /* in kHz */);
++
++	return 0;
++
++err_clk_put_pll:
++	clk_put(pll);
++err_exit:
++	return ret;
++}
++
++static struct cpufreq_driver cpufreq_jz4740_driver = {
++	.init	= jz4740_cpufreq_driver_init,
++	.verify	= jz4740_freq_verify,
++	.target	= jz4740_freq_target,
++	.get	= jz4740_freq_get,
++	.name	= "jz4740",
++};
++
++static int __init jz4740_cpufreq_init(void)
++{
++	return cpufreq_register_driver(&cpufreq_jz4740_driver);
++}
++
++static void __exit jz4740_cpufreq_exit(void)
++{
++	cpufreq_unregister_driver(&cpufreq_jz4740_driver);
++}
++
++module_init(jz4740_cpufreq_init);
++module_exit(jz4740_cpufreq_exit);
++
++MODULE_AUTHOR("Ulrich Hecht <ulrich.hecht@gmail.com>, "
++	      "Maarten ter Huurne <maarten@treewalker.org>");
++MODULE_DESCRIPTION("cpufreq driver for Jz4740");
++MODULE_LICENSE("GPL");
+diff --git a/arch/mips/jz4740/gpio.c b/arch/mips/jz4740/gpio.c
+index 73031f7..e1ddb95 100644
+--- a/arch/mips/jz4740/gpio.c
++++ b/arch/mips/jz4740/gpio.c
+@@ -17,8 +17,6 @@
+ #include <linux/module.h>
+ #include <linux/init.h>
+ 
+-#include <linux/spinlock.h>
+-#include <linux/sysdev.h>
+ #include <linux/io.h>
+ #include <linux/gpio.h>
+ #include <linux/delay.h>
+@@ -30,6 +28,8 @@
+ 
+ #include <asm/mach-jz4740/base.h>
+ 
++#include "irq.h"
++
+ #define JZ4740_GPIO_BASE_A (32*0)
+ #define JZ4740_GPIO_BASE_B (32*1)
+ #define JZ4740_GPIO_BASE_C (32*2)
+@@ -77,16 +77,11 @@
+ struct jz_gpio_chip {
+ 	unsigned int irq;
+ 	unsigned int irq_base;
+-	uint32_t wakeup;
+-	uint32_t suspend_mask;
+ 	uint32_t edge_trigger_both;
+ 
+ 	void __iomem *base;
+ 
+-	spinlock_t lock;
+-
+ 	struct gpio_chip gpio_chip;
+-	struct sys_device sysdev;
+ };
+ 
+ static struct jz_gpio_chip jz4740_gpio_chips[];
+@@ -103,7 +98,8 @@ static inline struct jz_gpio_chip *gpio_chip_to_jz_gpio_chip(struct gpio_chip *g
+ 
+ static inline struct jz_gpio_chip *irq_to_jz_gpio_chip(struct irq_data *data)
+ {
+-	return irq_data_get_irq_chip_data(data);
++	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
++	return gc->private;
+ }
+ 
+ static inline void jz_gpio_write_bit(unsigned int gpio, unsigned int reg)
+@@ -305,21 +301,15 @@ static void jz_gpio_irq_demux_handler(unsigned int irq, struct irq_desc *desc)
+ {
+ 	uint32_t flag;
+ 	unsigned int gpio_irq;
+-	unsigned int gpio_bank;
+ 	struct jz_gpio_chip *chip = irq_desc_get_handler_data(desc);
+ 
+-	gpio_bank = JZ4740_IRQ_GPIO0 - irq;
+-
+ 	flag = readl(chip->base + JZ_REG_GPIO_FLAG);
+-
+ 	if (!flag)
+ 		return;
+ 
+-	gpio_irq = __fls(flag);
+-
+-	jz_gpio_check_trigger_both(chip, irq);
++	gpio_irq = chip->irq_base + __fls(flag);
+ 
+-	gpio_irq += (gpio_bank << 5) + JZ4740_IRQ_GPIO(0);
++	jz_gpio_check_trigger_both(chip, gpio_irq);
+ 
+ 	generic_handle_irq(gpio_irq);
+ };
+@@ -330,18 +320,12 @@ static inline void jz_gpio_set_irq_bit(struct irq_data *data, unsigned int reg)
+ 	writel(IRQ_TO_BIT(data->irq), chip->base + reg);
+ }
+ 
+-static void jz_gpio_irq_mask(struct irq_data *data)
+-{
+-	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_MASK_SET);
+-};
+-
+ static void jz_gpio_irq_unmask(struct irq_data *data)
+ {
+ 	struct jz_gpio_chip *chip = irq_to_jz_gpio_chip(data);
+ 
+ 	jz_gpio_check_trigger_both(chip, data->irq);
+-
+-	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_MASK_CLEAR);
++	irq_gc_unmask_enable_reg(data);
+ };
+ 
+ /* TODO: Check if function is gpio */
+@@ -354,18 +338,13 @@ static unsigned int jz_gpio_irq_startup(struct irq_data *data)
+ 
+ static void jz_gpio_irq_shutdown(struct irq_data *data)
+ {
+-	jz_gpio_irq_mask(data);
++	irq_gc_mask_disable_reg(data);
+ 
+ 	/* Set direction to input */
+ 	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_DIRECTION_CLEAR);
+ 	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_SELECT_CLEAR);
+ }
+ 
+-static void jz_gpio_irq_ack(struct irq_data *data)
+-{
+-	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_FLAG_CLEAR);
+-};
+-
+ static int jz_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
+ {
+ 	struct jz_gpio_chip *chip = irq_to_jz_gpio_chip(data);
+@@ -409,35 +388,13 @@ static int jz_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
+ static int jz_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
+ {
+ 	struct jz_gpio_chip *chip = irq_to_jz_gpio_chip(data);
+-	spin_lock(&chip->lock);
+-	if (on)
+-		chip->wakeup |= IRQ_TO_BIT(data->irq);
+-	else
+-		chip->wakeup &= ~IRQ_TO_BIT(data->irq);
+-	spin_unlock(&chip->lock);
+ 
++	irq_gc_set_wake(data, on);
+ 	irq_set_irq_wake(chip->irq, on);
++
+ 	return 0;
+ }
+ 
+-static struct irq_chip jz_gpio_irq_chip = {
+-	.name = "GPIO",
+-	.irq_mask = jz_gpio_irq_mask,
+-	.irq_unmask = jz_gpio_irq_unmask,
+-	.irq_ack = jz_gpio_irq_ack,
+-	.irq_startup = jz_gpio_irq_startup,
+-	.irq_shutdown = jz_gpio_irq_shutdown,
+-	.irq_set_type = jz_gpio_irq_set_type,
+-	.irq_set_wake = jz_gpio_irq_set_wake,
+-	.flags = IRQCHIP_SET_TYPE_MASKED,
+-};
+-
+-/*
+- * This lock class tells lockdep that GPIO irqs are in a different
+- * category than their parents, so it won't report false recursion.
+- */
+-static struct lock_class_key gpio_lock_class;
+-
+ #define JZ4740_GPIO_CHIP(_bank) { \
+ 	.irq_base = JZ4740_IRQ_GPIO_BASE_ ## _bank, \
+ 	.gpio_chip = { \
+@@ -459,78 +416,49 @@ static struct jz_gpio_chip jz4740_gpio_chips[] = {
+ 	JZ4740_GPIO_CHIP(D),
+ };
+ 
+-static inline struct jz_gpio_chip *sysdev_to_chip(struct sys_device *dev)
+-{
+-	return container_of(dev, struct jz_gpio_chip, sysdev);
+-}
+-
+-static int jz4740_gpio_suspend(struct sys_device *dev, pm_message_t state)
+-{
+-	struct jz_gpio_chip *chip = sysdev_to_chip(dev);
+-
+-	chip->suspend_mask = readl(chip->base + JZ_REG_GPIO_MASK);
+-	writel(~(chip->wakeup), chip->base + JZ_REG_GPIO_MASK_SET);
+-	writel(chip->wakeup, chip->base + JZ_REG_GPIO_MASK_CLEAR);
+-
+-	return 0;
+-}
+-
+-static int jz4740_gpio_resume(struct sys_device *dev)
++static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
+ {
+-	struct jz_gpio_chip *chip = sysdev_to_chip(dev);
+-	uint32_t mask = chip->suspend_mask;
+-
+-	writel(~mask, chip->base + JZ_REG_GPIO_MASK_CLEAR);
+-	writel(mask, chip->base + JZ_REG_GPIO_MASK_SET);
++	struct irq_chip_generic *gc;
++	struct irq_chip_type *ct;
+ 
+-	return 0;
+-}
++	chip->base = ioremap(JZ4740_GPIO_BASE_ADDR + (id * 0x100), 0x100);
+ 
+-static struct sysdev_class jz4740_gpio_sysdev_class = {
+-	.name = "gpio",
+-	.suspend = jz4740_gpio_suspend,
+-	.resume = jz4740_gpio_resume,
+-};
++	chip->irq = JZ4740_IRQ_INTC_GPIO(id);
++	irq_set_handler_data(chip->irq, chip);
++	irq_set_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
+ 
+-static int jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
+-{
+-	int ret, irq;
++	gc = irq_alloc_generic_chip(chip->gpio_chip.label, 1, chip->irq_base,
++		chip->base, handle_level_irq);
+ 
+-	chip->sysdev.id = id;
+-	chip->sysdev.cls = &jz4740_gpio_sysdev_class;
+-	ret = sysdev_register(&chip->sysdev);
++	gc->wake_enabled = IRQ_MSK(chip->gpio_chip.ngpio);
++	gc->private = chip;
+ 
+-	if (ret)
+-		return ret;
++	ct = gc->chip_types;
++	ct->regs.enable = JZ_REG_GPIO_MASK_CLEAR;
++	ct->regs.disable = JZ_REG_GPIO_MASK_SET;
++	ct->regs.ack = JZ_REG_GPIO_FLAG_CLEAR;
+ 
+-	spin_lock_init(&chip->lock);
++	ct->chip.name = "GPIO";
++	ct->chip.irq_mask = irq_gc_mask_disable_reg;
++	ct->chip.irq_unmask = jz_gpio_irq_unmask;
++	ct->chip.irq_ack = irq_gc_ack_set_bit;
++	ct->chip.irq_suspend = jz4740_irq_suspend;
++	ct->chip.irq_resume = jz4740_irq_resume;
++	ct->chip.irq_startup = jz_gpio_irq_startup;
++	ct->chip.irq_shutdown = jz_gpio_irq_shutdown;
++	ct->chip.irq_set_type = jz_gpio_irq_set_type;
++	ct->chip.irq_set_wake = jz_gpio_irq_set_wake;
++	ct->chip.flags = IRQCHIP_SET_TYPE_MASKED;
+ 
+-	chip->base = ioremap(JZ4740_GPIO_BASE_ADDR + (id * 0x100), 0x100);
++	irq_setup_generic_chip(gc, IRQ_MSK(chip->gpio_chip.ngpio),
++		IRQ_GC_INIT_NESTED_LOCK, 0, IRQ_NOPROBE | IRQ_LEVEL);
+ 
+ 	gpiochip_add(&chip->gpio_chip);
+-
+-	chip->irq = JZ4740_IRQ_INTC_GPIO(id);
+-	irq_set_handler_data(chip->irq, chip);
+-	irq_set_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
+-
+-	for (irq = chip->irq_base; irq < chip->irq_base + chip->gpio_chip.ngpio; ++irq) {
+-		irq_set_lockdep_class(irq, &gpio_lock_class);
+-		irq_set_chip_data(irq, chip);
+-		irq_set_chip_and_handler(irq, &jz_gpio_irq_chip,
+-					 handle_level_irq);
+-	}
+-
+-	return 0;
+ }
+ 
+ static int __init jz4740_gpio_init(void)
+ {
+ 	unsigned int i;
+-	int ret;
+-
+-	ret = sysdev_class_register(&jz4740_gpio_sysdev_class);
+-	if (ret)
+-		return ret;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(jz4740_gpio_chips); ++i)
+ 		jz4740_gpio_chip_init(&jz4740_gpio_chips[i], i);
+diff --git a/arch/mips/jz4740/irq.c b/arch/mips/jz4740/irq.c
+index d82c0c4..fc57ded 100644
+--- a/arch/mips/jz4740/irq.c
++++ b/arch/mips/jz4740/irq.c
+@@ -32,8 +32,6 @@
+ #include <asm/mach-jz4740/base.h>
+ 
+ static void __iomem *jz_intc_base;
+-static uint32_t jz_intc_wakeup;
+-static uint32_t jz_intc_saved;
+ 
+ #define JZ_REG_INTC_STATUS	0x00
+ #define JZ_REG_INTC_MASK	0x04
+@@ -41,51 +39,36 @@ static uint32_t jz_intc_saved;
+ #define JZ_REG_INTC_CLEAR_MASK	0x0c
+ #define JZ_REG_INTC_PENDING	0x10
+ 
+-#define IRQ_BIT(x) BIT((x) - JZ4740_IRQ_BASE)
+-
+-static inline unsigned long intc_irq_bit(struct irq_data *data)
++static irqreturn_t jz4740_cascade(int irq, void *data)
+ {
+-	return (unsigned long)irq_data_get_irq_chip_data(data);
+-}
++	uint32_t irq_reg;
+ 
+-static void intc_irq_unmask(struct irq_data *data)
+-{
+-	writel(intc_irq_bit(data), jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
+-}
++	irq_reg = readl(jz_intc_base + JZ_REG_INTC_PENDING);
+ 
+-static void intc_irq_mask(struct irq_data *data)
+-{
+-	writel(intc_irq_bit(data), jz_intc_base + JZ_REG_INTC_SET_MASK);
++	if (irq_reg)
++		generic_handle_irq(__fls(irq_reg) + JZ4740_IRQ_BASE);
++
++	return IRQ_HANDLED;
+ }
+ 
+-static int intc_irq_set_wake(struct irq_data *data, unsigned int on)
++static void jz4740_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
+ {
+-	if (on)
+-		jz_intc_wakeup |= intc_irq_bit(data);
+-	else
+-		jz_intc_wakeup &= ~intc_irq_bit(data);
++	struct irq_chip_regs *regs = &gc->chip_types->regs;
+ 
+-	return 0;
++	writel(mask, gc->reg_base + regs->enable);
++	writel(~mask, gc->reg_base + regs->disable);
+ }
+ 
+-static struct irq_chip intc_irq_type = {
+-	.name =		"INTC",
+-	.irq_mask =	intc_irq_mask,
+-	.irq_mask_ack =	intc_irq_mask,
+-	.irq_unmask =	intc_irq_unmask,
+-	.irq_set_wake =	intc_irq_set_wake,
+-};
+-
+-static irqreturn_t jz4740_cascade(int irq, void *data)
++void jz4740_irq_suspend(struct irq_data *data)
+ {
+-	uint32_t irq_reg;
+-
+-	irq_reg = readl(jz_intc_base + JZ_REG_INTC_PENDING);
+-
+-	if (irq_reg)
+-		generic_handle_irq(__fls(irq_reg) + JZ4740_IRQ_BASE);
++	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
++	jz4740_irq_set_mask(gc, gc->wake_active);
++}
+ 
+-	return IRQ_HANDLED;
++void jz4740_irq_resume(struct irq_data *data)
++{
++	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
++	jz4740_irq_set_mask(gc, gc->mask_cache);
+ }
+ 
+ static struct irqaction jz4740_cascade_action = {
+@@ -95,7 +78,9 @@ static struct irqaction jz4740_cascade_action = {
+ 
+ void __init arch_init_irq(void)
+ {
+-	int i;
++	struct irq_chip_generic *gc;
++	struct irq_chip_type *ct;
++
+ 	mips_cpu_irq_init();
+ 
+ 	jz_intc_base = ioremap(JZ4740_INTC_BASE_ADDR, 0x14);
+@@ -103,10 +88,22 @@ void __init arch_init_irq(void)
+ 	/* Mask all irqs */
+ 	writel(0xffffffff, jz_intc_base + JZ_REG_INTC_SET_MASK);
+ 
+-	for (i = JZ4740_IRQ_BASE; i < JZ4740_IRQ_BASE + 32; i++) {
+-		irq_set_chip_data(i, (void *)IRQ_BIT(i));
+-		irq_set_chip_and_handler(i, &intc_irq_type, handle_level_irq);
+-	}
++	gc = irq_alloc_generic_chip("INTC", 1, JZ4740_IRQ_BASE, jz_intc_base,
++		handle_level_irq);
++
++	gc->wake_enabled = IRQ_MSK(32);
++
++	ct = gc->chip_types;
++	ct->regs.enable = JZ_REG_INTC_CLEAR_MASK;
++	ct->regs.disable = JZ_REG_INTC_SET_MASK;
++	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
++	ct->chip.irq_mask = irq_gc_mask_disable_reg;
++	ct->chip.irq_mask_ack = irq_gc_mask_disable_reg;
++	ct->chip.irq_set_wake = irq_gc_set_wake;
++	ct->chip.irq_suspend = jz4740_irq_suspend;
++	ct->chip.irq_resume = jz4740_irq_resume;
++
++	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, 0, IRQ_NOPROBE | IRQ_LEVEL);
+ 
+ 	setup_irq(2, &jz4740_cascade_action);
+ }
+@@ -122,19 +119,6 @@ asmlinkage void plat_irq_dispatch(void)
+ 		spurious_interrupt();
+ }
+ 
+-void jz4740_intc_suspend(void)
+-{
+-	jz_intc_saved = readl(jz_intc_base + JZ_REG_INTC_MASK);
+-	writel(~jz_intc_wakeup, jz_intc_base + JZ_REG_INTC_SET_MASK);
+-	writel(jz_intc_wakeup, jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
+-}
+-
+-void jz4740_intc_resume(void)
+-{
+-	writel(~jz_intc_saved, jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
+-	writel(jz_intc_saved, jz_intc_base + JZ_REG_INTC_SET_MASK);
+-}
+-
+ #ifdef CONFIG_DEBUG_FS
+ 
+ static inline void intc_seq_reg(struct seq_file *s, const char *name,
+diff --git a/arch/mips/jz4740/irq.h b/arch/mips/jz4740/irq.h
+index 56b5ead..f75e39d 100644
+--- a/arch/mips/jz4740/irq.h
++++ b/arch/mips/jz4740/irq.h
+@@ -15,7 +15,9 @@
+ #ifndef __MIPS_JZ4740_IRQ_H__
+ #define __MIPS_JZ4740_IRQ_H__
+ 
+-extern void jz4740_intc_suspend(void);
+-extern void jz4740_intc_resume(void);
++#include <linux/irq.h>
++
++extern void jz4740_irq_suspend(struct irq_data *data);
++extern void jz4740_irq_resume(struct irq_data *data);
+ 
+ #endif
+diff --git a/arch/mips/jz4740/platform.c b/arch/mips/jz4740/platform.c
+index cc6de5b..a5647d9 100644
+--- a/arch/mips/jz4740/platform.c
++++ b/arch/mips/jz4740/platform.c
+@@ -157,11 +157,29 @@ static struct resource jz4740_nand_resources[] = {
+ 		.flags	= IORESOURCE_MEM,
+ 	},
+ 	{
+-		.name	= "bank",
++		.name	= "bank1",
+ 		.start	= 0x18000000,
+ 		.end	= 0x180C0000 - 1,
+ 		.flags = IORESOURCE_MEM,
+ 	},
++	{
++		.name	= "bank2",
++		.start	= 0x14000000,
++		.end	= 0x140C0000 - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.name	= "bank3",
++		.start	= 0x0C000000,
++		.end	= 0x0C0C0000 - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.name	= "bank4",
++		.start	= 0x08000000,
++		.end	= 0x080C0000 - 1,
++		.flags = IORESOURCE_MEM,
++	},
+ };
+ 
+ struct platform_device jz4740_nand_device = {
+diff --git a/arch/mips/jz4740/pm.c b/arch/mips/jz4740/pm.c
+index 902d5b5..6744fa7 100644
+--- a/arch/mips/jz4740/pm.c
++++ b/arch/mips/jz4740/pm.c
+@@ -21,11 +21,9 @@
+ #include <asm/mach-jz4740/clock.h>
+ 
+ #include "clock.h"
+-#include "irq.h"
+ 
+ static int jz4740_pm_enter(suspend_state_t state)
+ {
+-	jz4740_intc_suspend();
+ 	jz4740_clock_suspend();
+ 
+ 	jz4740_clock_set_wait_mode(JZ4740_WAIT_MODE_SLEEP);
+@@ -37,7 +35,6 @@ static int jz4740_pm_enter(suspend_state_t state)
+ 	jz4740_clock_set_wait_mode(JZ4740_WAIT_MODE_IDLE);
+ 
+ 	jz4740_clock_resume();
+-	jz4740_intc_resume();
+ 
+ 	return 0;
+ }
+diff --git a/arch/mips/jz4740/reset.c b/arch/mips/jz4740/reset.c
+index 5f1fb95..e6d1d7b 100644
+--- a/arch/mips/jz4740/reset.c
++++ b/arch/mips/jz4740/reset.c
+@@ -21,6 +21,9 @@
+ #include <asm/mach-jz4740/base.h>
+ #include <asm/mach-jz4740/timer.h>
+ 
++#include "reset.h"
++#include "clock.h"
++
+ static void jz4740_halt(void)
+ {
+ 	while (1) {
+@@ -53,21 +56,52 @@ static void jz4740_restart(char *command)
+ 	jz4740_halt();
+ }
+ 
+-#define JZ_REG_RTC_CTRL		0x00
+-#define JZ_REG_RTC_HIBERNATE	0x20
++#define JZ_REG_RTC_CTRL			0x00
++#define JZ_REG_RTC_HIBERNATE		0x20
++#define JZ_REG_RTC_WAKEUP_FILTER	0x24
++#define JZ_REG_RTC_RESET_COUNTER	0x28
+ 
+-#define JZ_RTC_CTRL_WRDY	BIT(7)
++#define JZ_RTC_CTRL_WRDY		BIT(7)
++#define JZ_RTC_WAKEUP_FILTER_MASK	0x0000FFE0
++#define JZ_RTC_RESET_COUNTER_MASK	0x00000FE0
+ 
+-static void jz4740_power_off(void)
++static inline void jz4740_rtc_wait_ready(void __iomem *rtc_base)
+ {
+-	void __iomem *rtc_base = ioremap(JZ4740_RTC_BASE_ADDR, 0x24);
+ 	uint32_t ctrl;
+-
+ 	do {
+ 		ctrl = readl(rtc_base + JZ_REG_RTC_CTRL);
+ 	} while (!(ctrl & JZ_RTC_CTRL_WRDY));
++}
+ 
++static void jz4740_power_off(void)
++{
++	void __iomem *rtc_base = ioremap(JZ4740_RTC_BASE_ADDR, 0x38);
++	unsigned long long wakeup_filter_ticks;
++	unsigned long long reset_counter_ticks;
++
++	/* Set minimum wakeup pin assertion time: 100 ms.
++	   Range is 0 to 2 sec if RTC is clocked at 32 kHz. */
++	wakeup_filter_ticks = (100 * jz4740_clock_bdata.rtc_rate) / 1000;
++	if (wakeup_filter_ticks < JZ_RTC_WAKEUP_FILTER_MASK)
++		wakeup_filter_ticks &= JZ_RTC_WAKEUP_FILTER_MASK;
++	else
++		wakeup_filter_ticks = JZ_RTC_WAKEUP_FILTER_MASK;
++	jz4740_rtc_wait_ready(rtc_base);
++	writel(wakeup_filter_ticks, rtc_base + JZ_REG_RTC_WAKEUP_FILTER);
++
++	/* Set reset pin low-level assertion time after wakeup: 60 ms.
++	   Range is 0 to 125 ms if RTC is clocked at 32 kHz. */
++	reset_counter_ticks = (60 * jz4740_clock_bdata.rtc_rate) / 1000;
++	if (reset_counter_ticks < JZ_RTC_RESET_COUNTER_MASK)
++		reset_counter_ticks &= JZ_RTC_RESET_COUNTER_MASK;
++	else
++		reset_counter_ticks = JZ_RTC_RESET_COUNTER_MASK;
++	jz4740_rtc_wait_ready(rtc_base);
++	writel(reset_counter_ticks, rtc_base + JZ_REG_RTC_RESET_COUNTER);
++
++	jz4740_rtc_wait_ready(rtc_base);
+ 	writel(1, rtc_base + JZ_REG_RTC_HIBERNATE);
++
+ 	jz4740_halt();
+ }
+ 
+diff --git a/arch/mips/kernel/cpufreq/Kconfig b/arch/mips/kernel/cpufreq/Kconfig
+index 58c601e..11af8e8 100644
+--- a/arch/mips/kernel/cpufreq/Kconfig
++++ b/arch/mips/kernel/cpufreq/Kconfig
+@@ -8,7 +8,7 @@ config MIPS_EXTERNAL_TIMER
+ config MIPS_CPUFREQ
+ 	bool
+ 	default y
+-	depends on CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
++	depends on CPU_SUPPORTS_CPUFREQ
+ 
+ if MIPS_CPUFREQ
+ 
+@@ -24,6 +24,7 @@ config LOONGSON2_CPUFREQ
+ 	tristate "Loongson2 CPUFreq Driver"
+ 	select CPU_FREQ_TABLE
+ 	depends on MIPS_CPUFREQ
++	depends on MIPS_EXTERNAL_TIMER
+ 	help
+ 	  This option adds a CPUFreq driver for loongson processors which
+ 	  support software configurable cpu frequency.
+@@ -34,6 +35,16 @@ config LOONGSON2_CPUFREQ
+ 
+ 	  If in doubt, say N.
+ 
++config CPU_FREQ_JZ
++	tristate "CPUfreq driver for JZ CPUs"
++	select CPU_FREQ_TABLE
++	depends on MACH_JZ4740
++	default n
++	help
++	  This enables the CPUfreq driver for JZ CPUs.
++
++	  If in doubt, say N.
++
+ endif	# CPU_FREQ
+ 
+ endmenu
+-- 
+1.7.4.1
+

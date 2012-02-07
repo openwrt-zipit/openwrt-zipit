@@ -5,10 +5,11 @@
 
 #define CONFIG_QI_LB60 1
 
-#define CONFIG_BOOTARGS		"mem=32M console=ttyS0,57600n8 ubi.mtd=2 rootfstype=ubifs root=ubi0:rootfs rw rootwait"
-#define CONFIG_BOOTARGSFROMSD	"mem=32M console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p2 rw rootwait"
+//#define DEBUG
+#define CONFIG_BOOTARGS		"mem=32M console=tty0 console=ttyS0,57600n8 ubi.mtd=2 rootfstype=ubifs root=ubi0:rootfs rw rootwait"
+#define CONFIG_BOOTARGSFROMSD	"mem=32M console=tty0 console=ttyS0,57600n8 rootfstype=ext2 root=/dev/mmcblk0p1 rw rootwait"
 #define CONFIG_BOOTCOMMAND	"nand read 0x80600000 0x400000 0x200000;bootm"
-#define CONFIG_BOOTCOMMANDFROMSD	"mmc init; fatload mmc 0 0x80600000 uImage; bootm"
+#define CONFIG_BOOTCOMMANDFROMSD	"mmc init; ext2load mmc 0 0x80600000 /boot/uImage; bootm"
 
 /* SDRAM paramters */
 #define SDRAM_BW16		1	/* Data bus width: 0-32bit, 1-16bit */

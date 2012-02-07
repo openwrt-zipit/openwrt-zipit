@@ -21,8 +21,8 @@
 #include <common.h>
 #include <nand.h>
 
-#include <asm/io.h>
 #include <asm/jz4740.h>
+#include "nanonote_gpm940b0.h"
 
 #define KEY_U_OUT       (32 * 2 + 16)
 #define KEY_U_IN        (32 * 3 + 19)
@@ -30,14 +30,9 @@
 /*
  * NAND flash definitions
  */
-
 #define NAND_DATAPORT	0xb8000000
 #define NAND_ADDRPORT	0xb8010000
 #define NAND_COMMPORT	0xb8008000
-
-#define ECC_BLOCK	512
-#define ECC_POS		6
-#define PAR_SIZE	9
 
 #define __nand_enable()		(REG_EMC_NFCSR |= EMC_NFCSR_NFE1 | EMC_NFCSR_NFCE1)
 #define __nand_disable()	(REG_EMC_NFCSR &= ~(EMC_NFCSR_NFCE1))
@@ -48,14 +43,6 @@
 #define __nand_ecc_disable()	(REG_EMC_NFECR &= ~EMC_NFECR_ECCE)
 #define __nand_ecc_encode_sync() while (!(REG_EMC_NFINTS & EMC_NFINTS_ENCF))
 #define __nand_ecc_decode_sync() while (!(REG_EMC_NFINTS & EMC_NFINTS_DECF))
-
-static inline void __nand_dev_ready(void)
-{
-	unsigned int timeout = 10000;
-	while ((REG_GPIO_PXPIN(2) & 0x40000000) && timeout--);
-	while (!(REG_GPIO_PXPIN(2) & 0x40000000));
-}
-
 #define __nand_cmd(n)		(REG8(NAND_COMMPORT) = (n))
 #define __nand_addr(n)		(REG8(NAND_ADDRPORT) = (n))
 #define __nand_data8()		REG8(NAND_DATAPORT)
@@ -75,6 +62,13 @@ static inline void __nand_dev_ready(void)
 	#define NAND_ROW_CYCLE 2
 #endif
 
+static inline void __nand_dev_ready(void)
+{
+	unsigned int timeout = 10000;
+	while ((REG_GPIO_PXPIN(2) & 0x40000000) && timeout--);
+	while (!(REG_GPIO_PXPIN(2) & 0x40000000));
+}
+
 /*
  * NAND flash parameters
  */
@@ -84,7 +78,6 @@ static int ecc_count = 4;
 static int page_per_block = 64;
 static int bad_block_pos = 0;
 static int block_size = 131072;
-
 static unsigned char oob_buf[128] = {0};
 
 /*
@@ -167,7 +160,7 @@ static int nand_read_oob(int page_addr, uchar *buf, int size)
 	/* Send page address */
 	__nand_addr(page_addr & 0xff);
 	__nand_addr((page_addr >> 8) & 0xff);
-	#ifdef NAND_ROW_CYCLE == 3
+	#if defined NAND_ROW_CYCLE && NAND_ROW_CYCLE == 3
 		__nand_addr((page_addr >> 16) & 0xff);
 	#endif
 
@@ -198,7 +191,6 @@ static int nand_read_page(int page_addr, uchar *dst, uchar *oobbuf)
 	/*
 	 * Read page data
 	 */
-
 	/* Send READ0 command */
 	__nand_cmd(NAND_CMD_READ0);
 
@@ -210,7 +202,7 @@ static int nand_read_page(int page_addr, uchar *dst, uchar *oobbuf)
 	/* Send page address */
 	__nand_addr(page_addr & 0xff);
 	__nand_addr((page_addr >> 8) & 0xff);
-	#if NAND_ROW_CYCLE == 3
+	#if defined NAND_ROW_CYCLE && NAND_ROW_CYCLE == 3
 		__nand_addr((page_addr >> 16) & 0xff);
 	#endif
 
@@ -233,16 +225,11 @@ static int nand_read_page(int page_addr, uchar *dst, uchar *oobbuf)
 		__nand_ecc_rs_decoding();
 
 		/* Read data */
-		nand_read_buf((void *)tmpbuf, ECC_BLOCK);
+		nand_read_buf((void *)tmpbuf, CONFIG_SYS_NAND_ECCSIZE);
 
 		/* Set PAR values */
-		for (j = 0; j < PAR_SIZE; j++) {
-#if defined(CONFIG_SYS_NAND_ECC_POS)
-			*paraddr++ = oobbuf[CONFIG_SYS_NAND_ECC_POS + i*PAR_SIZE + j];
-#else
-			*paraddr++ = oobbuf[ECC_POS + i*PAR_SIZE + j];
-#endif
-		}
+		for (j = 0; j < CONFIG_SYS_NAND_ECCBYTES; j++)
+			*paraddr++ = oobbuf[CONFIG_SYS_NAND_ECC_POS + i*CONFIG_SYS_NAND_ECCBYTES + j];
 
 		/* Set PRDY */
 		REG_EMC_NFECR |= EMC_NFECR_PRDY;
@@ -257,12 +244,11 @@ static int nand_read_page(int page_addr, uchar *dst, uchar *oobbuf)
 		stat = REG_EMC_NFINTS;
 		if (stat & EMC_NFINTS_ERR) {
 			/* Error occurred */
-			/* serial_puts("\n Error occurred\n"); */
+			/* serial_puts("Error occurred\n"); */
 			if (stat & EMC_NFINTS_UNCOR) {
 				/* Uncorrectable error occurred */
-				/* serial_puts("\nUncorrectable error occurred\n"); */
-			}
-			else {
+				/* serial_puts("Uncorrectable error occurred\n"); */
+			} else {
 				unsigned int errcnt, index, mask;
 
 				errcnt = (stat & EMC_NFINTS_ERRCNT_MASK) >> EMC_NFINTS_ERRCNT_BIT;
@@ -292,8 +278,7 @@ static int nand_read_page(int page_addr, uchar *dst, uchar *oobbuf)
 				}
 			}
 		}
-
-		tmpbuf += ECC_BLOCK;
+		tmpbuf += CONFIG_SYS_NAND_ECCSIZE;
 	}
 
 	return 0;
@@ -333,7 +318,6 @@ static void nand_load(int offs, int uboot_size, uchar *dst)
 }
 
 static void jz_nand_init(void) {
-
  	/* Optimize the timing of nand */
 	REG_EMC_SMCR1 = 0x094c4400;
 }
@@ -343,38 +327,26 @@ static void gpio_init(void)
 	/*
 	 * Initialize SDRAM pins
 	 */
-#if defined(CONFIG_JZ4720)
 	__gpio_as_sdram_16bit_4720();
-#elif defined(CONFIG_JZ4725)
-	__gpio_as_sdram_16bit_4725();
-#else
-	__gpio_as_sdram_32bit();
-#endif
 
 	/*
 	 * Initialize UART0 pins
 	 */
 	__gpio_as_uart0();
+	__gpio_jtag_to_uart0();
 }
 
 static int is_usb_boot()
 {
- 	int keyU = 0;
+	__gpio_as_input(KEY_U_IN);
+	__gpio_enable_pull(KEY_U_IN);
+	__gpio_as_output(KEY_U_OUT);
+	__gpio_clear_pin(KEY_U_OUT);
 
- 	__gpio_as_input(KEY_U_IN);
- 	__gpio_enable_pull(KEY_U_IN);
+	if (__gpio_get_pin(KEY_U_IN) == 0)
+		return 1;
 
- 	__gpio_as_output(KEY_U_OUT);
- 	__gpio_clear_pin(KEY_U_OUT);
-
- 	keyU = __gpio_get_pin(KEY_U_IN);
-
- 	if (keyU)
- 		serial_puts("[U] not pressed\n");
- 	else
- 		serial_puts("[U] pressed\n");
-
-	return !keyU;
+	return 0;
 }
 
 void nand_boot(void)
@@ -384,28 +356,30 @@ void nand_boot(void)
 	/*
 	 * Init hardware
 	 */
-	jz_nand_init();
 	gpio_init();
-	serial_init();
-
-	serial_puts("\n\nNAND Secondary Program Loader\n\n");
-
 	pll_init();
+
+	__lcd_display_pin_init();
+	__lcd_display_on() ;
+
+	serial_init();
 	sdram_init();
+	jz_nand_init();
+
+	serial_puts("\nNAND Boot\n");
 
 #if defined(CONFIG_NANONOTE)
 	if(is_usb_boot()) {
-		serial_puts("enter USB BOOT mode\n");
+		serial_puts("[U] pressed, goto USBBOOT mode\n");
 		usb_boot();
 	}
 #endif
-
 	page_size = CONFIG_SYS_NAND_PAGE_SIZE;
 	block_size = CONFIG_SYS_NAND_BLOCK_SIZE;
 	page_per_block = CONFIG_SYS_NAND_BLOCK_SIZE / CONFIG_SYS_NAND_PAGE_SIZE;
 	bad_block_pos = (page_size == 512) ? 5 : 0;
 	oob_size = page_size / 32;
-	ecc_count = page_size / ECC_BLOCK;
+	ecc_count = page_size / CONFIG_SYS_NAND_ECCSIZE;
 
 	/*
 	 * Load U-Boot image from NAND into RAM
@@ -417,13 +391,9 @@ void nand_boot(void)
 
 	serial_puts("Starting U-Boot ...\n");
 
-	/*
-	 * Flush caches
-	 */
+	/* Flush caches */
 	flush_cache_all();
 
-	/*
-	 * Jump to U-Boot image
-	 */
+	/* Jump to U-Boot image */
 	(*uboot)();
 }

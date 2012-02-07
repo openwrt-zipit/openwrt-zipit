@@ -191,6 +191,8 @@ define Image/Build
 	$(call Image/Build/CFE,$(1),96348GW-10,6348,F5D7633)
 	# D-Link DSL-2640B, rev B2
 	$(call Image/Build/CFE,$(1),D-4P-W,6348,DSL2640B-B2)
+	# D-Link DSL-2650U
+	$(call Image/Build/CFE,$(1),96358VW2,6358,DSL2650U)
 	# D-Link DSL-2740B/DSL-2741B, rev C2
 	$(call Image/Build/CFEFIXUP,$(1),96358GW,AW4139,6358,DSL274XB-C2)
 	# D-Link DSL-2740B/DSL-2741B, rev C3
@@ -214,6 +216,10 @@ define Image/Build
 	# Pirelli A226G
 	$(call Image/Build/CFEAGPF,$(1),DWV-S0,6358,0x10000,A226G-cfe)
 	$(call Image/Build/CFEAGPF,$(1),DWV-S0,6358,0x10000,A226G)
+
+	# Pirelli A226M
+	$(call Image/Build/CFEAGPF,$(1),DWV-S0,6358,0x20000,A226M-cfe)
+	$(call Image/Build/CFEAGPF,$(1),DWV-S0,6358,0x20000,A226M)
 
 	# RG100A,DB120 etc.
 	$(call Image/Build/RG100A,$(1),96358VW2,6358,0x20000,RG100A_DB120)

@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=u-boot
-PKG_VERSION:=2009.11
+PKG_VERSION:=2010.06
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
@@ -51,7 +51,7 @@ define Package/uboot-xburst-$(1)
   CATEGORY:=Boot Loaders
   DEPENDS:=@TARGET_xburst
   TITLE:=$(2)
-  URL:=http://www.denx.de/wiki/U-Boot
+  URL:=http://www.denx.de/wiki/UBoot/WebHome
   VARIANT:=$(1)
 endef
 endef
@@ -66,13 +66,13 @@ endef
 ifdef BUILD_VARIANT
 $(eval $(call uboot/$(BUILD_VARIANT)))
 UBOOT_CONFIG:=$(if $(CONFIG),$(CONFIG),$(BUILD_VARIANT))
-UBOOT_IMAGE:=$(if $(IMAGE),$(IMAGE),openwrt-$(BOARD)-$(BUILD_VARIANT)-u-boot.bin)
+UBOOT_IMAGE:=$(if $(IMAGE),$(IMAGE),openwrt-$(BOARD)-$(BUILD_BARIANT)-u-boot.bin)
 endif
 
 define Build/Prepare
-	$(call Build/Prepare/Default)
 	$(CP) ./files/* $(PKG_BUILD_DIR)
 	find $(PKG_BUILD_DIR) -name .svn | $(XARGS) rm -rf
+	$(call Build/Prepare/Default)
 endef
 
 define Build/Configure
@@ -87,8 +87,8 @@ endef
 
 define Package/uboot/install/template
 define Package/uboot-xburst-$(1)/install
-	$(INSTALL_DIR) $$(1)
 	$(CP) $(PKG_BUILD_DIR)/u-boot-nand.bin $(BIN_DIR)/$(2)
+	rmdir $$(1)
 endef
 endef
 

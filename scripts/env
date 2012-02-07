@@ -103,7 +103,7 @@ env_diff() {
 	env_init
 	env_sync_data
 	git diff --cached
-    env_link_config
+	env_link_config
 }
 
 env_save() {
@@ -138,7 +138,9 @@ env_clear() {
 	env_sync_data
 	if ask_bool 1 "Do you want to keep your current config and files"; then
 		mkdir -p "$BASEDIR/files"
+		shopt -s dotglob
 		cp -a "$ENVDIR/files/"* "$BASEDIR/files" 2>/dev/null >/dev/null
+		shopt -u dotglob
 		cp "$ENVDIR/.config" "$BASEDIR/"
 	else
 		rm -rf "$BASEDIR/files" "$BASEDIR/.config"
@@ -190,10 +192,12 @@ env_new() {
 	fi
 	git checkout -b "$1" "$from"
 	if [ -f "$BASEDIR/.config" -o -d "$BASEDIR/files" ]; then
-		if ask_bool 1 "Do you want to keep your current config and files?"; then
+		if ask_bool 1 "Do you want to start your configuration repository with the current configuration?"; then
 			[ -d "$BASEDIR/files" -a \! -L "$BASEDIR/files" ] && {
 				mkdir -p "$ENVDIR/files"
+				shopt -s dotglob
 				mv "$BASEDIR/files/"* "$ENVDIR/files/" 2>/dev/null
+				shopt -u dotglob
 				rmdir "$BASEDIR/files"
 			}
 			env_sync

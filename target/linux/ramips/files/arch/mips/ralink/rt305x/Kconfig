@@ -2,6 +2,16 @@ if RALINK_RT305X
 
 menu "Ralink RT350x machine selection"
 
+config RT305X_MACH_ALL0256N
+	bool "Allnet ALL0256N support"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
+config RT305X_MACH_W502U
+	bool "ALFA Networks W502U board support"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
 config RT305X_MACH_ARGUS_ATP52B
 	bool "Argus ATP-52B support"
 	select RALINK_DEV_GPIO_BUTTONS
@@ -31,6 +41,11 @@ config RT305X_MACH_DIR_300_REVB
 	select RALINK_DEV_GPIO_BUTTONS
 	select RALINK_DEV_GPIO_LEDS
 
+config RT305X_MACH_ESR_9753
+	bool "EnGenius ESR-9753 support"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
 config RT305X_MACH_FONERA20N
 	bool "La Fonera20N board support"
 	select RALINK_DEV_GPIO_BUTTONS
@@ -56,6 +71,11 @@ config RT305X_MACH_BC2
 	select RALINK_DEV_GPIO_BUTTONS
 	select RALINK_DEV_GPIO_LEDS
 
+config RT305X_MACH_OMNI_EMB
+	bool "Omnima MiniEMBWiFi"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
 config RT305X_MACH_PWH2004
 	bool "Prolink PWH2004 / Abocom WR5205 support (32M RAM, 8M flash)"
 	select RALINK_DEV_GPIO_BUTTONS
@@ -63,6 +83,16 @@ config RT305X_MACH_PWH2004
 
 config RT305X_MACH_V22RW_2X2
 	bool "Ralink AP-RT3052-V22RW-2X2 board support"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
+config RT305X_MACH_WL341V3
+	bool "Sitecom WL-341 v3 board support"
+	select RALINK_DEV_GPIO_BUTTONS
+	select RALINK_DEV_GPIO_LEDS
+
+config RT305X_MACH_WL351
+	bool "Sitecom WL-351 support"
 	select RALINK_DEV_GPIO_BUTTONS
 	select RALINK_DEV_GPIO_LEDS
 

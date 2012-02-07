@@ -24,8 +24,8 @@ define KernelPackage/bluetooth
 	CONFIG_BLUEZ_HCIUSB \
 	CONFIG_BLUEZ_HIDP \
 	CONFIG_BT \
-	CONFIG_BT_L2CAP \
-	CONFIG_BT_SCO \
+	CONFIG_BT_L2CAP=y \
+	CONFIG_BT_SCO=y \
 	CONFIG_BT_RFCOMM \
 	CONFIG_BT_BNEP \
 	CONFIG_BT_HCIBTUSB \
@@ -260,7 +260,6 @@ define KernelPackage/hid
   KCONFIG:=CONFIG_HID
   FILES:=$(LINUX_DIR)/drivers/hid/hid.ko
   AUTOLOAD:=$(call AutoLoad,61,hid)
-  $(call SetDepends/hid)
   $(call AddDepends/input,+kmod-input-evdev)
 endef
 
@@ -275,7 +274,6 @@ define KernelPackage/input-core
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Input device core
   KCONFIG:=CONFIG_INPUT
-  $(call SetDepends/input)
   FILES:=$(LINUX_DIR)/drivers/input/input-core.ko
   AUTOLOAD:=$(call AutoLoad,19,input-core)
 endef
@@ -579,6 +577,7 @@ define KernelPackage/bcma
 	CONFIG_BCMA_BLOCKIO=y \
 	CONFIG_BCMA_HOST_PCI_POSSIBLE=y \
 	CONFIG_BCMA_HOST_PCI=y \
+	CONFIG_BCMA_DRIVER_MIPS=n \
 	CONFIG_BCMA_DRIVER_PCI_HOSTMODE=n \
 	CONFIG_BCMA_DEBUG=n
   FILES:=$(LINUX_DIR)/drivers/bcma/bcma.ko
@@ -781,6 +780,22 @@ define KernelPackage/rtc-pcf8563/description
 endef
 
 $(eval $(call KernelPackage,rtc-pcf8563))
+
+
+define KernelPackage/rtc-pcf2123
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Philips PCF2123 RTC support
+  DEPENDS:=+kmod-rtc-core
+  KCONFIG:=CONFIG_RTC_DRV_PCF2123
+  FILES:=$(LINUX_DIR)/drivers/rtc/rtc-pcf2123.ko
+  AUTOLOAD:=$(call AutoLoad,60,rtc-pcf2123)
+endef
+
+define KernelPackage/rtc-pcf2123/description
+ Kernel module for Philips PCF2123 RTC chip.
+endef
+
+$(eval $(call KernelPackage,rtc-pcf2123))
 
 
 define KernelPackage/n810bm

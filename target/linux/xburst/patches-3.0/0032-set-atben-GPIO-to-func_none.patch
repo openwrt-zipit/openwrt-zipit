@@ -1,0 +1,30 @@
+From 24c474c864c5b53c068a3203393e40894a385fb8 Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@sharism.cc>
+Date: Tue, 1 Nov 2011 21:15:26 +0800
+Subject: [PATCH 32/32] set atben GPIO to func_none
+
+---
+ arch/mips/jz4740/board-qi_lb60.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/arch/mips/jz4740/board-qi_lb60.c b/arch/mips/jz4740/board-qi_lb60.c
+index 0bc4caa..67a5fa3 100644
+--- a/arch/mips/jz4740/board-qi_lb60.c
++++ b/arch/mips/jz4740/board-qi_lb60.c
+@@ -446,6 +446,13 @@ static void __init board_gpio_setup(void)
+ 	 * drivers. Everything else is done by the drivers themselves. */
+ 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_VCC_EN_N);
+ 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_CD);
++
++	jz_gpio_set_function(JZ_GPIO_PORTD(8), JZ_GPIO_FUNC_NONE);
++	jz_gpio_set_function(JZ_GPIO_PORTD(9), JZ_GPIO_FUNC_NONE);
++	jz_gpio_set_function(JZ_GPIO_PORTD(10), JZ_GPIO_FUNC_NONE);
++	jz_gpio_set_function(JZ_GPIO_PORTD(11), JZ_GPIO_FUNC_NONE);
++	jz_gpio_set_function(JZ_GPIO_PORTD(12), JZ_GPIO_FUNC_NONE);
++	jz_gpio_set_function(JZ_GPIO_PORTD(13), JZ_GPIO_FUNC_NONE);
+ }
+ 
+ static int __init qi_lb60_init_platform_devices(void)
+-- 
+1.7.4.1
+

@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=uhttpd
-PKG_RELEASE:=27
+PKG_RELEASE:=30
 
 PKG_BUILD_DIR := $(BUILD_DIR)/$(PKG_NAME)
 PKG_CONFIG_DEPENDS := \
@@ -65,14 +65,18 @@ endef
 
 UHTTPD_TLS:=
 TLS_CFLAGS:=
+TLS_LDFLAGS:=
 
 ifneq ($(CONFIG_PACKAGE_uhttpd-mod-tls_cyassl),)
   UHTTPD_TLS:=cyassl
-  TLS_CFLAGS:=-I$(STAGING_DIR)/usr/include/cyassl
+  TLS_CFLAGS:=-I$(STAGING_DIR)/usr/include/cyassl -DTLS_IS_CYASSL
+  TLS_LDFLAGS:=-lcyassl -lm
 endif
 
 ifneq ($(CONFIG_PACKAGE_uhttpd-mod-tls_openssl),)
   UHTTPD_TLS:=openssl
+  TLS_CFLAGS:=-DTLS_IS_OPENSSL
+  TLS_LDFLAGS:=-lssl
 endif
 
 
@@ -88,11 +92,14 @@ endef
 
 
 TARGET_CFLAGS += $(TLS_CFLAGS)
+TARGET_LDFLAGS += -Wl,-rpath-link=$(STAGING_DIR)/usr/lib
 MAKE_VARS += \
 	FPIC="$(FPIC)" \
 	LUA_SUPPORT="$(if $(CONFIG_PACKAGE_uhttpd-mod-lua),1)" \
 	TLS_SUPPORT="$(if $(CONFIG_PACKAGE_uhttpd-mod-tls),1)" \
-	UHTTPD_TLS="$(UHTTPD_TLS)"
+	UHTTPD_TLS="$(UHTTPD_TLS)" \
+	TLS_CFLAGS="$(TLS_CFLAGS)" \
+	TLS_LDFLAGS="$(TLS_LDFLAGS)"
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)

@@ -2,6 +2,9 @@
 # Copyright (C) 2007 OpenWrt.org
 
 START=60
+
+SERVICE_USE_PID=1
+
 DNS_SERVERS=""
 DOMAIN=""
 
@@ -323,10 +326,10 @@ dhcp_domain_add() {
 	local cfg="$1"
 	local ip name names
 
-	config_get names "$cfg" name
+	config_get names "$cfg" name "$2"
 	[ -n "$names" ] || return 0
 
-	config_get ip "$cfg" ip
+	config_get ip "$cfg" ip "$3"
 	[ -n "$ip" ] || return 0
 
 	local oIFS="$IFS"; IFS="."; set -- $ip; IFS="$oIFS"
@@ -339,7 +342,7 @@ dhcp_domain_add() {
 			fqdn="$fqdn${DOMAIN:+.$DOMAIN}"
 
 		append args "-A /$fqdn/$ip"
-		
+
 		[ -n "$raddr" ] && {
 			append args "--ptr-record=$raddr,$fqdn"
 			raddr=""
@@ -380,6 +383,10 @@ dhcp_cname_add() {
 start() {
 	include /lib/network
 	scan_interfaces
+
+	local lanaddr
+	config_get lanaddr "lan" ipaddr
+
 	config_load dhcp
 
 	args=""
@@ -397,7 +404,13 @@ start() {
 	config_foreach dhcp_add dhcp
 	config_foreach dhcp_cname_add cname
 
-	/usr/sbin/dnsmasq $args && {
+	# add own hostname
+	[ -z "$lanaddr" ] || {
+		local hostname="$(uci_get system.@system[0].hostname)"
+		dhcp_domain_add "" "${hostname:-OpenWrt}" "$lanaddr"
+	}
+
+	service_start /usr/sbin/dnsmasq $args && {
 		rm -f /tmp/resolv.conf
 		[ -n "$DOMAIN" ] && echo "search $DOMAIN" >> /tmp/resolv.conf
 		DNS_SERVERS="$DNS_SERVERS 127.0.0.1"
@@ -408,10 +421,10 @@ start() {
 }
 
 stop() {
-	[ -f /tmp/resolv.conf ] && {
-		rm -f /tmp/resolv.conf
-		ln -s /tmp/resolv.conf.auto /tmp/resolv.conf
+	service_stop /usr/sbin/dnsmasq && {
+		[ -f /tmp/resolv.conf ] && {
+			rm -f /tmp/resolv.conf
+			ln -s /tmp/resolv.conf.auto /tmp/resolv.conf
+		}
 	}
-	service_kill dnsmasq /var/run/dnsmasq.pid
-	return 0
 }

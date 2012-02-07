@@ -145,7 +145,7 @@ menu "Global build settings"
 		bool "Compile with full language support"
 		help
 		  When this option is enabled, packages are built with the full versions of iconv and GNU gettext
-		  instead of the default OpenWrt stubs.
+		  instead of the default OpenWrt stubs. If uClibc is used, it is also built with locale support.
 
 	config SHADOW_PASSWORDS
 		bool
@@ -229,7 +229,20 @@ menu "Global build settings"
 
 	config KERNEL_MAGIC_SYSRQ
 		bool "Compile the kernel with SysRq support"
+		default y
+
+	config KERNEL_ELF_CORE
+		bool "Enable process core dump support"
+		default y
+
+	config KERNEL_PROVE_LOCKING
+		bool "Enable kernel lock checking"
+		select KERNEL_DEBUG_KERNEL
 		default n
+
+	config KERNEL_PRINTK_TIME
+		bool "Enable printk timestamps"
+		default y
 
 	comment "Package build options"
 

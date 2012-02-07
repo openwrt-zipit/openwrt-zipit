@@ -64,7 +64,7 @@ $(eval $(call KernelPackage,crypto-manager))
 
 define KernelPackage/crypto-user
   TITLE:=CryptoAPI userspace interface
-  DEPENDS:=+kmod-crypto-hash +kmod-crypto-manager @LINUX_2_6_38||LINUX_2_6_39||LINUX_3_0
+  DEPENDS:=+kmod-crypto-hash +kmod-crypto-manager @!LINUX_2_6_30&&!LINUX_2_6_31&&!LINUX_2_6_32&&!LINUX_2_6_36&&!LINUX_2_6_37
   KCONFIG:= \
 	CONFIG_CRYPTO_USER_API \
 	CONFIG_CRYPTO_USER_API_HASH \
@@ -237,6 +237,17 @@ endef
 
 $(eval $(call KernelPackage,crypto-cbc))
 
+define KernelPackage/crypto-crc32c
+  TITLE:=CRC32c CRC module
+  DEPENDS:=+kmod-crypto-hash
+  KCONFIG:=CONFIG_CRYPTO_CRC32C
+  FILES:=$(LINUX_DIR)/crypto/crc32c.ko
+  AUTOLOAD:=$(call AutoLoad,04,crc32c,1)
+  $(call AddDepends/crypto)
+endef
+
+$(eval $(call KernelPackage,crypto-crc32c))
+
 define KernelPackage/crypto-des
   TITLE:=DES/3DES cipher CryptoAPI module
   KCONFIG:=CONFIG_CRYPTO_DES
@@ -249,7 +260,7 @@ $(eval $(call KernelPackage,crypto-des))
 
 define KernelPackage/crypto-deflate
   TITLE:=Deflate compression CryptoAPI module
-  DEPENDS:=+kmod-zlib
+  DEPENDS:=+kmod-lib-zlib
   KCONFIG:=CONFIG_CRYPTO_DEFLATE
   FILES:=$(LINUX_DIR)/crypto/deflate.ko
   AUTOLOAD:=$(call AutoLoad,09,deflate)
@@ -281,6 +292,18 @@ define KernelPackage/crypto-hmac
 endef
 
 $(eval $(call KernelPackage,crypto-hmac))
+
+
+define KernelPackage/crypto-md4
+  TITLE:=MD4 digest CryptoAPI module
+  DEPENDS:=+kmod-crypto-hash
+  KCONFIG:=CONFIG_CRYPTO_MD4
+  FILES:=$(LINUX_DIR)/crypto/md4.ko
+  AUTOLOAD:=$(call AutoLoad,09,md4)
+  $(call AddDepends/crypto)
+endef
+
+$(eval $(call KernelPackage,crypto-md4))
 
 
 define KernelPackage/crypto-md5
@@ -328,10 +351,8 @@ define KernelPackage/crypto-misc
 	CONFIG_CRYPTO_CAMELLIA \
 	CONFIG_CRYPTO_CAST5 \
 	CONFIG_CRYPTO_CAST6 \
-	CONFIG_CRYPTO_CRC32C \
 	CONFIG_CRYPTO_FCRYPT \
 	CONFIG_CRYPTO_KHAZAD \
-	CONFIG_CRYPTO_MD4 \
 	CONFIG_CRYPTO_SERPENT \
 	CONFIG_CRYPTO_SHA256 \
 	CONFIG_CRYPTO_SHA512 \
@@ -343,14 +364,11 @@ define KernelPackage/crypto-misc
 	CONFIG_CRYPTO_WP512
   FILES:= \
 	$(LINUX_DIR)/crypto/anubis.ko \
-	$(LINUX_DIR)/crypto/blowfish.ko \
 	$(LINUX_DIR)/crypto/camellia.ko \
 	$(LINUX_DIR)/crypto/cast5.ko \
 	$(LINUX_DIR)/crypto/cast6.ko \
-	$(if $(findstring y,$(CONFIG_CRYPTO_CRC32C)),,$(LINUX_DIR)/crypto/crc32c.ko) \
 	$(LINUX_DIR)/crypto/fcrypt.ko \
 	$(LINUX_DIR)/crypto/khazad.ko \
-	$(LINUX_DIR)/crypto/md4.ko \
 	$(LINUX_DIR)/crypto/serpent.ko \
 	$(LINUX_DIR)/crypto/sha256_generic.ko \
 	$(LINUX_DIR)/crypto/sha512_generic.ko \
@@ -362,6 +380,13 @@ define KernelPackage/crypto-misc
     FILES += $(LINUX_DIR)/crypto/twofish.ko
   else
     FILES += $(LINUX_DIR)/crypto/twofish_generic.ko
+  endif
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),le,3.1)),1)
+    FILES += $(LINUX_DIR)/crypto/blowfish.ko
+  else
+    FILES += \
+	$(LINUX_DIR)/crypto/blowfish_common.ko \
+	$(LINUX_DIR)/crypto/blowfish_generic.ko
   endif
   $(call AddDepends/crypto)
 endef

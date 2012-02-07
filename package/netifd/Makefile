@@ -1,13 +1,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=netifd
-PKG_VERSION:=2011-10-26
+PKG_VERSION:=2012-01-24
 PKG_RELEASE=$(PKG_SOURCE_VERSION)
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=git://nbd.name/luci2/netifd.git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=10741b4974b85c825036eb0717ddc7112f96f5fb
+PKG_SOURCE_VERSION:=70d48250e7d25e7df13032eb69e30f0022e4e556
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 # PKG_MIRROR_MD5SUM:=
 # CMAKE_INSTALL:=1
@@ -23,8 +23,8 @@ define Package/netifd
 endef
 
 TARGET_CFLAGS += \
-	-I$(STAGING_DIR)/usr/include \
-	-I$(STAGING_DIR)/usr/include/libnl-tiny
+	-I$(STAGING_DIR)/usr/include/libnl-tiny \
+	-I$(STAGING_DIR)/usr/include
 
 CMAKE_OPTIONS += \
 	-DLIBNL_LIBS=-lnl-tiny \

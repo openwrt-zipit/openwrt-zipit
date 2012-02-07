@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2010 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -10,7 +10,7 @@ SPI_MENU:=SPI Support
 define KernelPackage/mmc-spi
   SUBMENU:=$(SPI_MENU)
   TITLE:=MMC/SD over SPI Support
-  DEPENDS:=+kmod-mmc +kmod-crc-itu-t +kmod-crc7
+  DEPENDS:=+kmod-mmc +kmod-lib-crc-itu-t +kmod-lib-crc7
   KCONFIG:=CONFIG_MMC_SPI \
           CONFIG_SPI=y \
           CONFIG_SPI_MASTER=y
@@ -31,8 +31,13 @@ define KernelPackage/spi-bitbang
   KCONFIG:=CONFIG_SPI_BITBANG \
           CONFIG_SPI=y \
           CONFIG_SPI_MASTER=y
-  FILES:=$(LINUX_DIR)/drivers/spi/spi_bitbang.ko
-  AUTOLOAD:=$(call AutoLoad,91,spi_bitbang)
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.1)),1)
+    FILES:=$(LINUX_DIR)/drivers/spi/spi-bitbang.ko
+    AUTOLOAD:=$(call AutoLoad,91,spi-bitbang)
+  else
+    FILES:=$(LINUX_DIR)/drivers/spi/spi_bitbang.ko
+    AUTOLOAD:=$(call AutoLoad,91,spi_bitbang)
+  endif
 endef
 
 define KernelPackage/spi-bitbang/description
@@ -62,8 +67,13 @@ define KernelPackage/spi-gpio
   TITLE:=GPIO-based bitbanging SPI Master
   DEPENDS:=@GPIO_SUPPORT +kmod-spi-bitbang
   KCONFIG:=CONFIG_SPI_GPIO
-  FILES:=$(LINUX_DIR)/drivers/spi/spi_gpio.ko
-  AUTOLOAD:=$(call AutoLoad,92,spi_gpio)
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.1)),1)
+    FILES:=$(LINUX_DIR)/drivers/spi/spi-gpio.ko
+    AUTOLOAD:=$(call AutoLoad,92,spi-gpio)
+  else
+    FILES:=$(LINUX_DIR)/drivers/spi/spi_gpio.ko
+    AUTOLOAD:=$(call AutoLoad,92,spi_gpio)
+  endif
 endef
 
 define KernelPackage/spi-gpio/description
@@ -94,8 +104,8 @@ define KernelPackage/spi-vsc7385
   TITLE:=Vitesse VSC7385 ethernet switch driver
   DEPENDS:=@TARGET_ar71xx
   KCONFIG:=CONFIG_SPI_VSC7385
-  FILES:=$(LINUX_DIR)/drivers/spi/spi_vsc7385.ko
-  AUTOLOAD:=$(call AutoLoad,93,spi_vsc7385)
+  FILES:=$(LINUX_DIR)/drivers/spi/spi-vsc7385.ko
+  AUTOLOAD:=$(call AutoLoad,93,spi-vsc7385)
 endef
 
 define KernelPackage/spi-vsc7385/description

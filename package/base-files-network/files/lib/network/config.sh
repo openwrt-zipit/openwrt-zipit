@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2006 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 
 # DEBUG="echo"
 
@@ -143,6 +143,10 @@ sort_list() {
 			echo "$item"
 		done
 	) | sort -u
+}
+
+prepare_interface_bridge() {
+	return 0
 }
 
 # Create the interface, if necessary.
@@ -364,7 +368,9 @@ setup_interface() {
 		dhcp)
 			# kill running udhcpc instance
 			local pidfile="/var/run/dhcp-${iface}.pid"
-			service_kill udhcpc "$pidfile"
+
+			SERVICE_PID_FILE="$pidfile" \
+			service_stop /sbin/udhcpc
 
 			local ipaddr netmask hostname proto1 clientid vendorid broadcast reqopts
 			config_get ipaddr "$config" ipaddr
@@ -380,16 +386,23 @@ setup_interface() {
 				$DEBUG ifconfig "$iface" "$ipaddr" ${netmask:+netmask "$netmask"}
 
 			# additional request options
-			local opt dhcpopts
+			local opt dhcpopts daemonize
 			for opt in $reqopts; do
 				append dhcpopts "-O $opt"
 			done
 
 			# don't stay running in background if dhcp is not the main proto on the interface (e.g. when using pptp)
-			[ "$proto1" != "$proto" ] && append dhcpopts "-n -q" || append dhcpopts "-O rootpath -R &"
+			[ "$proto1" != "$proto" ] && {
+				append dhcpopts "-n -q"
+			} || {
+				append dhcpopts "-O rootpath -R"
+				daemonize=1
+			}
 			[ "$broadcast" = 1 ] && broadcast="-O broadcast" || broadcast=
 
-			$DEBUG eval udhcpc -t 0 -i "$iface" \
+			SERVICE_DAEMONIZE=$daemonize \
+			SERVICE_PID_FILE="$pidfile" \
+			service_start /sbin/udhcpc -t 0 -i "$iface" \
 				${ipaddr:+-r $ipaddr} \
 				${hostname:+-H $hostname} \
 				${clientid:+-c $clientid} \
@@ -422,8 +435,8 @@ stop_interface_dhcp() {
 
 	remove_dns "$config"
 
-	local pidfile="/var/run/dhcp-${ifname}.pid"
-	service_kill udhcpc "$pidfile"
+	SERVICE_PID_FILE="/var/run/dhcp-${ifname}.pid" \
+	service_stop /sbin/udhcpc
 
 	uci -P /var/state revert "network.$config"
 }
