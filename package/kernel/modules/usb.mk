@@ -134,6 +134,40 @@ endef
 $(eval $(call KernelPackage,musb-hdrc))
 
 
+define KernelPackage/pxa27x-udc
+  TITLE:=Support for PXA27x USB device controller
+  KCONFIG:= \
+	CONFIG_USB_PXA27X
+  DEPENDS:=+TARGET_pxa:kmod-udc-core
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/pxa27x_udc.ko
+  AUTOLOAD:=$(call AutoLoad,46,pxa27x_udc)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/pxa27x-udc/description
+  Kernel support for PXA27x USB device.
+endef
+
+$(eval $(call KernelPackage,pxa27x-udc))
+
+
+define KernelPackage/udc-core
+  TITLE:=Core support for UDC
+  KCONFIG:= \
+	CONFIG_USB_GADGET
+  DEPENDS:=@USB_GADGET_SUPPORT
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/udc-core.ko
+  AUTOLOAD:=$(call AutoLoad,45,udc-core)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/udc-core/description
+  Kernel support for UDC
+endef
+
+$(eval $(call KernelPackage,udc-core))
+
+
 define KernelPackage/nop-usb-xceiv
   TITLE:=Support for USB OTG NOP transceiver
   KCONFIG:= \
