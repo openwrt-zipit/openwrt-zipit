@@ -8,3 +8,9 @@ config interface loopback
 
 config interface wlan
 	option proto	dhcp
+	
+config interface usb
+	option ifname	usb0
+	option proto	static
+	option ipaddr	192.168.1.204
+	option netmask	255.255.255.0
