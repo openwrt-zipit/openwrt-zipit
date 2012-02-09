@@ -83,6 +83,21 @@ endef
 $(eval $(call KernelPackage,lib-crc32c))
 
 
+define KernelPackage/lib-crc-t10dif
+  SUBMENU:=$(LIB_MENU)
+  TITLE:=CRC for T10 data integrity field
+  KCONFIG:=CONFIG_CRC_T10DIF
+  FILES:=$(LINUX_DIR)/lib/crc-t10dif.ko
+  AUTOLOAD:=$(call AutoLoad,20,crc-t10dif,1)
+endef
+
+define KernelPackage/lib-crc-t10dif/description
+ Kernel module for CRC T10 data integrity field
+endef
+
+$(eval $(call KernelPackage,lib-crc-t10dif))
+
+
 define KernelPackage/lib-lzo
   SUBMENU:=$(LIB_MENU)
   TITLE:=LZO support

@@ -813,3 +813,21 @@ define KernelPackage/n810bm/description
 endef
 
 $(eval $(call KernelPackage,n810bm))
+
+define KernelPackage/regmap
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Regmap for I2C and SPI devices
+  KCONFIG:= \
+	CONFIG_REGMAP_I2C \
+	CONFIG_REGMAP_SPI
+  FILES:= \
+	$(LINUX_DIR)/drivers/base/regmap/regmap-i2c.ko \
+	$(LINUX_DIR)/drivers/base/regmap/regmap-spi.ko
+  AUTOLOAD:=$(call AutoLoad,01,regmap-i2c regmap-spi)
+endef
+
+define KernelPackage/regmap/description
+  Register map support for I2C and SPI devices
+endef
+
+$(eval $(call KernelPackage,regmap))
