@@ -1,0 +1,20 @@
+diff --git a/net/wireless/lib80211_crypt_tkip.c b/net/wireless/lib80211_crypt_tkip.c
+index 3873484..170f809 100644
+--- a/net/wireless/lib80211_crypt_tkip.c
++++ b/net/wireless/lib80211_crypt_tkip.c
+@@ -606,6 +606,7 @@ static void lib80211_michael_mic_failure(struct net_device *dev,
+ 					  struct ieee80211_hdr *hdr,
+ 					  int keyidx)
+ {
++#ifdef CONFIG_WEXT_CORE
+ 	union iwreq_data wrqu;
+ 	struct iw_michaelmicfailure ev;
+ 
+@@ -621,6 +622,7 @@ static void lib80211_michael_mic_failure(struct net_device *dev,
+ 	memset(&wrqu, 0, sizeof(wrqu));
+ 	wrqu.data.length = sizeof(ev);
+ 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
++#endif
+ }
+ 
+ static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
