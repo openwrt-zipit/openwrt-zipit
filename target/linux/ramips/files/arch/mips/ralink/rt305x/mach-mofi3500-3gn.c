@@ -31,9 +31,9 @@
 #define MOFI3500_3GN_GPIO_BUTTON_CONNECT	7
 #define MOFI3500_3GN_GPIO_BUTTON_WPS		0
 
-#define MOFI3500_3GN_BUTTONS_POLL_INTERVAL	20
+#define MOFI3500_3GN_KEYS_POLL_INTERVAL		20
+#define MOFI3500_3GN_KEYS_DEBOUNCE_INTERVAL	(3 * MOFI3500_3GN_KEYS_POLL_INTERVAL)
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition mofi3500_3gn_partitions[] = {
 	{
 		.name	= "u-boot",
@@ -64,13 +64,10 @@ static struct mtd_partition mofi3500_3gn_partitions[] = {
 		.size	= 0x7b0000,
 	}
 };
-#endif /* CONFIG_MTD_PARTITIONS */
 
 static struct physmap_flash_data mofi3500_3gn_flash_data = {
-#ifdef CONFIG_MTD_PARTITIONS
 	.nr_parts	= ARRAY_SIZE(mofi3500_3gn_partitions),
 	.parts		= mofi3500_3gn_partitions,
-#endif
 };
 
 static struct gpio_led mofi3500_3gn_leds_gpio[] __initdata = {
@@ -93,26 +90,26 @@ static struct gpio_led mofi3500_3gn_leds_gpio[] __initdata = {
 	}
 };
 
-static struct gpio_button mofi3500_3gn_gpio_buttons[] __initdata = {
+static struct gpio_keys_button mofi3500_3gn_gpio_buttons[] __initdata = {
 	{
 		.desc		= "reset",
 		.type		= EV_KEY,
 		.code		= KEY_RESTART,
-		.threshold	= 3,
+		.debounce_interval = MOFI3500_3GN_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= MOFI3500_3GN_GPIO_BUTTON_RESET,
 		.active_low	= 1,
 	}, {
 		.desc		= "connect",
 		.type		= EV_KEY,
 		.code		= KEY_CONNECT,
-		.threshold	= 3,
+		.debounce_interval = MOFI3500_3GN_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= MOFI3500_3GN_GPIO_BUTTON_CONNECT,
 		.active_low	= 1,
 	}, {
 		.desc		= "wps",
 		.type		= EV_KEY,
 		.code		= KEY_WPS_BUTTON,
-		.threshold	= 3,
+		.debounce_interval = MOFI3500_3GN_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= MOFI3500_3GN_GPIO_BUTTON_WPS,
 		.active_low	= 1,
 	}
@@ -131,7 +128,7 @@ static void __init mofi3500_3gn_init(void)
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(mofi3500_3gn_leds_gpio),
 				  mofi3500_3gn_leds_gpio);
-	ramips_register_gpio_buttons(-1, MOFI3500_3GN_BUTTONS_POLL_INTERVAL,
+	ramips_register_gpio_buttons(-1, MOFI3500_3GN_KEYS_POLL_INTERVAL,
 				     ARRAY_SIZE(mofi3500_3gn_gpio_buttons),
 				     mofi3500_3gn_gpio_buttons);
 	rt305x_register_wifi();

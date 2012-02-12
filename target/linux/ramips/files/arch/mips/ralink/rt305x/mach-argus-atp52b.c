@@ -27,7 +27,8 @@
 #define ARGUS_ATP52B_GPIO_LED_NET		13
 #define ARGUS_ATP52B_GPIO_BUTTON_WPS		0
 #define ARGUS_ATP52B_GPIO_BUTTON_RESET		10
-#define ARGUS_ATP52B_BUTTONS_POLL_INTERVAL	20
+#define ARGUS_ATP52B_KEYS_POLL_INTERVAL		20
+#define ARGUS_ATP52B_KEYS_DEBOUNCE_INTERVAL	(3 * ARGUS_ATP52B_KEYS_POLL_INTERVAL)
 
 static struct gpio_led argus_atp52b_leds_gpio[] __initdata = {
 	{
@@ -42,12 +43,12 @@ static struct gpio_led argus_atp52b_leds_gpio[] __initdata = {
 	}
 };
 
-static struct gpio_button argus_atp52b_gpio_buttons[] __initdata = {
+static struct gpio_keys_button argus_atp52b_gpio_buttons[] __initdata = {
 	{
 		.desc       = "wps",
 		.type       = EV_KEY,
 		.code       = KEY_WPS_BUTTON,
-		.threshold  = 3,
+		.debounce_interval = ARGUS_ATP52B_KEYS_DEBOUNCE_INTERVAL,
 		.gpio       = ARGUS_ATP52B_GPIO_BUTTON_WPS,
 		.active_low = 1,
 	},
@@ -55,13 +56,12 @@ static struct gpio_button argus_atp52b_gpio_buttons[] __initdata = {
 		.desc       = "reset",
 		.type       = EV_KEY,
 		.code       = KEY_RESTART,
-		.threshold  = 10,
+		.debounce_interval = ARGUS_ATP52B_KEYS_DEBOUNCE_INTERVAL,
 		.gpio       = ARGUS_ATP52B_GPIO_BUTTON_RESET,
 		.active_low = 1,
 	}
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition argus_atp52b_partitions[] = {
 	{
 		.name	= "bootloader",
@@ -88,13 +88,10 @@ static struct mtd_partition argus_atp52b_partitions[] = {
 		.size   = 0x690000,
 	}
 };
-#endif /* CONFIG_MTD_PARTITIONS */
 
 static struct physmap_flash_data argus_atp52b_flash_data = {
-#ifdef CONFIG_MTD_PARTITIONS
 	.nr_parts	= ARRAY_SIZE(argus_atp52b_partitions),
 	.parts		= argus_atp52b_partitions,
-#endif
 };
 
 static void __init argus_atp52b_init(void)
@@ -103,7 +100,7 @@ static void __init argus_atp52b_init(void)
 	rt305x_register_flash(0, &argus_atp52b_flash_data);
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(argus_atp52b_leds_gpio),
 					argus_atp52b_leds_gpio);
-	ramips_register_gpio_buttons(-1, ARGUS_ATP52B_BUTTONS_POLL_INTERVAL,
+	ramips_register_gpio_buttons(-1, ARGUS_ATP52B_KEYS_POLL_INTERVAL,
 					ARRAY_SIZE(argus_atp52b_gpio_buttons),
 					argus_atp52b_gpio_buttons);
 	rt305x_esw_data.vlan_config = RT305X_ESW_VLAN_CONFIG_WLLLL;

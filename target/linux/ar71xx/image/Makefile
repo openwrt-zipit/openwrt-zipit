@@ -122,8 +122,6 @@ endef
 define Image/BuildKernel
 	cp $(KDIR)/vmlinux.elf $(VMLINUX).elf
 	cp $(KDIR)/vmlinux $(VMLINUX).bin
-	gzip -9 -c $(KDIR)/vmlinux > $(KDIR)/vmlinux.bin.gz
-	$(call CompressLzma,$(KDIR)/vmlinux,$(KDIR)/vmlinux.bin.lzma)
 	dd if=$(KDIR)/vmlinux.bin.lzma of=$(VMLINUX).lzma bs=65536 conv=sync
 	dd if=$(KDIR)/vmlinux.bin.gz of=$(VMLINUX).gz bs=65536 conv=sync
 	$(call MkuImage,gzip,,$(KDIR)/vmlinux.bin.gz,$(UIMAGE)-gzip.bin)
@@ -147,14 +145,14 @@ define Image/Build/DIR825B1
 	if [ -e "$(call sysupname,$(1),$(2))" ]; then \
 		( \
 			dd if=$(call sysupname,$(1),$(2)); \
-			echo -n "01AP94-AR7161-RT-080619-00"; \
+			echo -n "$(4)"; \
 		) > $(call imgname,$(1),$(2))-backup-loader.bin; \
 		if [ `stat -c%s $(call sysupname,$(1),$(2))` -gt 4194304 ]; then \
 			echo "Warning: $(call sysupname,$(1),$(2)) is too big"; \
 		else \
 			( \
 				dd if=$(call sysupname,$(1),$(2)) bs=4096k conv=sync; \
-				echo -n "00AP94-AR7161-RT-080619-00"; \
+				echo -n "$(5)"; \
 			) > $(call factoryname,$(1),$(2)); \
 		fi; \
 	fi
@@ -700,6 +698,11 @@ define Image/Build/Profile/DIR600A1
 	$(call Image/Build/Template/$(fs_64k)/$(1),Cameo7240,dir-600-a1,$(dir600a1_cmdline),"AP91-AR7240-RT-090223-00")
 endef
 
+dir615e4_cmdline=board=DIR-615-E4 console=ttyS0,115200
+define Image/Build/Profile/DIR615E4
+	$(call Image/Build/Template/$(fs_64k)/$(1),Cameo7240,dir-615-e4,$(dir615e4_cmdline),"AP99-AR7240-RT-091105-05")
+endef
+
 eap7660d_cmdline=board=EAP7660D console=ttyS0,115200
 define Image/Build/Profile/EAP7660D
 	$(call Image/Build/Template/$(fs_128k)/$(1),PB4X,eap7660d,$(eap7660d_cmdline))
@@ -821,6 +824,11 @@ define Image/Build/Profile/OM2P
         $(call Image/Build/Template/$(fs_squash)/$(1),OpenMesh,om2p,OM2P)
 endef
 
+tlmr11u_cmdline=board=TL-MR11U console=ttyATH0,115200
+define Image/Build/Profile/TLMR11U
+	$(call Image/Build/Template/$(fs_64kraw)/$(1),TPLINK-LZMA,tl-mr11u-v1,$(tlmr11u_cmdline),0x00110101,1,4Mlzma)
+endef
+
 tlmr3020_cmdline=board=TL-MR3020 console=ttyATH0,115200
 define Image/Build/Profile/TLMR3020
 	$(call Image/Build/Template/$(fs_64k)/$(1),TPLINK-LZMA,tl-mr3020-v1,$(tlmr3020_cmdline),0x30200001,1,4Mlzma)
@@ -920,7 +928,12 @@ endef
 
 dir825b1_cmdline=board=DIR-825-B1 console=ttyS0,115200
 define Image/Build/Profile/DIR825B1
-	$(call Image/Build/Template/$(fs_64k)/$(1),DIR825B1,dir-825-b1,$(dir825b1_cmdline))
+	$(call Image/Build/Template/$(fs_64k)/$(1),DIR825B1,dir-825-b1,$(dir825b1_cmdline),01AP94-AR7161-RT-080619-00,00AP94-AR7161-RT-080619-00)
+endef
+
+tew673gru_cmdline=board=TEW-673GRU console=ttyS0,115200
+define Image/Build/Profile/TEW673GRU
+	$(call Image/Build/Template/$(fs_64k)/$(1),DIR825B1,tew-673gru,$(tew673gru_cmdline),01AP94-AR7161-RT-080619-01,00AP94-AR7161-RT-080619-01)
 endef
 
 wrt160nl_cmdline=board=WRT160NL console=ttyS0,115200
@@ -992,6 +1005,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/DB120,$(1))
 	$(call Image/Build/Profile/DIR600A1,$(1))
 	$(call Image/Build/Profile/DIR615C1,$(1))
+	$(call Image/Build/Profile/DIR615E4,$(1))
 	$(call Image/Build/Profile/DIR825B1,$(1))
 	$(call Image/Build/Profile/EAP7660D,$(1))
 	$(call Image/Build/Profile/FR54RTR,$(1))
@@ -1008,6 +1022,8 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/RW2458N,$(1))
 	$(call Image/Build/Profile/TEW632BRP,$(1))
 	$(call Image/Build/Profile/TEW652BRP,$(1))
+	$(call Image/Build/Profile/TEW673GRU,$(1))
+	$(call Image/Build/Profile/TLMR11U,$(1))
 	$(call Image/Build/Profile/TLMR3020,$(1))
 	$(call Image/Build/Profile/TLMR3220,$(1))
 	$(call Image/Build/Profile/TLMR3420,$(1))
@@ -1064,6 +1080,8 @@ define Image/Build/Initramfs
 endef
 
 define Image/Prepare
+	gzip -9 -c $(KDIR)/vmlinux > $(KDIR)/vmlinux.bin.gz
+	$(call CompressLzma,$(KDIR)/vmlinux,$(KDIR)/vmlinux.bin.lzma)
 	$(call Image/Build/Profile/Default,loader)
 endef
 

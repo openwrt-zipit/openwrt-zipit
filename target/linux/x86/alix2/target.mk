@@ -1,9 +1,9 @@
+LINUX_VERSION:=3.2.2
 BOARDNAME:=PCEngines alix2
 FEATURES:=squashfs jffs2 ext4 pci usb gpio
-ALIX2_GPIO = $(if $(findstring 2.6.32,$(LINUX_VERSION)),gpio-cs5535,gpio-cs5535-new)
 DEFAULT_PACKAGES += \
 			kmod-crypto-hw-geode kmod-crypto-ocf \
-			kmod-$(ALIX2_GPIO) kmod-gpio-nsc \
+			kmod-gpio-cs5535-new kmod-gpio-nsc \
 			kmod-wdt-geode kmod-cs5535-clockevt kmod-cs5535-mfgpt \
 			kmod-cs5536 \
 			kmod-hwmon-core kmod-hwmon-lm90 \
@@ -14,24 +14,22 @@ DEFAULT_PACKAGES += \
 			kmod-usb-core kmod-usb2 kmod-usb-ohci \
 			kmod-cfg80211 kmod-mac80211 \
 			kmod-mppe kmod-pppoe kmod-pppo2ltp \
-			kmod-ath kmod-ath5k kmod-ath9k \
+			kmod-ath5k kmod-ath9k \
 			kmod-leds-gpio kmod-input-gpio-keys-polled \
 			kmod-button-hotplug \
 			kmod-ledtrig-heartbeat kmod-ledtrig-gpio \
-			kmod-ledtrig-netdev kmod-ledtrig-netfilter \
-			kmod-cpu-msr \
-			bridge ppp \
-			libopenssl ocf-crypto-headers zlib hwclock hostapd
+			kmod-ledtrig-netdev \
+			kmod-cpu-msr hwclock wpad
 
 CS5535_MASK:=0x0b000042
 
-CFLAGS += -Os -pipe -march=k6-2 -fno-align-functions -fno-align-loops -fno-align-jumps \
-	  -fno-align-labels
+CFLAGS += -march=geode -Os -mmmx -m3dnow -fno-align-jumps -fno-align-functions \
+	-fno-align-labels -fno-align-loops -pipe -fomit-frame-pointer
 
 define Target/Description
 	Build firmware images for PCEngines alix2 board
 endef
 
-define KernelPackage/$(ALIX2_GPIO)/install
-     sed -i -r -e 's/$$$$$$$$/ mask=$(CS5535_MASK)/' $(1)/etc/modules.d/??-$(ALIX2_GPIO)
+define KernelPackage/gpio-cs5535-new/install
+     sed -i -r -e 's/$$$$$$$$/ mask=$(CS5535_MASK)/' $(1)/etc/modules.d/??-gpio-cs5535-new
 endef

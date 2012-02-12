@@ -1,6 +1,6 @@
 --- a/drivers/i2c/busses/Kconfig
 +++ b/drivers/i2c/busses/Kconfig
-@@ -325,6 +325,18 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
+@@ -327,6 +327,18 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
  	help
  	  The unit of the TWI clock is kHz.
  

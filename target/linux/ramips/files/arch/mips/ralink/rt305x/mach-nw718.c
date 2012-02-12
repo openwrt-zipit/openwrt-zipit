@@ -32,9 +32,9 @@
 
 #define NW718_GPIO_SPI_CS0		3
 
-#define NW718_BUTTONS_POLL_INTERVAL	20
+#define NW718_KEYS_POLL_INTERVAL	20
+#define NW718_KEYS_DEBOUNCE_INTERVAL	(3 * NW718_KEYS_POLL_INTERVAL)
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition nw718_partitions[] = {
 	{
 		.name	= "u-boot",
@@ -65,14 +65,9 @@ static struct mtd_partition nw718_partitions[] = {
 		.size	= 0x3a0000,
 	}
 };
-#define nw718_nr_parts		ARRAY_SIZE(nw718_partitions)
-#else
-#define nw718_nr_parts		0
-#define nw718_partitions	NULL
-#endif /* CONFIG_MTD_PARTITIONS */
 
 static struct flash_platform_data nw718_flash_data = {
-	.nr_parts	= nw718_nr_parts,
+	.nr_parts	= ARRAY_SIZE(nw718_partitions),
 	.parts		= nw718_partitions,
 };
 
@@ -92,19 +87,19 @@ static struct gpio_led nw718_leds_gpio[] __initdata = {
 	}
 };
 
-static struct gpio_button nw718_gpio_buttons[] __initdata = {
+static struct gpio_keys_button nw718_gpio_buttons[] __initdata = {
 	{
 		.desc		= "reset",
 		.type		= EV_KEY,
 		.code		= KEY_RESTART,
-		.threshold	= 3,
+		.debounce_interval = NW718_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= NW718_GPIO_BUTTON_RESET,
 		.active_low	= 1,
 	}, {
 		.desc		= "wps",
 		.type		= EV_KEY,
 		.code		= KEY_WPS_BUTTON,
-		.threshold	= 3,
+		.debounce_interval = NW718_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= NW718_GPIO_BUTTON_WPS,
 		.active_low	= 1,
 	}
@@ -130,7 +125,7 @@ static void __init nw718_init(void)
 	rt305x_register_ethernet();
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(nw718_leds_gpio),
 				  nw718_leds_gpio);
-	ramips_register_gpio_buttons(-1, NW718_BUTTONS_POLL_INTERVAL,
+	ramips_register_gpio_buttons(-1, NW718_KEYS_POLL_INTERVAL,
 				     ARRAY_SIZE(nw718_gpio_buttons),
 				     nw718_gpio_buttons);
 	rt305x_register_wifi();

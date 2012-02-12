@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -22,6 +22,10 @@ PKG_SOURCE_URL:=http://www.netfilter.org/projects/iptables/files \
 PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
 PKG_BUILD_PARALLEL:=1
+
+ifneq ($(CONFIG_EXTERNAL_KERNEL_TREE),"")
+PATCH_DIR:=
+endif
 
 include $(INCLUDE_DIR)/package.mk
 ifeq ($(DUMP),)
@@ -139,7 +143,6 @@ iptables extensions for matching/changing IP packet options.
 
  Matches:
   - dscp
-  - hashlimit
   - ecn
   - length
   - mark

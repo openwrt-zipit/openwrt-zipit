@@ -100,6 +100,9 @@ tplink_board_detect() {
 	"254300"*)
 		model="TP-Link TL-WR2543N/ND"
 		;;
+	"110101"*)
+		model="TP-Link TL-MR11U"
+		;;
 	"302000"*)
 		model="TP-Link TL-MR3020"
 		;;
@@ -157,11 +160,14 @@ ar71xx_board_detect() {
 	*AW-NR580)
 		name="aw-nr580"
 		;;
-	*DB120)
+	*"DB120 reference board")
 		name="db120"
 		;;
 	*"DIR-600 rev. A1")
 		name="dir-600-a1"
+		;;
+	*"DIR-615 rev. E4")
+		name="dir-615-e4"
 		;;
 	*"DIR-825 rev. B1")
 		name="dir-825-b1"
@@ -250,6 +256,9 @@ ar71xx_board_detect() {
 	*TEW-632BRP)
 		name="tew-632brp"
 		;;
+	*TEW-673GRU)
+		name="tew-673gru"
+		;;
 	*TL-WR1043ND)
 		name="tl-wr1043nd"
 		;;
@@ -291,6 +300,9 @@ ar71xx_board_detect() {
 		;;
 	*"TL-WR703N v1")
 		name="tl-wr703n"
+		;;
+	*"TL-MR11U")
+		name="tl-mr11u"
 		;;
 	*UniFi)
 		name="unifi"

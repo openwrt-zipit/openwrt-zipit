@@ -9,9 +9,9 @@ include $(TOPDIR)/rules.mk
 ARCH:=arm
 BOARD:=omap4
 BOARDNAME:=TI OMAP4
-FEATURES:=usb targz
+FEATURES:=usb targz audio display
 
-LINUX_VERSION:=3.2.1
+LINUX_VERSION:=3.2.5
 CFLAGS:=-Os -pipe -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp
 MAINTAINER:=Imre Kaloz <kaloz@openwrt.org>
 

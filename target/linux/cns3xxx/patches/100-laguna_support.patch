@@ -41,9 +41,9 @@
 +#include <asm/mach/arch.h>
 +#include <asm/mach/map.h>
 +#include <asm/mach/time.h>
-+#include <mach/hardware.h>
 +#include <mach/cns3xxx.h>
 +#include <mach/irqs.h>
++#include <mach/platform.h>
 +#include <mach/pm.h>
 +#include "core.h"
 +#include "devices.h"
@@ -555,23 +555,24 @@
 + * Watchdog
 + */
 +
-+static struct resource laguna_watchdog_resource[] = {
-+	{
-+		.start = CNS3XXX_TC11MP_TWD_BASE,
-+		.end = CNS3XXX_TC11MP_TWD_BASE + SZ_4K - 1,
-+		.flags = IORESOURCE_MEM,
-+	},{
-+		.start = IRQ_LOCALWDOG,
-+		.end = IRQ_LOCALWDOG,
-+		.flags = IORESOURCE_IRQ,
++static struct resource laguna_watchdog_resources[] = {
++	[0] = {
++		.start	= CNS3XXX_TC11MP_TWD_BASE,
++		.end	= CNS3XXX_TC11MP_TWD_BASE + SZ_4K - 1,
++		.flags	= IORESOURCE_MEM,
++	},
++	[1] = {
++		.start	= IRQ_LOCALWDOG,
++		.end	= IRQ_LOCALWDOG,
++		.flags	= IORESOURCE_IRQ,
 +	}
 +};
 +
 +static struct platform_device laguna_watchdog = {
-+	.name = "mpcore_wdt",
-+	.id = -1,
-+	.num_resources = ARRAY_SIZE(laguna_watchdog_resource),
-+	.resource = laguna_watchdog_resource,
++	.name		= "mpcore_wdt",
++	.id		= -1,
++	.num_resources	= ARRAY_SIZE(laguna_watchdog_resources),
++	.resource	= laguna_watchdog_resources,
 +};
 +
 +/*
@@ -580,13 +581,14 @@
 +
 +static void __init laguna_init(void)
 +{
++	cns3xxx_l2x0_init();
++
 +	platform_device_register(&laguna_watchdog);
 +
 +	platform_device_register(&laguna_i2c_controller);
 +
 +	i2c_register_board_info(0, laguna_i2c_devices,
 +			ARRAY_SIZE(laguna_i2c_devices));
-+
 +
 +	pm_power_off = cns3xxx_power_off;
 +}
@@ -614,10 +616,8 @@
 +{
 +	cns3xxx_map_io();
 +	iotable_init(laguna_io_desc, ARRAY_SIZE(laguna_io_desc));
-+
 +	laguna_early_serial_setup();
 +}
-+
 +
 +static int __init laguna_model_setup(void)
 +{
@@ -764,12 +764,13 @@
 +MACHINE_END
 --- a/arch/arm/mach-cns3xxx/Kconfig
 +++ b/arch/arm/mach-cns3xxx/Kconfig
-@@ -10,4 +10,13 @@ config MACH_CNS3420VB
+@@ -11,4 +11,14 @@ config MACH_CNS3420VB
  	  This is a platform with an on-board ARM11 MPCore and has support
  	  for USB, USB-OTG, MMC/SD/SDIO, SATA, PCI-E, etc.
  
 +config MACH_GW2388
 +	bool "Support for Gateworks Laguna Platform"
++	select HAVE_ARM_SCU if SMP
 +	select MIGHT_HAVE_PCI
 +	help
 +	  Include support for the Gateworks Laguna Platform
@@ -785,10 +786,10 @@
  #include <asm/mach/irq.h>
  #include <asm/hardware/gic.h>
 +#include <asm/smp_twd.h>
+ #include <asm/hardware/cache-l2x0.h>
  #include <mach/cns3xxx.h>
  #include "core.h"
- 
-@@ -60,11 +61,24 @@ static struct map_desc cns3xxx_io_desc[]
+@@ -61,11 +62,24 @@ static struct map_desc cns3xxx_io_desc[]
  		.pfn		= __phys_to_pfn(CNS3XXX_PM_BASE),
  		.length		= SZ_4K,
  		.type		= MT_DEVICE,
@@ -815,10 +816,10 @@
  
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -313,6 +313,7 @@ config ARCH_CLPS711X
+@@ -329,6 +329,7 @@ config ARCH_CLPS711X
  config ARCH_CNS3XXX
  	bool "Cavium Networks CNS3XXX family"
- 	select CPU_V6
+ 	select CPU_V6K
 +	select ARCH_WANT_OPTIONAL_GPIOLIB
  	select GENERIC_CLOCKEVENTS
  	select ARM_GIC
@@ -858,7 +859,7 @@
 +
 +#include <linux/kernel.h>
 +#include <linux/io.h>
-+#include <mach/hardware.h>
++#include <mach/platform.h>
 +#include <asm-generic/gpio.h>			/* cansleep wrappers */
 +
 +#define NR_BUILTIN_GPIO 64
@@ -934,16 +935,6 @@
  obj-$(CONFIG_SMP)			+= platsmp.o headsmp.o
  obj-$(CONFIG_HOTPLUG_CPU)		+= hotplug.o
  obj-$(CONFIG_LOCAL_TIMERS)		+= localtimer.o
---- a/arch/arm/tools/mach-types
-+++ b/arch/arm/tools/mach-types
-@@ -438,6 +438,7 @@ icontrol		MACH_ICONTROL		ICONTROL		2624
- qsd8x50a_st1_5		MACH_QSD8X50A_ST1_5	QSD8X50A_ST1_5		2627
- mx23evk			MACH_MX23EVK		MX23EVK			2629
- ap4evb			MACH_AP4EVB		AP4EVB			2630
-+gw2388			MACH_GW2388		GW2388			2635
- mityomapl138		MACH_MITYOMAPL138	MITYOMAPL138		2650
- guruplug		MACH_GURUPLUG		GURUPLUG		2659
- spear310		MACH_SPEAR310		SPEAR310		2660
 --- a/arch/arm/mach-cns3xxx/pcie.c
 +++ b/arch/arm/mach-cns3xxx/pcie.c
 @@ -365,7 +365,7 @@ static int cns3xxx_pcie_abort_handler(un
@@ -955,7 +946,7 @@
  {
  	int i;
  
-@@ -373,6 +373,9 @@ static int __init cns3xxx_pcie_init(void
+@@ -376,6 +376,9 @@ static int __init cns3xxx_pcie_init(void
  			"imprecise external abort");
  
  	for (i = 0; i < ARRAY_SIZE(cns3xxx_pcie); i++) {
@@ -965,14 +956,22 @@
  		iotable_init(cns3xxx_pcie[i].cfg_bases,
  			     ARRAY_SIZE(cns3xxx_pcie[i].cfg_bases));
  		cns3xxx_pcie_check_link(&cns3xxx_pcie[i]);
-@@ -384,4 +387,3 @@ static int __init cns3xxx_pcie_init(void
+@@ -387,4 +390,3 @@ static int __init cns3xxx_pcie_init(void
  
  	return 0;
  }
 -device_initcall(cns3xxx_pcie_init);
 --- a/arch/arm/mach-cns3xxx/cns3420vb.c
 +++ b/arch/arm/mach-cns3xxx/cns3420vb.c
-@@ -175,6 +175,8 @@ static void __init cns3420_init(void)
+@@ -31,6 +31,7 @@
+ #include <asm/mach/time.h>
+ #include <mach/cns3xxx.h>
+ #include <mach/irqs.h>
++#include <mach/platform.h>
+ #include "core.h"
+ #include "devices.h"
+ 
+@@ -198,6 +199,8 @@ static void __init cns3420_init(void)
  	cns3xxx_ahci_init();
  	cns3xxx_sdhci_init();
  
@@ -981,13 +980,13 @@
  	pm_power_off = cns3xxx_power_off;
  }
  
---- a/arch/arm/mach-cns3xxx/include/mach/platform.h
-+++ b/arch/arm/mach-cns3xxx/include/mach/platform.h
-@@ -22,5 +22,7 @@ struct cns3xxx_plat_info {
- 	u32 phy[3];
- };
+--- a/arch/arm/mach-cns3xxx/core.h
++++ b/arch/arm/mach-cns3xxx/core.h
+@@ -12,6 +12,7 @@
+ #define __CNS3XXX_CORE_H
  
+ extern struct sys_timer cns3xxx_timer;
 +extern int cns3xxx_pcie_init(u8 bitmap);
-+
- #endif /* __ASM_ARCH_PLATFORM_H */
- #endif
+ 
+ #ifdef CONFIG_CACHE_L2X0
+ void __init cns3xxx_l2x0_init(void);

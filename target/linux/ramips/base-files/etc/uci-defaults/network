@@ -23,7 +23,8 @@ ramips_setup_interfaces()
 	argus-atp52b | \
 	b2c | \
 	nw718 | \
-	w502u)
+	w502u | \
+	wr6202)
 		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
 		;;
 
@@ -35,16 +36,22 @@ ramips_setup_interfaces()
 		ucidef_add_switch_vlan "rtl8366s" "2" "0 5t"
 		;;
 
-	f5d8235-v2 | \
+	f5d8235-v2)
+		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
+		ucidef_add_switch "rtl8366rb" "1" "1"
+		ucidef_add_switch_vlan "rtl8366rb" "1" "1 2 3 4 5t"
+		ucidef_add_switch_vlan "rtl8366rb" "2" "0 5t"
+		;;
+
+	wcr-150gn)
+		ucidef_set_interface_lan_wan "eth0.2" "eth0.1"
+		;;
+
 	wl-351)
 		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
 		ucidef_add_switch "rtl8366rb" "1" "1"
 		ucidef_add_switch_vlan "rtl8366rb" "1" "0 1 2 3 5t"
 		ucidef_add_switch_vlan "rtl8366rb" "2" "4 5t"
-		;;
-
-	wcr-150gn)
-		ucidef_set_interface_lan_wan "eth0.2" "eth0.1"
 		;;
 
 	wli-tx4-ag300n)
@@ -91,7 +98,8 @@ ramips_setup_macs()
 		;;
 
 	esr-9753 | \
-	nbg-419n)
+	nbg-419n | \
+	wcr-150gn)
                 lan_mac=$(ramips_get_mac_binary factory 4)
                 wan_mac=$(ramips_get_mac_binary factory 40)
 		;;
@@ -104,11 +112,6 @@ ramips_setup_macs()
 	w502u)
                 lan_mac=$(ramips_get_mac_binary factory 40)
                 wan_mac=$(ramips_get_mac_binary factory 46)
-		;;
-
-	wcr-150gn)
-                lan_mac=$(ramips_get_mac_binary factory 4)
-                wan_mac=$(ramips_get_mac_binary factory 40)
 		;;
 
 	wl341v3)

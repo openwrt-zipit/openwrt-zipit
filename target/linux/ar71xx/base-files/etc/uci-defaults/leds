@@ -118,8 +118,17 @@ rb750)
 	set_led_switch "port5" "port5" "rb750:green:port5" "switch0" "0x02"
 	;;
 
+dir-600-a1|\
+dir-615-e4)
+	set_led_netdev "wan" "WAN" "d-link:green:wan" "eth1"
+	set_led_switch "lan1" "LAN1" "d-link:green:lan1" "switch0" "0x02"
+	set_led_switch "lan2" "LAN2" "d-link:green:lan2" "switch0" "0x04"
+	set_led_switch "lan3" "LAN3" "d-link:green:lan3" "switch0" "0x08"
+	set_led_switch "lan4" "LAN4" "d-link:green:lan4" "switch0" "0x10"
+	;;
+
 dir-825-b1)
-	set_led_usbdev "usb" "USB" "dir825b1:blue:usb" "1-1"
+	set_led_usbdev "usb" "USB" "d-link:blue:usb" "1-1"
 	;;
 
 hornet-ub)
@@ -146,6 +155,7 @@ om2p)
 	set_led_netdev "port2" "port2" "om2p:blue:lan" "eth1"
 	;;
 
+tl-mr11u | \
 tl-mr3020)
 	set_led_usbdev "usb" "USB" "tp-link:green:3g" "1-1"
 	set_led_wlan "wlan" "WLAN" "tp-link:green:wlan" "phy0tpt"
@@ -197,6 +207,16 @@ wrt160nl)
 wndr3700)
 	set_led_default "wan" "WAN LED (green)" "wndr3700:green:wan" "0"
 	set_led_usbdev "usb" "USB" "wndr3700:green:usb" "1-1"
+	;;
+
+whr-g301n |\
+whr-hp-g300n |\
+whr-hp-gn)
+	set_led_netdev "wan" "WAN" "buffalo:green:wan" "eth1"
+	set_led_switch "lan1" "LAN1" "buffalo:green:lan1" "switch0" "0x02"
+	set_led_switch "lan2" "LAN2" "buffalo:green:lan2" "switch0" "0x04"
+	set_led_switch "lan3" "LAN3" "buffalo:green:lan3" "switch0" "0x08"
+	set_led_switch "lan4" "LAN4" "buffalo:green:lan4" "switch0" "0x10"
 	;;
 
 wzr-hp-g300nh)

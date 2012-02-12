@@ -22,6 +22,7 @@
 #include <linux/mii.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
+#include <linux/dma-mapping.h>
 
 #define NUM_RX_DESC     256
 #define NUM_TX_DESC     256
@@ -185,7 +186,7 @@
 #define RAMIPS_US_CYC_CNT_SHIFT		0x8
 #define RAMIPS_US_CYC_CNT_DIVISOR	1000000
 
-#define RX_DMA_PLEN0(x)			((x >> 16) & 0x3fff)
+#define RX_DMA_PLEN0(_x)		(((_x) >> 16) & 0x3fff)
 #define RX_DMA_LSO			BIT(30)
 #define RX_DMA_DONE			BIT(31)
 
@@ -197,11 +198,11 @@ struct ramips_rx_dma {
 };
 
 #define TX_DMA_PLEN0_MASK		((0x3fff) << 16)
-#define TX_DMA_PLEN0(x)			((x & 0x3fff) << 16)
+#define TX_DMA_PLEN0(_x)		(((_x) & 0x3fff) << 16)
 #define TX_DMA_LSO			BIT(30)
 #define TX_DMA_DONE			BIT(31)
-#define TX_DMA_QN(x)			(x << 16)
-#define TX_DMA_PN(x)			(x << 24)
+#define TX_DMA_QN(_x)			((_x) << 16)
+#define TX_DMA_PN(_x)			((_x) << 24)
 #define TX_DMA_QN_MASK			TX_DMA_QN(0x7)
 #define TX_DMA_PN_MASK			TX_DMA_PN(0x7)
 
@@ -214,25 +215,31 @@ struct ramips_tx_dma {
 
 struct raeth_priv
 {
-	unsigned int		phy_rx;
+	dma_addr_t		rx_desc_dma;
 	struct tasklet_struct	rx_tasklet;
 	struct ramips_rx_dma	*rx;
 	struct sk_buff		*rx_skb[NUM_RX_DESC];
+	dma_addr_t		rx_dma[NUM_RX_DESC];
 
-	unsigned int		phy_tx;
+	dma_addr_t		tx_desc_dma;
 	struct tasklet_struct	tx_housekeeping_tasklet;
 	struct ramips_tx_dma	*tx;
-	struct sk_buff		*tx_skb[NUM_RX_DESC];
+	struct sk_buff		*tx_skb[NUM_TX_DESC];
 
 	unsigned int		skb_free_idx;
 
 	spinlock_t		page_lock;
+	struct net_device       *netdev;
+	struct device		*parent;
 	struct ramips_eth_platform_data *plat;
 
 	int			speed;
 	int			duplex;
 	int			tx_fc;
 	int			rx_fc;
+
+	struct mii_bus		*mii_bus;
+	int			mii_irq[PHY_MAX_ADDR];
 };
 
 #endif /* RAMIPS_ETH_H */

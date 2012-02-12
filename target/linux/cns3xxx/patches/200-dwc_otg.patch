@@ -1,18 +1,18 @@
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -65,6 +65,7 @@ obj-$(CONFIG_PARIDE) 		+= block/paride/
+@@ -68,6 +68,7 @@ obj-$(CONFIG_PARIDE) 		+= block/paride/
  obj-$(CONFIG_TC)		+= tc/
  obj-$(CONFIG_UWB)		+= uwb/
- obj-$(CONFIG_USB_OTG_UTILS)	+= usb/otg/
+ obj-$(CONFIG_USB_OTG_UTILS)	+= usb/
 +obj-$(CONFIG_USB_DWC_OTG)	+= usb/dwc/
  obj-$(CONFIG_USB)		+= usb/
- obj-$(CONFIG_USB_MUSB_HDRC)	+= usb/musb/
  obj-$(CONFIG_PCI)		+= usb/
+ obj-$(CONFIG_USB_GADGET)	+= usb/
 --- a/drivers/usb/Kconfig
 +++ b/drivers/usb/Kconfig
-@@ -116,6 +116,8 @@ source "drivers/usb/host/Kconfig"
+@@ -120,6 +120,8 @@ source "drivers/usb/musb/Kconfig"
  
- source "drivers/usb/musb/Kconfig"
+ source "drivers/usb/renesas_usbhs/Kconfig"
  
 +source "drivers/usb/dwc/Kconfig"
 +
@@ -22646,7 +22646,7 @@
  
 --- a/include/linux/usb.h
 +++ b/include/linux/usb.h
-@@ -1200,6 +1200,9 @@ struct urb {
+@@ -1202,6 +1202,9 @@ struct urb {
  	unsigned int transfer_flags;	/* (in) URB_SHORT_NOT_OK | ...*/
  	void *transfer_buffer;		/* (in) associated data buffer */
  	dma_addr_t transfer_dma;	/* (in) dma addr for transfer_buffer */
@@ -22654,11 +22654,11 @@
 +	dma_addr_t aligned_transfer_dma;/* (in) dma addr for transfer_buffer */
 +	u32 aligned_transfer_buffer_length; /* (in) data buffer length */
  	struct scatterlist *sg;		/* (in) scatter gather buffer list */
+ 	int num_mapped_sgs;		/* (internal) mapped sg entries */
  	int num_sgs;			/* (in) number of entries in the sg list */
- 	u32 transfer_buffer_length;	/* (in) data buffer length */
 --- a/drivers/usb/gadget/Kconfig
 +++ b/drivers/usb/gadget/Kconfig
-@@ -111,7 +111,7 @@ config	USB_GADGET_SELECTED
+@@ -108,7 +108,7 @@ config USB_GADGET_VBUS_DRAW
  #
  choice
  	prompt "USB Peripheral Controller"
@@ -22667,3 +22667,14 @@
  	help
  	   A USB device uses a controller to talk to its host.
  	   Systems should have only one such upstream link.
+--- a/drivers/usb/gadget/Makefile
++++ b/drivers/usb/gadget/Makefile
+@@ -3,7 +3,7 @@
+ #
+ ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
+ 
+-obj-$(CONFIG_USB_GADGET)	+= udc-core.o
++#obj-$(CONFIG_USB_GADGET)	+= udc-core.o
+ obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
+ obj-$(CONFIG_USB_NET2272)	+= net2272.o
+ obj-$(CONFIG_USB_NET2280)	+= net2280.o

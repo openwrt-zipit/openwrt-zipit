@@ -97,10 +97,12 @@ platform_check_image() {
 	ap83 | \
 	dir-600-a1 | \
 	dir-615-c1 | \
+	dir-615-e4 | \
 	dir-825-b1 | \
 	mzk-w04nu | \
 	mzk-w300nh | \
 	tew-632brp | \
+	tew-673gru | \
 	wrt400n | \
 	airrouter | \
 	bullet-m | \
@@ -122,6 +124,7 @@ platform_check_image() {
 		}
 		return 0
 		;;
+	tl-mr11u | \
 	tl-mr3020 | \
 	tl-mr3220 | \
 	tl-mr3420 | \

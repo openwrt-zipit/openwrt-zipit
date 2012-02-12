@@ -25,9 +25,9 @@
 #define BC2_GPIO_BUTTON_RESET		17
 #define BC2_GPIO_LED_USB		20
 
-#define BC2_BUTTONS_POLL_INTERVAL	20
+#define BC2_KEYS_POLL_INTERVAL		20
+#define BC2_KEYS_DEBOUNCE_INTERVAL	(3 * BC2_KEYS_POLL_INTERVAL)
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition bc2_partitions[] = {
 	{
 		.name	= "u-boot",
@@ -58,13 +58,10 @@ static struct mtd_partition bc2_partitions[] = {
 		.size	= 0x7b0000,
 	}
 };
-#endif /* CONFIG_MTD_PARTITIONS */
 
 static struct physmap_flash_data bc2_flash_data = {
-#ifdef CONFIG_MTD_PARTITIONS
 	.nr_parts	= ARRAY_SIZE(bc2_partitions),
 	.parts		= bc2_partitions,
-#endif
 };
 
 static struct gpio_led bc2_leds_gpio[] __initdata = {
@@ -75,12 +72,12 @@ static struct gpio_led bc2_leds_gpio[] __initdata = {
 	}
 };
 
-static struct gpio_button bc2_gpio_buttons[] __initdata = {
+static struct gpio_keys_button bc2_gpio_buttons[] __initdata = {
 	{
 		.desc		= "reset",
 		.type		= EV_KEY,
 		.code		= KEY_RESTART,
-		.threshold	= 3,
+		.debounce_interval = BC2_KEYS_DEBOUNCE_INTERVAL,
 		.gpio		= BC2_GPIO_BUTTON_RESET,
 		.active_low	= 1,
 	}
@@ -97,7 +94,7 @@ static void __init bc2_init(void)
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(bc2_leds_gpio),
 				  bc2_leds_gpio);
 
-	ramips_register_gpio_buttons(-1, BC2_BUTTONS_POLL_INTERVAL,
+	ramips_register_gpio_buttons(-1, BC2_KEYS_POLL_INTERVAL,
 				     ARRAY_SIZE(bc2_gpio_buttons),
 				     bc2_gpio_buttons);
 
