@@ -1,0 +1,49 @@
+--- a/drivers/mmc/core/core.c
++++ b/drivers/mmc/core/core.c
+@@ -922,7 +922,7 @@ static void mmc_power_up(struct mmc_host
+ 	 * This delay should be sufficient to allow the power supply
+ 	 * to reach the minimum voltage.
+ 	 */
+-	mmc_delay(10);
++	mmc_delay(200);
+ 
+ 	host->ios.clock = host->f_init;
+ 
+@@ -933,7 +933,7 @@ static void mmc_power_up(struct mmc_host
+ 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
+ 	 * time required to reach a stable voltage.
+ 	 */
+-	mmc_delay(10);
++	mmc_delay(200);
+ }
+ 
+ static void mmc_power_off(struct mmc_host *host)
+--- a/drivers/mmc/core/sdio_cis.c
++++ b/drivers/mmc/core/sdio_cis.c
+@@ -156,7 +156,8 @@ static int cistpl_funce_common(struct mm
+ 	/* TPLFE_MAX_TRAN_SPEED */
+ 	card->cis.max_dtr = speed_val[(buf[3] >> 3) & 15] *
+ 			    speed_unit[buf[3] & 7];
+-
++	if(card->cis.max_dtr > 25000000 && card->cccr.sdio_vsn < SDIO_SDIO_REV_2_00)
++		card->cis.max_dtr = 25000000;
+ 	return 0;
+ }
+ 
+@@ -177,14 +178,14 @@ static int cistpl_funce_func(struct mmc_
+ 	vsn = func->card->cccr.sdio_vsn;
+ 	min_size = (vsn == SDIO_SDIO_REV_1_00) ? 28 : 42;
+ 
+-	if (size < min_size)
++	if (buf[0] != 1)
+ 		return -EINVAL;
+ 
+ 	/* TPLFE_MAX_BLK_SIZE */
+ 	func->max_blksize = buf[12] | (buf[13] << 8);
+ 
+ 	/* TPLFE_ENABLE_TIMEOUT_VAL, present in ver 1.1 and above */
+-	if (vsn > SDIO_SDIO_REV_1_00)
++	if (vsn > SDIO_SDIO_REV_1_00 && size >= min_size)
+ 		func->enable_timeout = (buf[28] | (buf[29] << 8)) * 10;
+ 	else
+ 		func->enable_timeout = jiffies_to_msecs(HZ);

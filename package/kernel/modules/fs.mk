@@ -25,7 +25,7 @@ $(eval $(call KernelPackage,fs-autofs4))
 define KernelPackage/fs-btrfs
   SUBMENU:=$(FS_MENU)
   TITLE:=BTRFS filesystem support
-  DEPENDS:=+kmod-libcrc32c +kmod-zlib
+  DEPENDS:=+kmod-lib-crc32c +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37):kmod-lib-lzo +kmod-lib-zlib
   KCONFIG:=\
 	CONFIG_BTRFS_FS \
 	CONFIG_BTRFS_FS_POSIX_ACL=n
@@ -47,7 +47,14 @@ define KernelPackage/fs-cifs
   KCONFIG:=CONFIG_CIFS
   FILES:=$(LINUX_DIR)/fs/cifs/cifs.ko
   AUTOLOAD:=$(call AutoLoad,30,cifs)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
+  DEPENDS+= \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36):kmod-crypto-arc4 \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36):kmod-crypto-hmac \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36):kmod-crypto-md5 \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37):kmod-crypto-md4 \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39):kmod-crypto-des \
+    +!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39):kmod-crypto-ecb
 endef
 
 define KernelPackage/fs-cifs/description
@@ -134,7 +141,7 @@ define KernelPackage/fs-hfs
   KCONFIG:=CONFIG_HFS_FS
   FILES:=$(LINUX_DIR)/fs/hfs/hfs.ko
   AUTOLOAD:=$(call AutoLoad,30,hfs)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-hfs/description
@@ -150,7 +157,7 @@ define KernelPackage/fs-hfsplus
   KCONFIG:=CONFIG_HFSPLUS_FS
   FILES:=$(LINUX_DIR)/fs/hfsplus/hfsplus.ko
   AUTOLOAD:=$(call AutoLoad,30,hfsplus)
-$(call AddDepends/nls,utf8)
+  $(call AddDepends/nls,utf8)
 endef
 
 define KernelPackage/fs-hfsplus/description
@@ -166,7 +173,7 @@ define KernelPackage/fs-isofs
   KCONFIG:=CONFIG_ISO9660_FS CONFIG_JOLIET=y CONFIG_ZISOFS=n
   FILES:=$(LINUX_DIR)/fs/isofs/isofs.ko
   AUTOLOAD:=$(call AutoLoad,30,isofs)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-isofs/description
@@ -197,7 +204,7 @@ define KernelPackage/fs-msdos
   KCONFIG:=CONFIG_MSDOS_FS
   FILES:=$(LINUX_DIR)/fs/fat/msdos.ko
   AUTOLOAD:=$(call AutoLoad,40,msdos)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-msdos/description
@@ -281,7 +288,7 @@ define KernelPackage/fs-ntfs
   KCONFIG:=CONFIG_NTFS_FS
   FILES:=$(LINUX_DIR)/fs/ntfs/ntfs.ko
   AUTOLOAD:=$(call AutoLoad,30,ntfs)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-ntfs/description
@@ -312,7 +319,8 @@ define KernelPackage/fs-udf
   KCONFIG:=CONFIG_UDF_FS
   FILES:=$(LINUX_DIR)/fs/udf/udf.ko
   AUTOLOAD:=$(call AutoLoad,30,udf)
-$(call AddDepends/nls)
+  DEPENDS:=+kmod-lib-crc-itu-t
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-udf/description
@@ -332,7 +340,7 @@ define KernelPackage/fs-vfat
 	$(LINUX_DIR)/fs/fat/fat.ko \
 	$(LINUX_DIR)/fs/fat/vfat.ko
   AUTOLOAD:=$(call AutoLoad,30,fat vfat)
-$(call AddDepends/nls)
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/fs-vfat/description

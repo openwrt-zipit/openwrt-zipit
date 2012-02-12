@@ -1,0 +1,23 @@
+diff --git a/Makefile b/Makefile
+index 4ebdb74..5efac12 100644
+--- a/Makefile
++++ b/Makefile
+@@ -2315,6 +2315,18 @@ qi_lb60_config  : unconfig
+ 	@echo "TEXT_BASE = 0x80100000" > $(obj)board/xburst/nanonote/config.tmp
+ 	@echo "CONFIG_NAND_U_BOOT = y" >> $(obj)include/config.mk
+ 
++n516_config	: unconfig
++	@ >include/config.h
++	@echo "#define CONFIG_N516 1" >>include/config.h
++	@$(MKCONFIG) -a n516 mips xburst n516 xburst
++
++n516_nand_config: unconfig
++	@echo "#define CONFIG_NAND_U_BOOT" > $(obj)include/config.h
++	@echo "Compile NAND boot image for n516"
++	@$(MKCONFIG) -a n516 mips xburst n516 xburst
++	@echo "TEXT_BASE = 0x80100000" > $(obj)board/xburst/n516/config.tmp
++	@echo "CONFIG_NAND_U_BOOT = y" >> $(obj)include/config.mk
++
+ #========================================================================
+ # Nios
+ #========================================================================

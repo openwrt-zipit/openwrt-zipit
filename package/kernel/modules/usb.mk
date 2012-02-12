@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2010 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -14,10 +14,18 @@ USBINPUT_DIR?=input/misc
 define KernelPackage/usb-core
   SUBMENU:=$(USB_MENU)
   TITLE:=Support for USB
-  DEPENDS:=@USB_SUPPORT +kmod-nls-base
+  DEPENDS:=@USB_SUPPORT
   KCONFIG:=CONFIG_USB CONFIG_XPS_USB_HCD_XILINX=n CONFIG_USB_FHCI_HCD=n
-  FILES:=$(LINUX_DIR)/drivers/usb/core/usbcore.ko
-  AUTOLOAD:=$(call AutoLoad,20,usbcore,1)
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:= \
+	$(LINUX_DIR)/drivers/usb/core/usbcore.ko \
+	$(LINUX_DIR)/drivers/usb/usb-common.ko
+    AUTOLOAD:=$(call AutoLoad,20,usb-common usbcore,1)
+  else
+    FILES:=$(LINUX_DIR)/drivers/usb/core/usbcore.ko
+    AUTOLOAD:=$(call AutoLoad,20,usbcore,1)
+  endif
+  $(call AddDepends/nls)
 endef
 
 define KernelPackage/usb-core/description
@@ -87,10 +95,12 @@ $(eval $(call KernelPackage,usb-uhci,1))
 
 define KernelPackage/usb-ohci
   TITLE:=Support for OHCI controllers
+  DEPENDS:=+TARGET_brcm47xx:kmod-usb-brcm47xx
   KCONFIG:= \
 	CONFIG_USB_OHCI \
 	CONFIG_USB_OHCI_HCD \
 	CONFIG_USB_OHCI_AR71XX=y \
+	CONFIG_USB_OHCI_ATH79=y \
 	CONFIG_USB_OCTEON_OHCI=y
   FILES:=$(LINUX_DIR)/drivers/usb/host/ohci-hcd.ko
   AUTOLOAD:=$(call AutoLoad,50,ohci-hcd,1)
@@ -124,6 +134,40 @@ endef
 $(eval $(call KernelPackage,musb-hdrc))
 
 
+define KernelPackage/pxa27x-udc
+  TITLE:=Support for PXA27x USB device controller
+  KCONFIG:= \
+	CONFIG_USB_PXA27X
+  DEPENDS:=+TARGET_pxa:kmod-udc-core
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/pxa27x_udc.ko
+  AUTOLOAD:=$(call AutoLoad,46,pxa27x_udc)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/pxa27x-udc/description
+  Kernel support for PXA27x USB device.
+endef
+
+$(eval $(call KernelPackage,pxa27x-udc))
+
+
+define KernelPackage/udc-core
+  TITLE:=Core support for UDC
+  KCONFIG:= \
+	CONFIG_USB_GADGET
+  DEPENDS:=@USB_GADGET_SUPPORT
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/udc-core.ko
+  AUTOLOAD:=$(call AutoLoad,45,udc-core)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/udc-core/description
+  Kernel support for UDC
+endef
+
+$(eval $(call KernelPackage,udc-core))
+
+
 define KernelPackage/nop-usb-xceiv
   TITLE:=Support for USB OTG NOP transceiver
   KCONFIG:= \
@@ -144,6 +188,7 @@ $(eval $(call KernelPackage,nop-usb-xceiv))
 define KernelPackage/tusb6010
   TITLE:=Support for TUSB 6010
   KCONFIG:= \
+	CONFIG_USB_MUSB_TUSB6010 \
 	CONFIG_USB_TUSB6010=y
   DEPENDS:=+kmod-musb-hdrc +kmod-nop-usb-xceiv
   $(call AddDepends/usb)
@@ -197,8 +242,10 @@ $(eval $(call KernelPackage,usb-isp116x-hcd))
 
 define KernelPackage/usb2
   TITLE:=Support for USB2 controllers
+  DEPENDS:=+TARGET_brcm47xx:kmod-usb-brcm47xx
   KCONFIG:=CONFIG_USB_EHCI_HCD \
     CONFIG_USB_EHCI_AR71XX=y \
+    CONFIG_USB_EHCI_ATH79=y \
     CONFIG_USB_OCTEON_EHCI=y \
     CONFIG_USB_EHCI_FSL=n
   FILES:=$(LINUX_DIR)/drivers/usb/host/ehci-hcd.ko
@@ -350,6 +397,21 @@ define KernelPackage/usb-serial-ftdi/description
 endef
 
 $(eval $(call KernelPackage,usb-serial-ftdi))
+
+
+define KernelPackage/usb-serial-ti-usb
+  TITLE:=Support for TI USB 3410/5052
+  KCONFIG:=CONFIG_USB_SERIAL_TI
+  FILES:=$(LINUX_DIR)/drivers/usb/serial/ti_usb_3410_5052.ko
+  AUTOLOAD:=$(call AutoLoad,65,ti_usb_3410_5052)
+  $(call AddDepends/usb-serial)
+endef
+
+define KernelPackage/usb-serial-ti-usb/description
+ Kernel support for TI USB 3410/5052 devices
+endef
+
+$(eval $(call KernelPackage,usb-serial-ti-usb))
 
 
 define KernelPackage/usb-serial-ipw
@@ -578,7 +640,7 @@ $(eval $(call KernelPackage,usb-serial-option))
 
 define KernelPackage/usb-storage
   TITLE:=USB Storage support
-  DEPENDS:= +!TARGET_x86:kmod-scsi-core
+  DEPENDS:= +kmod-scsi-core
   KCONFIG:=CONFIG_USB_STORAGE
   FILES:=$(LINUX_DIR)/drivers/usb/storage/usb-storage.ko
   AUTOLOAD:=$(call AutoLoad,60,usb-storage,1)
@@ -966,3 +1028,20 @@ define KernelPackage/usb-rt305x-dwc_otg/description
 endef
 
 $(eval $(call KernelPackage,usb-rt305x-dwc_otg))
+
+define KernelPackage/usb-brcm47xx
+  SUBMENU:=$(USB_MENU)
+  TITLE:=Support for USB on bcm47xx
+  DEPENDS:=@USB_SUPPORT @TARGET_brcm47xx
+  KCONFIG:= \
+  	CONFIG_USB_HCD_BCMA \
+  	CONFIG_USB_HCD_SSB
+  FILES:= \
+  	$(LINUX_DIR)/drivers/usb/host/bcma-hcd.ko \
+  	$(LINUX_DIR)/drivers/usb/host/ssb-hcd.ko
+  AUTOLOAD:=$(call AutoLoad,19,bcma-hcd ssb-hcd,1)
+  $(call AddDepends/usb)
+endef
+
+$(eval $(call KernelPackage,usb-brcm47xx))
+

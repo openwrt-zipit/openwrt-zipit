@@ -1,5 +1,5 @@
 # 
-# Copyright (C) 2006 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -13,6 +13,7 @@ ifeq ($(DUMP),1)
   KERNEL?=<KERNEL>
   BOARD?=<BOARD>
   LINUX_VERSION?=<LINUX_VERSION>
+  LINUX_VERMAGIC?=<LINUX_VERMAGIC>
 else
   ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
     export GCC_HONOUR_COPTS=s
@@ -34,6 +35,9 @@ else
   endif
   KERNEL_BUILD_DIR ?= $(BUILD_DIR_BASE)/linux-$(BOARD)$(if $(SUBTARGET),_$(SUBTARGET))$(if $(BUILD_SUFFIX),_$(BUILD_SUFFIX))
   LINUX_DIR ?= $(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION)
+
+  LINUX_VERMAGIC:=$(strip $(shell cat $(LINUX_DIR)/.vermagic 2>/dev/null))
+  LINUX_VERMAGIC:=$(if $(LINUX_VERMAGIC),$(LINUX_VERMAGIC),unknown)
 
   LINUX_UNAME_VERSION:=$(if $(word 3,$(subst ., ,$(KERNEL_BASE))),$(KERNEL_BASE),$(KERNEL_BASE).0)
   ifneq ($(findstring -rc,$(LINUX_VERSION)),)
@@ -82,16 +86,19 @@ define ModuleAutoLoad
 		mods="$$$$$$$$2"; \
 		boot="$$$$$$$$3"; \
 		shift 3; \
-		mkdir -p $(2)/etc/modules.d; \
-		( \
-			[ "$$$$$$$$boot" = "1" ] && { \
-				echo '# May be required for rootfs' ; \
-			} ; \
-			for mod in $$$$$$$$mods; do \
-				echo "$$$$$$$$mod"; \
-			done \
-		) > $(2)/etc/modules.d/$$$$$$$$priority-$(1); \
-		modules="$$$$$$$${modules:+$$$$$$$$modules }$$$$$$$$priority-$(1)"; \
+		for mod in $$$$$$$$mods; do \
+			if [ -e $(2)/$(MODULES_SUBDIR)/$$$$$$$$mod.ko ]; then \
+				mkdir -p $(2)/etc/modules.d; \
+				echo "$$$$$$$$mod" >> $(2)/etc/modules.d/$$$$$$$$priority-$(1); \
+			fi; \
+		done; \
+		if [ -e $(2)/etc/modules.d/$$$$$$$$priority-$(1) ]; then \
+			if [ "$$$$$$$$boot" = "1" ]; then \
+				mkdir -p $(2)/etc/modules-boot.d; \
+				ln -s ../modules.d/$$$$$$$$priority-$(1) $(2)/etc/modules-boot.d/; \
+			fi; \
+			modules="$$$$$$$${modules:+$$$$$$$$modules }$$$$$$$$priority-$(1)"; \
+		fi; \
 	}; \
 	$(3) \
 	if [ -n "$$$$$$$$modules" ]; then \
@@ -127,7 +134,7 @@ define KernelPackage
     SECTION:=kernel
     CATEGORY:=Kernel modules
     DESCRIPTION:=$(DESCRIPTION)
-    EXTRA_DEPENDS:=kernel (=$(LINUX_VERSION)-$(LINUX_RELEASE))
+    EXTRA_DEPENDS:=kernel (=$(LINUX_VERSION)-$(LINUX_RELEASE)-$(LINUX_VERMAGIC))
     VERSION:=$(LINUX_VERSION)$(if $(PKG_VERSION),+$(PKG_VERSION))-$(if $(PKG_RELEASE),$(PKG_RELEASE),$(LINUX_RELEASE))
     $(call KernelPackage/$(1))
     $(call KernelPackage/$(1)/$(BOARD))
@@ -147,11 +154,24 @@ $(call KernelPackage/$(1)/config)
 
   $(call KernelPackage/depends)
 
-  ifneq ($(if $(filter-out %=y %=n %=m,$(KCONFIG)),$(filter m,$(foreach c,$(filter-out %=y %=n %=m,$(KCONFIG)),$($(c)))),.),)
+  ifneq ($(if $(filter-out %=y %=n %=m,$(KCONFIG)),$(filter m y,$(foreach c,$(filter-out %=y %=n %=m,$(KCONFIG)),$($(c)))),.),)
     ifneq ($(strip $(FILES)),)
       define Package/kmod-$(1)/install
-		  mkdir -p $$(1)/$(MODULES_SUBDIR)
-		  $(CP) -L $$(FILES) $$(1)/$(MODULES_SUBDIR)/
+		  @for mod in $$(FILES); do \
+			if [ -e $$$$$$$$mod ]; then \
+				mkdir -p $$(1)/$(MODULES_SUBDIR) ; \
+				$(CP) -L $$$$$$$$mod $$(1)/$(MODULES_SUBDIR)/ ; \
+			elif [ -e "$(LINUX_DIR)/modules.builtin" ]; then \
+				if grep -q "$$$$$$$${mod##$(LINUX_DIR)/}" "$(LINUX_DIR)/modules.builtin"; then \
+					echo "NOTICE: module '$$$$$$$$mod' is built-in."; \
+				else \
+					echo "ERROR: module '$$$$$$$$mod' is missing."; \
+					exit 1; \
+				fi; \
+			else \
+				echo "WARNING: module '$$$$$$$$mod' missing and modules.builtin not available, assuming built-in."; \
+			fi; \
+		  done;
 		  $(call ModuleAutoLoad,$(1),$$(1),$(AUTOLOAD))
 		  $(call KernelPackage/$(1)/install,$$(1))
       endef

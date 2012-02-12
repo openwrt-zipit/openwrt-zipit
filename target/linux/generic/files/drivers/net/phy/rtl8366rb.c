@@ -246,8 +246,8 @@ static int rtl8366rb_reset_chip(struct rtl8366_smi *smi)
 	int timeout = 10;
 	u32 data;
 
-	rtl8366_smi_write_reg(smi, RTL8366RB_RESET_CTRL_REG,
-			      RTL8366RB_CHIP_CTRL_RESET_HW);
+	rtl8366_smi_write_reg_noack(smi, RTL8366RB_RESET_CTRL_REG,
+			 	    RTL8366RB_CHIP_CTRL_RESET_HW);
 	do {
 		msleep(1);
 		if (rtl8366_smi_read_reg(smi, RTL8366RB_RESET_CTRL_REG, &data))
@@ -1247,6 +1247,9 @@ static int __devinit rtl8366rb_probe(struct platform_device *pdev)
 
 	smi->gpio_sda = pdata->gpio_sda;
 	smi->gpio_sck = pdata->gpio_sck;
+	smi->clk_delay = 10;
+	smi->cmd_read = 0xa9;
+	smi->cmd_write = 0xa8;
 	smi->ops = &rtl8366rb_smi_ops;
 	smi->cpu_port = RTL8366RB_PORT_NUM_CPU;
 	smi->num_ports = RTL8366RB_NUM_PORTS;

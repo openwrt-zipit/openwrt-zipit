@@ -33,6 +33,7 @@
 #define CONFIG_JZSOC		1  /* Jz SoC */
 #define CONFIG_JZ4740		1  /* Jz4740 SoC */
 #define CONFIG_PAVO		1  /* PAVO validation board */
+#define CONFIG_NAND_JZ4740
 
 #define CONFIG_BOARD_NAME	"n516"
 #define CONFIG_BOARD_HWREV	"1.0"
@@ -128,8 +129,6 @@
 /*#define CONFIG_MTD_PARTITIONS*/
 #define CONFIG_RBTREE
 
-#define CONFIG_BOOTP_MASK	( CONFIG_BOOTP_DEFAUL )
-
 /* this must be included AFTER the definition of CONFIG_COMMANDS (if any) */
 #if 0
 #define CONFIG_ZERO_BOOTDELAY_CHECK
@@ -201,6 +200,7 @@
 #define CONFIG_SYS_NAND_BASE           0xB8000000
 #define CONFIG_SYS_NAND_SELECT_DEVICE  1       /* nand driver supports mutipl. chips   */
 
+
 /*
  * IPL (Initial Program Loader, integrated inside CPU)
  * Will load first 8k from NAND (SPL) into cache and execute it from there.
@@ -229,6 +229,9 @@
 #define CONFIG_SYS_NAND_BLOCK_SIZE	(128 << 10)	/* NAND chip block size		*/
 #define CONFIG_SYS_NAND_BADBLOCK_PAGE	63		/* NAND bad block was marked at this page in a block, starting from 0 */
 #define CONFIG_SYS_NAND_ECC_POS		6
+#define CONFIG_SYS_NAND_ECCSIZE		512
+#define CONFIG_SYS_NAND_ECCBYTES	9
+
 
 #ifdef CONFIG_ENV_IS_IN_NAND
 //#define CONFIG_ENV_SIZE			CONFIG_SYS_NAND_BLOCK_SIZE

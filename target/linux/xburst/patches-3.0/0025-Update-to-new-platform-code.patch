@@ -1,0 +1,25 @@
+From 8a760f273f94b72e882d7f82b04ade72ae739a6b Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@sharism.cc>
+Date: Wed, 14 Sep 2011 15:12:41 +0800
+Subject: [PATCH 25/32] Update to new platform code
+
+---
+ drivers/mtd/nand/jz4740_nand.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mtd/nand/jz4740_nand.c b/drivers/mtd/nand/jz4740_nand.c
+index 6e813da..95b4fc9 100644
+--- a/drivers/mtd/nand/jz4740_nand.c
++++ b/drivers/mtd/nand/jz4740_nand.c
+@@ -311,7 +311,7 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
+ 	ret = jz_nand_ioremap_resource(pdev, "mmio", &nand->mem, &nand->base);
+ 	if (ret)
+ 		goto err_free;
+-	ret = jz_nand_ioremap_resource(pdev, "bank", &nand->bank_mem,
++	ret = jz_nand_ioremap_resource(pdev, "bank1", &nand->bank_mem,
+ 			&nand->bank_base);
+ 	if (ret)
+ 		goto err_iounmap_mmio;
+-- 
+1.7.4.1
+

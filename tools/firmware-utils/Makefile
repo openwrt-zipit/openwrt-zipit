@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2008 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -12,7 +12,7 @@ include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 define cc
-	$(CC) $(HOST_CFLAGS) -include endian.h -o $(HOST_BUILD_DIR)/bin/$(firstword $(1)) $(foreach src,$(1),src/$(src).c) $(2)
+	$(HOSTCC) $(HOST_CFLAGS) -include endian.h -o $(HOST_BUILD_DIR)/bin/$(firstword $(1)) $(foreach src,$(1),src/$(src).c) $(2)
 endef
 
 define Host/Compile
@@ -54,6 +54,7 @@ define Host/Compile
 	$(call cc,buffalo-tag buffalo-lib, -Wall)
 	$(call cc,buffalo-tftp buffalo-lib, -Wall)
 	$(call cc,mkwrgimg md5, -Wall)
+	$(call cc,mkedimaximg)
 endef
 
 define Host/Install

@@ -1,0 +1,11 @@
+--- a/drivers/mtd/ubi/io.c
++++ b/drivers/mtd/ubi/io.c
+@@ -995,7 +995,7 @@ int ubi_io_read_vid_hdr(struct ubi_devic
+ 
+ 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
+ 	read_err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,
+-			  ubi->vid_hdr_alsize);
++			  UBI_VID_HDR_SIZE + ubi->vid_hdr_shift);
+ 	if (read_err && read_err != UBI_IO_BITFLIPS && read_err != -EBADMSG)
+ 		return read_err;
+ 

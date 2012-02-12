@@ -1,0 +1,117 @@
+From ab59753a9df09b990822b15d2593c5c98905684c Mon Sep 17 00:00:00 2001
+From: Xiangfu Liu <xiangfu@macbook.openmobilefree.net>
+Date: Wed, 14 Sep 2011 14:29:51 +0800
+Subject: [PATCH 27/32] Add DEVMEM support
+
+---
+ drivers/char/Kconfig |   10 ++++++++++
+ drivers/char/mem.c   |   17 +++++++++++++++++
+ 2 files changed, 27 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
+index 49502bc..770f678 100644
+--- a/drivers/char/Kconfig
++++ b/drivers/char/Kconfig
+@@ -6,6 +6,16 @@ menu "Character devices"
+ 
+ source "drivers/tty/Kconfig"
+ 
++config DEVMEM
++	bool "/dev/mem virtual device support"
++	default y
++	help
++	  Say Y here if you want to support the /dev/mem device.
++	  Some X server drivers access the video hardware using this device.
++	  Accessing hardware directly from user space can be useful in some
++	  cases, but it is not without risks.
++	  When in doubt, say "N".
++
+ config DEVKMEM
+ 	bool "/dev/kmem virtual device support"
+ 	default y
+diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+index 8fc04b4..eb78f37 100644
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -86,6 +86,8 @@ void __weak unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+ {
+ }
+ 
++#ifdef CONFIG_DEVMEM
++
+ /*
+  * This funcion reads the *physical* memory. The f_pos points directly to the
+  * memory location.
+@@ -209,6 +211,10 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
+ 	return written;
+ }
+ 
++#endif
++
++#if defined(CONFIG_DEVMEM) || defined(CONFIG_DEVKMEM)
++
+ int __weak phys_mem_access_prot_allowed(struct file *file,
+ 	unsigned long pfn, unsigned long size, pgprot_t *vma_prot)
+ {
+@@ -330,6 +336,8 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
+ 	return 0;
+ }
+ 
++#endif
++
+ #ifdef CONFIG_DEVKMEM
+ static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
+ {
+@@ -693,6 +701,7 @@ static loff_t null_lseek(struct file *file, loff_t offset, int orig)
+ 	return file->f_pos = 0;
+ }
+ 
++#if defined(CONFIG_DEVMEM) || defined(CONFIG_DEVKMEM) || defined(CONFIG_DEVPORT)
+ /*
+  * The memory devices use the full 32/64 bits of the offset, and so we cannot
+  * check against negative addresses: they are ok. The return value is weird,
+@@ -725,11 +734,15 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
+ 	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
+ 	return ret;
+ }
++#endif
+ 
++#if defined(CONFIG_DEVMEM) || defined(CONFIG_DEVKMEM) || \
++		defined(CONFIG_DEVPORT) || defined(CONFIG_CRASH_DUMP)
+ static int open_port(struct inode * inode, struct file * filp)
+ {
+ 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
+ }
++#endif
+ 
+ #define zero_lseek	null_lseek
+ #define full_lseek      null_lseek
+@@ -739,6 +752,7 @@ static int open_port(struct inode * inode, struct file * filp)
+ #define open_kmem	open_mem
+ #define open_oldmem	open_mem
+ 
++#ifdef CONFIG_DEVMEM
+ static const struct file_operations mem_fops = {
+ 	.llseek		= memory_lseek,
+ 	.read		= read_mem,
+@@ -747,6 +761,7 @@ static const struct file_operations mem_fops = {
+ 	.open		= open_mem,
+ 	.get_unmapped_area = get_unmapped_area_mem,
+ };
++#endif
+ 
+ #ifdef CONFIG_DEVKMEM
+ static const struct file_operations kmem_fops = {
+@@ -850,7 +865,9 @@ static const struct memdev {
+ 	const struct file_operations *fops;
+ 	struct backing_dev_info *dev_info;
+ } devlist[] = {
++#ifdef CONFIG_DEVMEM
+ 	 [1] = { "mem", 0, &mem_fops, &directly_mappable_cdev_bdi },
++#endif
+ #ifdef CONFIG_DEVKMEM
+ 	 [2] = { "kmem", 0, &kmem_fops, &directly_mappable_cdev_bdi },
+ #endif
+-- 
+1.7.4.1
+

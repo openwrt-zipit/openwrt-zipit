@@ -4,7 +4,7 @@ define Target/Description
 	Build firmware images for ZipIt Z2 PXA-based handeld messenger device
 endef
 
-FEATURES:=targz
+FEATURES:=targz usb usbgadget
 # packages we want for functional wifi support
 DEFAULT_PACKAGES += kmod-libertas-spi hostapd wpa-supplicant
 

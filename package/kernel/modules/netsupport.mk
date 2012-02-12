@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2008 OpenWrt.org
+# Copyright (C) 2006-2011 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -77,6 +77,68 @@ define KernelPackage/bonding/description
 endef
 
 $(eval $(call KernelPackage,bonding))
+
+
+define KernelPackage/bridge
+  SUBMENU:=$(NETWORK_SUPPORT_MENU)
+  TITLE:=Ethernet bridging support
+  DEPENDS:=+kmod-stp
+  KCONFIG:= \
+	CONFIG_BRIDGE \
+	CONFIG_BRIDGE_IGMP_SNOOPING=y
+  FILES:=$(LINUX_DIR)/net/bridge/bridge.ko
+  AUTOLOAD:=$(call AutoLoad,11,bridge)
+endef
+
+define KernelPackage/bridge/description
+ Kernel module for Ethernet bridging.
+endef
+
+$(eval $(call KernelPackage,bridge))
+
+define KernelPackage/llc
+  SUBMENU:=$(NETWORK_SUPPORT_MENU)
+  TITLE:=ANSI/IEEE 802.2 LLC support
+  KCONFIG:=CONFIG_LLC
+  FILES:=$(LINUX_DIR)/net/llc/llc.ko
+  AUTOLOAD:=$(call AutoLoad,09,llc)
+endef
+
+define KernelPackage/llc/description
+ Kernel module for ANSI/IEEE 802.2 LLC support.
+endef
+
+$(eval $(call KernelPackage,llc))
+
+define KernelPackage/stp
+  SUBMENU:=$(NETWORK_SUPPORT_MENU)
+  TITLE:=Ethernet Spanning Tree Protocol support
+  DEPENDS:=+kmod-llc
+  KCONFIG:=CONFIG_STP
+  FILES:=$(LINUX_DIR)/net/802/stp.ko
+  AUTOLOAD:=$(call AutoLoad,10,stp)
+endef
+
+define KernelPackage/stp/description
+ Kernel module for Ethernet Spanning Tree Protocol support.
+endef
+
+$(eval $(call KernelPackage,stp))
+
+define KernelPackage/8021q
+  SUBMENU:=$(NETWORK_SUPPORT_MENU)
+  TITLE:=802.1Q VLAN support
+  KCONFIG:=CONFIG_VLAN_8021Q \
+		CONFIG_VLAN_8021Q_GVRP=n
+  FILES:=$(LINUX_DIR)/net/8021q/8021q.ko
+  AUTOLOAD:=$(call AutoLoad,12,8021q)
+endef
+
+define KernelPackage/8021q/description
+ Kernel module for 802.1Q VLAN support
+endef
+
+$(eval $(call KernelPackage,8021q))
 
 
 define KernelPackage/capi
@@ -408,15 +470,22 @@ $(eval $(call KernelPackage,tun))
 define KernelPackage/ppp
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=PPP modules
-  DEPENDS:=+kmod-crc-ccitt
+  DEPENDS:=+kmod-lib-crc-ccitt
   KCONFIG:= \
 	CONFIG_PPP \
 	CONFIG_PPP_ASYNC \
 	CONFIG_SLHC
-  FILES:= \
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:= \
+	$(LINUX_DIR)/drivers/net/ppp/ppp_async.ko \
+	$(LINUX_DIR)/drivers/net/ppp/ppp_generic.ko \
+	$(LINUX_DIR)/drivers/net/slip/slhc.ko
+  else
+    FILES:= \
 	$(LINUX_DIR)/drivers/net/ppp_async.ko \
 	$(LINUX_DIR)/drivers/net/ppp_generic.ko \
 	$(LINUX_DIR)/drivers/net/slhc.ko
+  endif
   AUTOLOAD:=$(call AutoLoad,30,slhc ppp_generic ppp_async)
 endef
 
@@ -432,7 +501,11 @@ define KernelPackage/ppp-synctty
   TITLE:=PPP sync tty support
   DEPENDS:=kmod-ppp
   KCONFIG:=CONFIG_PPP_SYNC_TTY
-  FILES:=$(LINUX_DIR)/drivers/net/ppp_synctty.ko
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:=$(LINUX_DIR)/drivers/net/ppp/ppp_synctty.ko
+  else
+    FILES:=$(LINUX_DIR)/drivers/net/ppp_synctty.ko
+  endif
   AUTOLOAD:=$(call AutoLoad,40,ppp_synctty)
 endef
 
@@ -448,9 +521,15 @@ define KernelPackage/pppoe
   TITLE:=PPPoE support
   DEPENDS:=kmod-ppp
   KCONFIG:=CONFIG_PPPOE
-  FILES:= \
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:= \
+	$(LINUX_DIR)/drivers/net/ppp/pppoe.ko \
+	$(LINUX_DIR)/drivers/net/ppp/pppox.ko
+  else
+    FILES:= \
 	$(LINUX_DIR)/drivers/net/pppoe.ko \
 	$(LINUX_DIR)/drivers/net/pppox.ko
+  endif
   AUTOLOAD:=$(call AutoLoad,40,pppox pppoe)
 endef
 
@@ -482,7 +561,11 @@ define KernelPackage/pptp
   TITLE:=PPtP support
   DEPENDS:=kmod-ppp +kmod-gre @!LINUX_2_6_30&&!LINUX_2_6_31&&!LINUX_2_6_32&&!LINUX_2_6_36
   KCONFIG:=CONFIG_PPTP
-  FILES:=$(LINUX_DIR)/drivers/net/pptp.ko
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:=$(LINUX_DIR)/drivers/net/ppp/pptp.ko
+  else
+    FILES:=$(LINUX_DIR)/drivers/net/pptp.ko
+  endif
   AUTOLOAD:=$(call AutoLoad,41,pptp)
 endef
 
@@ -533,7 +616,11 @@ define KernelPackage/mppe
   KCONFIG:= \
 	CONFIG_PPP_MPPE_MPPC \
 	CONFIG_PPP_MPPE
-  FILES:=$(LINUX_DIR)/drivers/net/ppp_mppe.ko
+  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.2)),1)
+    FILES:=$(LINUX_DIR)/drivers/net/ppp/ppp_mppe.ko
+  else
+    FILES:=$(LINUX_DIR)/drivers/net/ppp_mppe.ko
+  endif
   AUTOLOAD:=$(call AutoLoad,31,ppp_mppe)
 endef
 
@@ -715,7 +802,7 @@ define KernelPackage/sctp
      CONFIG_SCTP_HMAC_MD5=y
   FILES:= $(LINUX_DIR)/net/sctp/sctp.ko
   AUTOLOAD:= $(call AutoLoad,32,sctp)
-  DEPENDS:=+kmod-libcrc32c +kmod-crypto-md5 +kmod-crypto-hmac
+  DEPENDS:=+kmod-lib-crc32c +kmod-crypto-md5 +kmod-crypto-hmac
 endef
 
 define KernelPackage/sctp/description

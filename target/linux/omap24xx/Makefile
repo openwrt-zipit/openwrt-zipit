@@ -12,11 +12,13 @@ BOARDNAME:=TI OMAP-24xx
 MAINTAINER:=Michael Buesch <m@bues.ch>
 FEATURES:=targz squashfs jffs2 usb usbgadget display gpio audio
 
-LINUX_VERSION:=2.6.38.8
+LINUX_VERSION:=3.1.9
 
 define Target/Description
 	TI OMAP-24xx
 endef
+
+CFLAGS:=-Os -pipe -march=armv6 -mtune=arm1136j-s -fno-caller-saves
 
 include $(INCLUDE_DIR)/target.mk
 
