@@ -627,6 +627,7 @@ $(eval $(call KernelPackage,nbd))
 define KernelPackage/scsi-core
   SUBMENU:=$(BLOCK_MENU)
   TITLE:=SCSI device support
+  DEPENDS:=+kmod-lib-crc-t10dif
   KCONFIG:= \
 	CONFIG_SCSI \
 	CONFIG_BLK_DEV_SD

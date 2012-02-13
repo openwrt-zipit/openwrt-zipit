@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ -e /usr/bin/gmenu2x ]
+then
+    /usr/bin/gmenu2x
+else
+    /bin/sh
+fi
