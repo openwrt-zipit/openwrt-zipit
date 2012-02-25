@@ -62,7 +62,7 @@ define KernelPackage/usb-eth-gadget
   KCONFIG:= \
 	CONFIG_USB_ETH \
 	CONFIG_USB_ETH_RNDIS=y \
-	CONFIG_USB_ETH_EEM=y
+	CONFIG_USB_ETH_EEM=n
   DEPENDS:=+kmod-usb-gadget
   FILES:=$(LINUX_DIR)/drivers/usb/gadget/g_ether.ko
   AUTOLOAD:=$(call AutoLoad,52,g_ether)
