@@ -1,7 +1,7 @@
 From 07e4c10a298b4bae0f7844b80c051d8994acb5ba Mon Sep 17 00:00:00 2001
 From: Vasily Khoruzhick <anarsoul@gmail.com>
 Date: Tue, 1 Mar 2011 11:44:35 +0200
-Subject: [PATCH 03/10] ARM: PXA27x: CPUFREQ: Don't use fastbus mode
+Subject: [PATCH 03/13] ARM: PXA27x: CPUFREQ: Don't use fastbus mode
 
 PXA27x does not like fastbus for some reason, it can hang in
 random places when it's enabled. So don't use it to make cpufreq
@@ -10,7 +10,7 @@ stable.
 Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
 ---
  arch/arm/mach-pxa/cpufreq-pxa2xx.c |   12 ++++++------
- 1 files changed, 6 insertions(+), 6 deletions(-)
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/arch/arm/mach-pxa/cpufreq-pxa2xx.c b/arch/arm/mach-pxa/cpufreq-pxa2xx.c
 index 6a7aeab..b5727aa 100644
@@ -37,5 +37,5 @@ index 6a7aeab..b5727aa 100644
  
  #define NUM_PXA27x_FREQS ARRAY_SIZE(pxa27x_freqs)
 -- 
-1.7.9
+1.7.9.2
 

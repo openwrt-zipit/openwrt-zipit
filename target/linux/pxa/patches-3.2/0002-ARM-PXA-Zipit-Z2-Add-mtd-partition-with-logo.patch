@@ -1,12 +1,12 @@
 From cb5ac3a6371faab9989eaf438558cee41f76e714 Mon Sep 17 00:00:00 2001
 From: Vasily Khoruzhick <anarsoul@gmail.com>
 Date: Fri, 4 Feb 2011 18:32:37 +0200
-Subject: [PATCH 02/10] ARM: PXA: Zipit Z2: Add mtd partition with logo
+Subject: [PATCH 02/13] ARM: PXA: Zipit Z2: Add mtd partition with logo
 
 Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
 ---
  arch/arm/mach-pxa/z2.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ 1 file changed, 4 insertions(+)
 
 diff --git a/arch/arm/mach-pxa/z2.c b/arch/arm/mach-pxa/z2.c
 index ead32c9..5be4f0c 100644
@@ -24,5 +24,5 @@ index ead32c9..5be4f0c 100644
  	},
  };
 -- 
-1.7.9
+1.7.9.2
 
