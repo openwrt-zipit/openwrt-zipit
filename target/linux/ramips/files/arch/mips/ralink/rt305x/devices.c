@@ -35,10 +35,14 @@ static struct resource rt305x_flash0_resources[] = {
 	},
 };
 
+struct physmap_flash_data rt305x_flash0_data;
 static struct platform_device rt305x_flash0_device = {
 	.name		= "physmap-flash",
 	.resource	= rt305x_flash0_resources,
 	.num_resources	= ARRAY_SIZE(rt305x_flash0_resources),
+	.dev = {
+		.platform_data = &rt305x_flash0_data,
+	},
 };
 
 static struct resource rt305x_flash1_resources[] = {
@@ -50,17 +54,21 @@ static struct resource rt305x_flash1_resources[] = {
 	},
 };
 
+struct physmap_flash_data rt305x_flash1_data;
 static struct platform_device rt305x_flash1_device = {
 	.name		= "physmap-flash",
 	.resource	= rt305x_flash1_resources,
 	.num_resources	= ARRAY_SIZE(rt305x_flash1_resources),
+	.dev = {
+		.platform_data = &rt305x_flash1_data,
+	},
 };
 
 static int rt305x_flash_instance __initdata;
-void __init rt305x_register_flash(unsigned int id,
-				  struct physmap_flash_data *pdata)
+void __init rt305x_register_flash(unsigned int id)
 {
 	struct platform_device *pdev;
+	struct physmap_flash_data *pdata;
 	u32 t;
 	int reg;
 
@@ -80,6 +88,7 @@ void __init rt305x_register_flash(unsigned int id,
 	t = rt305x_memc_rr(reg);
 	t = (t >> FLASH_CFG_WIDTH_SHIFT) & FLASH_CFG_WIDTH_MASK;
 
+	pdata = pdev->dev.platform_data;
 	switch (t) {
 	case FLASH_CFG_WIDTH_8BIT:
 		pdata->width = 1;
@@ -95,7 +104,6 @@ void __init rt305x_register_flash(unsigned int id,
 		return;
 	}
 
-	pdev->dev.platform_data = pdata;
 	pdev->id = rt305x_flash_instance;
 
 	platform_device_register(pdev);
@@ -221,8 +229,8 @@ void __init rt305x_register_wdt(void)
 
 	/* enable WDT reset output on pin SRAM_CS_N */
 	t = rt305x_sysc_rr(SYSC_REG_SYSTEM_CONFIG);
-	t |= SYSTEM_CONFIG_SRAM_CS0_MODE_WDT <<
-	     SYSTEM_CONFIG_SRAM_CS0_MODE_SHIFT;
+	t |= RT305X_SYSCFG_SRAM_CS0_MODE_WDT <<
+	     RT305X_SYSCFG_SRAM_CS0_MODE_SHIFT;
 	rt305x_sysc_wr(t, SYSC_REG_SYSTEM_CONFIG);
 
 	platform_device_register(&rt305x_wdt_device);

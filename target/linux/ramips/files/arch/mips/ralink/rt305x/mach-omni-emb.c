@@ -10,9 +10,6 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 
 #include <asm/mach-ralink/machine.h>
@@ -30,41 +27,6 @@
 
 #define OMNI_EMB_GPIO_LED_STATUS	9
 #define OMNI_EMB_GPIO_LED_WLAN		14
-
-static struct mtd_partition emb_partitions[] = {
-	{
-		.name	= "uboot",
-		.offset	= 0,
-		.size	= 0x030000,
-	}, {
-		.name	= "uboot-config",
-		.offset	= 0x030000,
-		.size	= 0x040000,
-		.mask_flags = MTD_WRITEABLE,
-	}, {
-		.name	= "factory",
-		.offset	= 0x040000,
-		.size	= 0x050000,
-		.mask_flags = MTD_WRITEABLE,
-	}, {
-		.name	= "linux",
-		.offset	= 0x050000,
-		.size	= 0x100000,
-	}, {
-		.name	= "rootfs",
-		.offset	= 0x150000,
-		.size	= 0x6B0000,
-	}, {
-		.name	= "firmware",
-		.offset	= 0x050000,
-		.size	= 0x7B0000,
-	}
-};
-
-static struct physmap_flash_data omni_emb_flash_data = {
-	.nr_parts	= ARRAY_SIZE(emb_partitions),
-	.parts		= emb_partitions,
-};
 
 static struct gpio_led omni_emb_leds_gpio[] __initdata = {
 	{
@@ -101,7 +63,7 @@ static void __init omni_emb_init(void)
 				ARRAY_SIZE(omni_emb_gpio_buttons),
 				omni_emb_gpio_buttons);
 
-	rt305x_register_flash(0, &omni_emb_flash_data);
+	rt305x_register_flash(0);
 	rt305x_register_ethernet();
 	rt305x_register_wifi();
 	rt305x_register_wdt();

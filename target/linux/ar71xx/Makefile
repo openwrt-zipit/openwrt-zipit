@@ -13,13 +13,12 @@ FEATURES:=squashfs jffs2 targz
 CFLAGS:=-Os -pipe -mips32r2 -mtune=mips32r2 -fno-caller-saves
 SUBTARGETS:=generic nand
 
-LINUX_VERSION:=3.2.5
+LINUX_VERSION:=3.2.9
 
 include $(INCLUDE_DIR)/target.mk
 
 DEFAULT_PACKAGES += \
-	kmod-leds-gpio kmod-input-core kmod-input-polldev \
-	kmod-input-gpio-keys-polled kmod-button-hotplug swconfig \
+	kmod-leds-gpio kmod-gpio-button-hotplug kmod-wdt-ath79 swconfig \
 	kmod-ath9k wpad-mini uboot-envtools
 
 define Target/Description

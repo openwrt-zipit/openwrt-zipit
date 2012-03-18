@@ -10,10 +10,10 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=mac80211
 
-PKG_VERSION:=2012-02-06
-PKG_RELEASE:=2
+PKG_VERSION:=2012-02-27
+PKG_RELEASE:=1
 PKG_SOURCE_URL:=http://mirror2.openwrt.org/sources
-PKG_MD5SUM:=fae71c35ee3f3de6329f2db7aed6d265
+PKG_MD5SUM:=ccd51c46813c25090ce657c8b7c67615
 
 PKG_SOURCE:=compat-wireless-$(PKG_VERSION).tar.bz2
 PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/compat-wireless-$(PKG_VERSION)
@@ -924,12 +924,12 @@ define KernelPackage/b43/config
 
 	choice
 		prompt "b43 firmware version"
-		default B43_FW_5_10
+		default B43_FW_5_100_138
 		help
 		  This option allows you to select the version of the b43 firmware.
 
 	config B43_FW_4_150
-		bool "Firmware 410.2160 from driver 4.150.10.5 (stable)"
+		bool "Firmware 410.2160 from driver 4.150.10.5 (old stable)"
 		help
 		  Stable firmware for BCM43xx devices.
 
@@ -954,7 +954,7 @@ define KernelPackage/b43/config
 		  If unsure, select the "stable" firmware.
    
 	config B43_FW_5_100_138
-		bool "Firmware 666.2 from driver 5.100.138"
+		bool "Firmware 666.2 from driver 5.100.138 (stable)"
 		help
 		  Newer experimental firmware for BCM43xx devices.
 
@@ -1039,7 +1039,6 @@ define KernelPackage/b43/config
 
 	config PACKAGE_B43_PHY_N
 		bool "Enable support for N-PHYs"
-		select B43_FW_5_100_138
 		default y
 		help
 		  Enable support for BCM4321 and BCM4322.
@@ -1050,7 +1049,6 @@ define KernelPackage/b43/config
 
 	config PACKAGE_B43_PHY_HT
 		bool "Enable support for HT-PHYs"
-		select B43_FW_5_100_138
 		default n
 		help
 		  Currently broken.
@@ -1060,7 +1058,6 @@ define KernelPackage/b43/config
 	config PACKAGE_B43_PHY_LCN
 		bool "Enable support for LCN-PHYs"
 		depends on BROKEN
-		select B43_FW_5_100_138
 		default n
 		help
 		  Currently broken.
@@ -1116,6 +1113,34 @@ define KernelPackage/b43legacy/description
 Kernel module for Broadcom 43xx-legacy wireless support (mac80211 stack) new
 endef
 
+define KernelPackage/brcmsmac
+  $(call KernelPackage/mac80211/Default)
+  TITLE:=Broadcom IEEE802.11n PCIe SoftMAC WLAN driver
+  URL:=http://linuxwireless.org/en/users/Drivers/brcm80211
+  DEPENDS+= +@DRIVER_11N_SUPPORT +!TARGET_brcm47xx:kmod-bcma +kmod-lib-cordic +kmod-lib-crc8
+  FILES:= \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/brcm80211/brcmsmac/brcmsmac.ko \
+	$(PKG_BUILD_DIR)/drivers/net/wireless/brcm80211/brcmutil/brcmutil.ko
+  AUTOLOAD:=$(call AutoLoad,30,brcmutil brcmsmac)
+  MENU:=1
+endef
+
+define KernelPackage/brcmsmac/description
+ Kernel modules for Broadcom IEEE802.11n PCIe Wireless cards
+endef
+
+define KernelPackage/brcmsmac/config
+	menu "Configuration"
+		depends on PACKAGE_kmod-brcmsmac
+
+	config PACKAGE_BRCM80211_DEBUG
+		bool "brcmsmac wireless debugging"
+		help
+		  Say Y, if you want to debug brcmsmac wireless driver.
+
+	endmenu
+endef
+
 BUILDFLAGS:= \
 	-I$(PKG_BUILD_DIR)/include \
 	$(foreach opt,$(CONFOPTS),-DCONFIG_$(opt)) \
@@ -1152,7 +1177,8 @@ BUILDFLAGS:= \
 	$(if $(CONFIG_TARGET_atheros),-DCONFIG_ATH5K_AHB,-DCONFIG_ATH5K_PCI) \
 	$(if $(CONFIG_PACKAGE_kmod-iwl3945),-DCONFIG_IWL3945) \
 	$(if $(CONFIG_PACKAGE_kmod-iwl4965),-DCONFIG_COMPAT_IWL4965) \
-	$(if $(CONFIG_PACKAGE_kmod-wl12xx),-DCONFIG_WL12XX -DCONFIG_COMPAT_WL12XX_SDIO)
+	$(if $(CONFIG_PACKAGE_kmod-wl12xx),-DCONFIG_WL12XX -DCONFIG_COMPAT_WL12XX_SDIO) \
+	$(if $(CONFIG_PACKAGE_BRCM80211_DEBUG),-DCONFIG_BRCMDBG)
 
 MAKE_OPTS:= \
 	CROSS_COMPILE="$(KERNEL_CROSS)" \
@@ -1283,8 +1309,9 @@ MAKE_OPTS:= \
 	CONFIG_ATL1E= \
 	CONFIG_ATL1C= \
 	CONFIG_BRCMFMAC= \
-	CONFIG_BRCMUMAC= \
-	CONFIG_BRCMSMAC= \
+	CONFIG_BRCMUTIL=$(if $(CONFIG_PACKAGE_kmod-brcmsmac),m) \
+	CONFIG_BRCMSMAC=$(if $(CONFIG_PACKAGE_kmod-brcmsmac),m) \
+	CONFIG_BRCMDBG=$(if $(CONFIG_PACKAGE_BRCM80211_DEBUG),y) \
 	KLIB_BUILD="$(LINUX_DIR)" \
 	MODPROBE=true \
 	KLIB=$(TARGET_MODULES_DIR) \
@@ -1306,13 +1333,15 @@ define Build/Prepare
 	$(TAR) -C $(PKG_BUILD_DIR) -xjf $(DL_DIR)/$(PKG_LINUX_FIRMWARE_SOURCE)
 	rm -rf $(PKG_BUILD_DIR)/include/linux/ssb
 	rm -rf $(PKG_BUILD_DIR)/include/linux/bcma
+	rm -f $(PKG_BUILD_DIR)/include/linux/eeprom_93cx6.h
 	rm -f $(PKG_BUILD_DIR)/include/net/ieee80211.h
+	echo 'compat-wireless-$(PKG_VERSION)-$(PKG_RELEASE)-$(REVISION)' > $(PKG_BUILD_DIR)/compat_version
 endef
 
 ifneq ($(CONFIG_PACKAGE_kmod-cfg80211)$(CONFIG_PACKAGE_kmod-lib80211),)
  define Build/Compile/kmod
 	rm -rf $(PKG_BUILD_DIR)/modules
-	$(MAKE) $(PKG_JOBS) -C "$(PKG_BUILD_DIR)" $(MAKE_OPTS) all
+	$(MAKE) $(PKG_JOBS) -C "$(PKG_BUILD_DIR)" $(MAKE_OPTS) modules
  endef
 endif
 
@@ -1430,14 +1459,14 @@ define KernelPackage/ath9k-htc/install
 endef
 
 define KernelPackage/mwl8k/install
-	$(INSTALL_DIR) $(1)/lib/firmware
+	$(INSTALL_DIR) $(1)/lib/firmware/mwl8k
 	$(INSTALL_DATA) \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/mwl8k/fmimage_8366_ap-2.fw \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/mwl8k/fmimage_8366.fw \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/mwl8k/helper_8366.fw \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/mwl8k/fmimage_8687.fw \
 		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/mwl8k/helper_8687.fw \
-		$(1)/lib/firmware/
+		$(1)/lib/firmware/mwl8k/
 endef
 
 define KernelPackage/net-ipw2100/install
@@ -1537,6 +1566,14 @@ ifneq ($(CONFIG_B43LEGACY_FW_SQUASH),)
 endif
 endef
 
+define KernelPackage/brcmsmac/install
+	$(INSTALL_DIR) $(1)/lib/firmware/brcm
+	$(INSTALL_DATA) \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/brcm/bcm43xx-0.fw \
+		$(PKG_BUILD_DIR)/$(PKG_LINUX_FIRMWARE_SUBDIR)/brcm/bcm43xx_hdr-0.fw \
+		$(1)/lib/firmware/brcm/
+endef
+
 $(eval $(call KernelPackage,ath5k))
 $(eval $(call KernelPackage,libertas-common))
 $(eval $(call KernelPackage,libertas-usb))
@@ -1572,6 +1609,7 @@ $(eval $(call KernelPackage,ath))
 $(eval $(call KernelPackage,carl9170))
 $(eval $(call KernelPackage,b43))
 $(eval $(call KernelPackage,b43legacy))
+$(eval $(call KernelPackage,brcmsmac))
 $(eval $(call KernelPackage,net-libipw))
 $(eval $(call KernelPackage,net-ipw2100))
 $(eval $(call KernelPackage,net-ipw2200))

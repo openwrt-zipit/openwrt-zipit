@@ -98,8 +98,17 @@ ramips_board_name() {
 	*"RT-G32 B1")
 		name="rt-g32-b1"
 		;;
+	*"RT-N10+")
+		name="rt-n10-plus"
+		;;
 	*"RT-N15")
 		name="rt-n15"
+		;;
+	*"RT-N56U")
+		name="rt-n56u"
+		;;
+	*"Skyline SL-R7205"*)
+		name="sl-r7205"
 		;;
 	*"Sparklan WCR-150GN")
 		name="wcr-150gn"
@@ -119,6 +128,9 @@ ramips_board_name() {
 	*"Sitecom WL-351 v1 002")
 		name="wl-351"
 		;;
+	*"Ralink V11ST-FE")
+		name="v11st-fe"
+		;;
 	*"WLI-TX4-AG300N")
 		name="wli-tx4-ag300n"
 		;;
@@ -130,6 +142,9 @@ ramips_board_name() {
 		;;
 	*"AWB WR6202")
 		name="wr6202"
+		;;
+	*"XDX RN502J")
+		name="xdxrn502j"
 		;;
 	*)
 		name="generic"

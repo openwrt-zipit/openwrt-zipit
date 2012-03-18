@@ -16,6 +16,7 @@ enum ramips_mach_type {
 	/* RT2880 based machines */
 	RAMIPS_MACH_F5D8235_V1,		/* Belkin F5D8235 v1 */
 	RAMIPS_MACH_RT_N15,		/* Asus RT-N15 */
+	RAMIPS_MACH_V11ST_FE,		/* Ralink V11ST-FE */
 	RAMIPS_MACH_WLI_TX4_AG300N,	/* Buffalo WLI-TX4-AG300N */
 	RAMIPS_MACH_WZR_AGL300NH,	/* Buffalo WZR-AGL300NH */
 
@@ -25,6 +26,7 @@ enum ramips_mach_type {
 	RAMIPS_MACH_DIR_600_B1,		/* D-Link DIR-600 B1 */
 	RAMIPS_MACH_DIR_600_B2,		/* D-Link DIR-600 B2 */
 	RAMIPS_MACH_RT_G32_B1,		/* Asus RT-G32 B1 */
+	RAMIPS_MACH_RT_N10_PLUS,	/* Asus RT-N10+ */
 	RAMIPS_MACH_NW718,		/* Netcore NW718 */
 
 	/* RT3052 based machines */
@@ -38,6 +40,7 @@ enum ramips_mach_type {
 	RAMIPS_MACH_NBG_419N,		/* ZyXEL NBG-419N */
 	RAMIPS_MACH_OMNI_EMB,         	/* Omnima MiniEMBWiFi */
 	RAMIPS_MACH_PWH2004,		/* Prolink 2004H / Abocom 5205 */
+	RAMIPS_MACH_SL_R7205,		/* Skylink SL-R7205 Wireless 3G Router*/
 	RAMIPS_MACH_V22RW_2X2,		/* Ralink AP-RT3052-V22RW-2X2 */
 	RAMIPS_MACH_W502U,		/* ALFA Networks W502U */
 	RAMIPS_MACH_WCR150GN,		/* Sparklan WCR-150GN */
@@ -46,4 +49,8 @@ enum ramips_mach_type {
 	RAMIPS_MACH_WL351,		/* Sitecom WL-351 v1 002 */
 	RAMIPS_MACH_WR512_3GN,		/* SH-WR512NU/WS-WR512N1-like 3GN*/
 	RAMIPS_MACH_WR6202,		/* Accton WR6202 */
+	RAMIPS_MACH_XDXRN502J,          /* unknown XDX-RN502J */
+
+	/* RT3662 based machines */
+	RAMIPS_MACH_RT_N56U,		/* Asus RT-N56U */
 };

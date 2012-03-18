@@ -9,8 +9,10 @@ preinit_set_mac_address() {
 
 	case $(ramips_board_name) in
 	bc2 |\
+	esr-9753 |\
 	nw718 |\
-	esr-9753)
+	rt-n56u |\
+	sl-r7205)
 		mac=$(ramips_get_mac_binary factory 4)
 		mac=$(maccalc or "$mac" "02:00:00:00:00:00")
 		ifconfig eth0 hw ether $mac 2>/dev/null
@@ -26,12 +28,17 @@ preinit_set_mac_address() {
 	nbg-419n |\
 	omni-emb |\
 	w502u    |\
-	wr6202)
+	wr6202 |\
+	xdxrn502j)
 		mac=$(ramips_get_mac_binary factory 40)
 		ifconfig eth0 hw ether $mac 2>/dev/null
 		;;
 	wl341v3)
 		mac=$(ramips_get_mac_binary board-nvram 65440)
+		ifconfig eth0 hw ether $mac 2>/dev/null
+		;;
+	rt-n10-plus)
+		mac=$(ramips_get_mac_binary devconf 4)
 		ifconfig eth0 hw ether $mac 2>/dev/null
 		;;
 	esac

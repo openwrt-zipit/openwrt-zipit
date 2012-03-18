@@ -88,6 +88,9 @@ tplink_board_detect() {
 	"084100"*)
 		model="TP-Link TL-WR841N/ND"
 		;;
+	"084200"*)
+		model="TP-Link TL-WR842N/ND"
+		;;
 	"090100"*)
 		model="TP-Link TL-WA901N/ND"
 		;;
@@ -177,6 +180,9 @@ ar71xx_board_detect() {
 		;;
 	*JA76PF)
 		name="ja76pf"
+		;;
+	*JA76PF2)
+		name="ja76pf2"
 		;;
 	*"Bullet M")
 		name="bullet-m"

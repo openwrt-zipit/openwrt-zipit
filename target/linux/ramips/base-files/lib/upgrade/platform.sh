@@ -27,7 +27,10 @@ platform_check_image() {
 	nw718 | \
 	omni-emb | \
 	rt-g32-b1 | \
+	rt-n10-plus | \
 	rt-n15 | \
+	rt-n56u | \
+	sl-r7205 | \
 	w502u |\
 	wr6202 |\
 	v22rw-2x2 | \

@@ -11,9 +11,6 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/physmap.h>
 
 #include <asm/mach-ralink/machine.h>
 #include <asm/mach-ralink/dev-gpio-buttons.h>
@@ -62,42 +59,12 @@ static struct gpio_keys_button argus_atp52b_gpio_buttons[] __initdata = {
 	}
 };
 
-static struct mtd_partition argus_atp52b_partitions[] = {
-	{
-		.name	= "bootloader",
-		.offset	= 0,
-		.size	= 0x030000,
-		.mask_flags = MTD_WRITEABLE,
-	}, {
-		.name	= "config",
-		.offset	= 0x030000,
-		.size	= 0x010000,
-		.mask_flags = MTD_WRITEABLE,
-	}, {
-		.name	= "factory",
-		.offset	= 0x040000,
-		.size	= 0x010000,
-		.mask_flags = MTD_WRITEABLE,
-	}, {
-		.name	= "kernel",
-		.offset	= 0x050000,
-		.size	= 0x120000,
-	}, {
-		.name	= "rootfs",
-		.offset	= 0x170000,
-		.size   = 0x690000,
-	}
-};
-
-static struct physmap_flash_data argus_atp52b_flash_data = {
-	.nr_parts	= ARRAY_SIZE(argus_atp52b_partitions),
-	.parts		= argus_atp52b_partitions,
-};
-
 static void __init argus_atp52b_init(void)
 {
 	rt305x_gpio_init(RT305X_GPIO_MODE_GPIO << RT305X_GPIO_MODE_UART0_SHIFT);
-	rt305x_register_flash(0, &argus_atp52b_flash_data);
+
+	rt305x_register_flash(0);
+
 	ramips_register_gpio_leds(-1, ARRAY_SIZE(argus_atp52b_leds_gpio),
 					argus_atp52b_leds_gpio);
 	ramips_register_gpio_buttons(-1, ARGUS_ATP52B_KEYS_POLL_INTERVAL,

@@ -195,7 +195,7 @@ define Image/Build/WHRHPG300N
 endef
 
 define Image/Build/Cameo
-	$(call MkuImageLzma,$(2),$(3) $($(4)))
+	$(call MkuImageLzma,$(2),$(3) $(4))
 	$(call Sysupgrade/KRuImage,$(1),$(2),$(5),$(6))
 	if [ -e "$(call sysupname,$(1),$(2))" ]; then \
 		( \
@@ -206,14 +206,14 @@ define Image/Build/Cameo
 	fi
 endef
 
-cameo913x_mtdlayout=mtdparts=spi0.0:128k(u-boot)ro,64k(config)ro,896k(kernel),2944k(rootfs),64k(art)ro,3840k@0x30000(firmware)
+cameo913x_mtdlayout=mtdparts=spi0.0:128k(u-boot)ro,64k(config)ro,960k(kernel),2880k(rootfs),64k(art)ro,3840k@0x30000(firmware)
 define Image/Build/Cameo913x
-	$(call Image/Build/Cameo,$(1),$(2),$(3),$(cameo913x_mtdlayout),917504,2949120,$(4))
+	$(call Image/Build/Cameo,$(1),$(2),$(3),$(cameo913x_mtdlayout),983040,2949120,$(4))
 endef
 
-cameo7240_mtdlayout=mtdparts=spi0.0:192k(u-boot)ro,64k(nvram)ro,896k(kernel),2816k(rootfs),64k(mac)ro,64k(art)ro,3712k@0x40000(firmware)
+cameo7240_mtdlayout=mtdparts=spi0.0:192k(u-boot)ro,64k(nvram)ro,960k(kernel),2752k(rootfs),64k(mac)ro,64k(art)ro,3712k@0x40000(firmware)
 define Image/Build/Cameo7240
-	$(call Image/Build/Cameo,$(1),$(2),$(3),$(cameo7240_mtdlayout),917504,2818048,$(4))
+	$(call Image/Build/Cameo,$(1),$(2),$(3),$(cameo7240_mtdlayout),983040,2818048,$(4))
 endef
 
 define Image/Build/Ath
@@ -273,7 +273,7 @@ define Image/Build/UBNTXM
 	$(call Sysupgrade/KRuImage,$(1),$(2),1048576,6684672)
 	dd if=$(KDIR_TMP)/vmlinux-$(2).uImage of=$(KDIR_TMP)/vmlinux-$(2).uImage.bin bs=1024k conv=sync
 	-$(STAGING_DIR_HOST)/bin/mkfwimage \
-		-B $(4) -v $(5).$(6).OpenWrt.$(REVISION) \
+		-B $(4) -v $(5).$(6).v6.0.0-OpenWrt-$(REVISION) \
 		-k $(KDIR_TMP)/vmlinux-$(2).uImage.bin \
 		-r $(BIN_DIR)/$(IMG_PREFIX)-root.$(1) \
 		-o $(call factoryname,$(1),$(2))
@@ -299,6 +299,7 @@ define Image/Build/Planex/loader
 endef
 
 define Image/Build/Planex
+	[ -e "$(KDIR)/loader-$(2).gz" ]
 	$(call MkuImage,gzip,,$(KDIR)/loader-$(2).gz,$(KDIR_TMP)/vmlinux-$(2).uImage)
 	$(call MkuImageOKLI,$(2))
 	( \
@@ -338,6 +339,7 @@ define Image/Build/TPLINKOLD/loader
 endef
 
 define Image/Build/TPLINKOLD
+	[ -e "$(KDIR)/loader-$(2).gz" ]
 	$(call MkuImageOKLI,$(2))
 	( \
 		dd if=$(KDIR)/loader-$(2).gz bs=7680 count=1 conv=sync; \
@@ -368,6 +370,7 @@ define Image/Build/TPLINK/loader
 endef
 
 define Image/Build/TPLINK
+	[ -e "$(KDIR)/loader-$(2).gz" ]
 	$(call MkuImageOKLI,$(2))
 	( \
 		dd if=$(KDIR)/loader-$(2).gz bs=7680 count=1 conv=sync; \
@@ -698,6 +701,11 @@ define Image/Build/Profile/DIR600A1
 	$(call Image/Build/Template/$(fs_64k)/$(1),Cameo7240,dir-600-a1,$(dir600a1_cmdline),"AP91-AR7240-RT-090223-00")
 endef
 
+dir601a1_cmdline=board=DIR-600-A1 console=ttyS0,115200
+define Image/Build/Profile/DIR601A1
+	$(call Image/Build/Template/$(fs_64k)/$(1),Cameo7240,dir-601-a1,$(dir600a1_cmdline),"AP91-AR7240-RT-090223-02")
+endef
+
 dir615e4_cmdline=board=DIR-615-E4 console=ttyS0,115200
 define Image/Build/Profile/DIR615E4
 	$(call Image/Build/Template/$(fs_64k)/$(1),Cameo7240,dir-615-e4,$(dir615e4_cmdline),"AP99-AR7240-RT-091105-05")
@@ -716,6 +724,11 @@ endef
 ja76pf_cmdline=board=JA76PF console=ttyS0,115200
 define Image/Build/Profile/JA76PF
 	$(call Image/Build/Template/$(fs_64k)/$(1),PB4X,ja76pf,$(ja76pf_cmdline))
+endef
+
+ja76pf2_cmdline=board=JA76PF2 console=ttyS0,115200
+define Image/Build/Profile/JA76PF2
+	$(call Image/Build/Template/$(fs_64k)/$(1),PB4X,ja76pf2,$(ja76pf2_cmdline))
 endef
 
 jwap003_cmdline=board=JWAP003 console=ttyS0,115200
@@ -776,22 +789,22 @@ endef
 
 ubntbulletm_cmdline=board=UBNT-BM console=ttyS0,115200
 define Image/Build/Profile/UBNTBULLETM
-	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-bullet-m,$(ubntbulletm_cmdline),XM,UBNTXM,ar7240)
+	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-bullet-m,$(ubntbulletm_cmdline),XM,XM,ar7240)
 endef
 
 ubntrocketm_cmdline=board=UBNT-RM console=ttyS0,115200
 define Image/Build/Profile/UBNTROCKETM
-	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-rocket-m,$(ubntrocketm_cmdline),XM,UBNTXM,ar7240)
+	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-rocket-m,$(ubntrocketm_cmdline),XM,XM,ar7240)
 endef
 
 ubntnanom_cmdline=board=UBNT-NM console=ttyS0,115200
 define Image/Build/Profile/UBNTNANOM
-	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-nano-m,$(ubntnanom_cmdline),XM,UBNTXM,ar7240)
+	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-nano-m,$(ubntnanom_cmdline),XM,XM,ar7240)
 endef
 
 ubntunifi_cmdline=board=UBNT-UF console=ttyS0,115200
 define Image/Build/Profile/UBNTUNIFI
-	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-unifi,$(ubntunifi_cmdline),XM,UBNTXM,ar7240)
+	$(call Image/Build/Template/$(fs_64k)/$(1),UBNTXM,ubnt-unifi,$(ubntunifi_cmdline),XM,XM,ar7240)
 endef
 
 define Image/Build/Profile/UBNT
@@ -890,6 +903,11 @@ define Image/Build/Profile/TLWR841
 	$(call Image/Build/Template/$(fs_64kraw)/$(1),TPLINK,tl-wr841nd-v3,$(tlwr841v3_cmdline),0x08410003,3,4M)
 	$(call Image/Build/Template/$(fs_64kraw)/$(1),TPLINK,tl-wr841nd-v5,$(tlwr841v5_cmdline),0x08410005,1,4M)
 	$(call Image/Build/Template/$(fs_64kraw)/$(1),TPLINK,tl-wr841nd-v7,$(tlwr841v7_cmdline),0x08410007,1,4M)
+endef
+
+tlwr842_cmdline=board=TL-MR3420 console=ttyS0,115200
+define Image/Build/Profile/TLWR842
+	$(call Image/Build/Template/$(fs_64kraw)/$(1),TPLINK,tl-wr842n-v1,$(tlwr842_cmdline),0x08420001,1,8M)
 endef
 
 tlwr941v2_cmdline=board=TL-WR941ND console=ttyS0,115200
@@ -1004,6 +1022,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/A02RBW300N,$(1))
 	$(call Image/Build/Profile/DB120,$(1))
 	$(call Image/Build/Profile/DIR600A1,$(1))
+	$(call Image/Build/Profile/DIR601A1,$(1))
 	$(call Image/Build/Profile/DIR615C1,$(1))
 	$(call Image/Build/Profile/DIR615E4,$(1))
 	$(call Image/Build/Profile/DIR825B1,$(1))
@@ -1011,6 +1030,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/FR54RTR,$(1))
 	$(call Image/Build/Profile/HORNETUB,$(1))
 	$(call Image/Build/Profile/JA76PF,$(1))
+	$(call Image/Build/Profile/JA76PF2,$(1))
 	$(call Image/Build/Profile/JWAP003,$(1))
 	$(call Image/Build/Profile/MZKW04NU,$(1))
 	$(call Image/Build/Profile/MZKW300NH,$(1))
@@ -1034,6 +1054,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/TLWR741,$(1))
 	$(call Image/Build/Profile/TLWR743,$(1))
 	$(call Image/Build/Profile/TLWR841,$(1))
+	$(call Image/Build/Profile/TLWR842,$(1))
 	$(call Image/Build/Profile/TLWR941,$(1))
 	$(call Image/Build/Profile/TLWR1043,$(1))
 	$(call Image/Build/Profile/TLWR2543,$(1))

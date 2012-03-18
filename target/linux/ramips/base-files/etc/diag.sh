@@ -66,6 +66,18 @@ get_status_led() {
 	rt-n15)
 		status_led="rt-n15:blue:power"
 		;;
+	rt-n10-plus)
+		status_led="asus:green:wps"
+		;;
+	rt-n56u)
+		status_led="asus:blue:power"
+		;;
+	sl-r7205)
+		status_led="sl-r7205:green:status"
+		;;
+	v11st-fe)
+		status_led="v11st-fe:green:status"
+		;;
 	v22rw-2x2)
 		status_led="v22rw-2x2:green:security"
 		;;
@@ -86,6 +98,9 @@ get_status_led() {
 		;;
 	wr512-3gn)
 		status_led="wr512:green:wps"
+		;;
+	xdxrn502j)
+		status_led="xdxrn502j:green:power"
 		;;
 	esac
 }

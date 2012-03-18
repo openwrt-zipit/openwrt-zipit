@@ -4,7 +4,20 @@
 . /usr/share/libubox/jshn.sh
 
 find_config() {
-	return
+	local device="$1"
+	for ifobj in `ubus list network.interface.\*`; do
+		interface="${ifobj##network.interface.}"
+		(
+			json_load "$(ifstatus $interface)"
+			json_get_var ifdev device
+			if [[ "$device" = "$ifdev" ]]; then
+				echo "$interface"
+				exit 0
+			else
+				exit 1
+			fi
+		) && return
+	done
 }
 
 unbridge() {
@@ -57,3 +70,8 @@ setup_interface() {
 	ubus call network.interface."$config" add_device "{ \"name\": \"$iface\" }"
 }
 
+do_sysctl() {
+	[ -n "$2" ] && \
+		sysctl -n -e -w "$1=$2" >/dev/null || \
+		sysctl -n -e "$1"
+}

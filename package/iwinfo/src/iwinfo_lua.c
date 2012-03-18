@@ -235,6 +235,19 @@ static void iwinfo_L_cryptotable(lua_State *L, struct iwinfo_crypto_entry *c)
 }
 
 
+/* Wrapper for mode */
+static int iwinfo_L_mode(lua_State *L, int (*func)(const char *, int *))
+{
+	int mode;
+	const char *ifname = luaL_checkstring(L, 1);
+
+	if ((*func)(ifname, &mode))
+		mode = IWINFO_OPMODE_UNKNOWN;
+
+	lua_pushstring(L, IWINFO_OPMODE_NAMES[mode]);
+	return 1;
+}
+
 /* Wrapper for assoclist */
 static int iwinfo_L_assoclist(lua_State *L, int (*func)(const char *, char *, int *))
 {
@@ -264,6 +277,45 @@ static int iwinfo_L_assoclist(lua_State *L, int (*func)(const char *, char *, in
 
 			lua_pushnumber(L, e->noise);
 			lua_setfield(L, -2, "noise");
+
+			lua_pushnumber(L, e->inactive);
+			lua_setfield(L, -2, "inactive");
+
+			lua_pushnumber(L, e->rx_packets);
+			lua_setfield(L, -2, "rx_packets");
+
+			lua_pushnumber(L, e->tx_packets);
+			lua_setfield(L, -2, "tx_packets");
+
+			lua_pushnumber(L, e->rx_rate.rate);
+			lua_setfield(L, -2, "rx_rate");
+
+			lua_pushnumber(L, e->tx_rate.rate);
+			lua_setfield(L, -2, "tx_rate");
+
+			if (e->rx_rate.mcs >= 0)
+			{
+				lua_pushnumber(L, e->rx_rate.mcs);
+				lua_setfield(L, -2, "rx_mcs");
+
+				lua_pushboolean(L, e->rx_rate.is_40mhz);
+				lua_setfield(L, -2, "rx_40mhz");
+
+				lua_pushboolean(L, e->rx_rate.is_short_gi);
+				lua_setfield(L, -2, "rx_short_gi");
+			}
+
+			if (e->tx_rate.mcs >= 0)
+			{
+				lua_pushnumber(L, e->tx_rate.mcs);
+				lua_setfield(L, -2, "tx_mcs");
+
+				lua_pushboolean(L, e->tx_rate.is_40mhz);
+				lua_setfield(L, -2, "tx_40mhz");
+
+				lua_pushboolean(L, e->tx_rate.is_short_gi);
+				lua_setfield(L, -2, "tx_short_gi");
+			}
 
 			lua_setfield(L, -2, macstr);
 		}
@@ -344,7 +396,7 @@ static int iwinfo_L_scanlist(lua_State *L, int (*func)(const char *, char *, int
 			lua_setfield(L, -2, "channel");
 
 			/* Mode */
-			lua_pushstring(L, (char *) e->mode);
+			lua_pushstring(L, IWINFO_OPMODE_NAMES[e->mode]);
 			lua_setfield(L, -2, "mode");
 
 			/* Quality, Signal */
@@ -566,11 +618,11 @@ LUA_WRAP_INT(wl,signal)
 LUA_WRAP_INT(wl,noise)
 LUA_WRAP_INT(wl,quality)
 LUA_WRAP_INT(wl,quality_max)
-LUA_WRAP_STRING(wl,mode)
 LUA_WRAP_STRING(wl,ssid)
 LUA_WRAP_STRING(wl,bssid)
 LUA_WRAP_STRING(wl,country)
 LUA_WRAP_STRING(wl,hardware_name)
+LUA_WRAP_STRUCT(wl,mode)
 LUA_WRAP_STRUCT(wl,assoclist)
 LUA_WRAP_STRUCT(wl,txpwrlist)
 LUA_WRAP_STRUCT(wl,scanlist)
@@ -594,11 +646,11 @@ LUA_WRAP_INT(madwifi,signal)
 LUA_WRAP_INT(madwifi,noise)
 LUA_WRAP_INT(madwifi,quality)
 LUA_WRAP_INT(madwifi,quality_max)
-LUA_WRAP_STRING(madwifi,mode)
 LUA_WRAP_STRING(madwifi,ssid)
 LUA_WRAP_STRING(madwifi,bssid)
 LUA_WRAP_STRING(madwifi,country)
 LUA_WRAP_STRING(madwifi,hardware_name)
+LUA_WRAP_STRUCT(madwifi,mode)
 LUA_WRAP_STRUCT(madwifi,assoclist)
 LUA_WRAP_STRUCT(madwifi,txpwrlist)
 LUA_WRAP_STRUCT(madwifi,scanlist)
@@ -622,11 +674,11 @@ LUA_WRAP_INT(nl80211,signal)
 LUA_WRAP_INT(nl80211,noise)
 LUA_WRAP_INT(nl80211,quality)
 LUA_WRAP_INT(nl80211,quality_max)
-LUA_WRAP_STRING(nl80211,mode)
 LUA_WRAP_STRING(nl80211,ssid)
 LUA_WRAP_STRING(nl80211,bssid)
 LUA_WRAP_STRING(nl80211,country)
 LUA_WRAP_STRING(nl80211,hardware_name)
+LUA_WRAP_STRUCT(nl80211,mode)
 LUA_WRAP_STRUCT(nl80211,assoclist)
 LUA_WRAP_STRUCT(nl80211,txpwrlist)
 LUA_WRAP_STRUCT(nl80211,scanlist)
@@ -649,11 +701,11 @@ LUA_WRAP_INT(wext,signal)
 LUA_WRAP_INT(wext,noise)
 LUA_WRAP_INT(wext,quality)
 LUA_WRAP_INT(wext,quality_max)
-LUA_WRAP_STRING(wext,mode)
 LUA_WRAP_STRING(wext,ssid)
 LUA_WRAP_STRING(wext,bssid)
 LUA_WRAP_STRING(wext,country)
 LUA_WRAP_STRING(wext,hardware_name)
+LUA_WRAP_STRUCT(wext,mode)
 LUA_WRAP_STRUCT(wext,assoclist)
 LUA_WRAP_STRUCT(wext,txpwrlist)
 LUA_WRAP_STRUCT(wext,scanlist)

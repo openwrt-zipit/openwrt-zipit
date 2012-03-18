@@ -2,7 +2,7 @@
 # Copyright (C) 2002-2003 Erik Andersen <andersen@uclibc.org>
 # Copyright (C) 2004 Manuel Novoa III <mjn3@uclibc.org>
 # Copyright (C) 2005-2006 Felix Fietkau <nbd@openwrt.org>
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,16 +38,16 @@ ifdef CONFIG_GCC_VERSION_LLVM
 else
 ifeq ($(findstring linaro, $(CONFIG_GCC_VERSION)),linaro)
     ifeq ($(CONFIG_GCC_VERSION),"4.5-linaro")
-      PKG_REV:=4.5-2012.01
+      PKG_REV:=4.5-2012.02
       PKG_VERSION:=4.5.4
       PKG_VERSION_MAJOR:=4.5
-      PKG_MD5SUM:=bc353c1e9d96f69bc4348e06a1c4c4fd
+      PKG_MD5SUM:=e05be9ea8eca2ad4c859d35dbab568e7
     endif
     ifeq ($(CONFIG_GCC_VERSION),"4.6-linaro")
-      PKG_REV:=4.6-2012.01
+      PKG_REV:=4.6-2012.02
       PKG_VERSION:=4.6.3
       PKG_VERSION_MAJOR:=4.6
-      PKG_MD5SUM:=67a101dd91c8df3ca58b74c1dacc77b1
+      PKG_MD5SUM:=2b7887846f8e5ac1ca58fe4dfaabf5a6
     endif
     PKG_SOURCE_URL:=http://launchpad.net/gcc-linaro/$(PKG_VERSION_MAJOR)/$(PKG_REV)/+download/
     PKG_SOURCE:=$(PKG_NAME)-linaro-$(PKG_REV).tar.bz2
@@ -60,8 +60,8 @@ else
   ifeq ($(PKG_VERSION),4.4.6)
     PKG_MD5SUM:=ab525d429ee4425050a554bc9247d6c4
   endif
-  ifeq ($(PKG_VERSION),4.6.1)
-    PKG_MD5SUM:=c57a9170c677bf795bdc04ed796ca491
+  ifeq ($(PKG_VERSION),4.6.2)
+    PKG_MD5SUM:=028115c4fbfb6cfd75d6369f4a90d87e
   endif
 endif
 endif
@@ -153,10 +153,6 @@ ifeq ($(LIBC),uClibc)
 else
   GCC_CONFIGURE+= \
 		--enable-__cxa_atexit
-endif
-
-ifdef CONFIG_powerpc
-  TARGET_CFLAGS := $(patsubst -Os,-O2,$(TARGET_CFLAGS))
 endif
 
 ifneq ($(GCC_ARCH),)
