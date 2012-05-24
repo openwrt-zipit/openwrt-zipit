@@ -1,7 +1,8 @@
 ::sysinit:/usr/sbin/loadfont < /etc/console-setup/Uni2-Terminus12x6.psf
 ::sysinit:/usr/bin/loadkeys /etc/console-setup/keymap-2.6.map
+::sysinit:/usr/bin/mouse-emul -d /dev/input/event0 -b
 ::sysinit:/etc/init.d/rcS S boot
 ::shutdown:/etc/init.d/rcS K shutdown
-ttyS0::askfirst:/bin/ash --login
+ttyS2::askfirst:/bin/ash --login
 tty1::respawn:/usr/bin/z2-shell
 tty2::askfirst:/bin/ash --login
