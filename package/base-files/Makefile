@@ -8,9 +8,10 @@
 
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
+include $(INCLUDE_DIR)/version.mk
 
 PKG_NAME:=base-files
-PKG_RELEASE:=104
+PKG_RELEASE:=108
 
 PKG_FILE_DEPENDS:=$(PLATFORM_DIR)/ $(GENERIC_PLATFORM_DIR)/base-files/
 PKG_BUILD_DEPENDS:=opkg/host
@@ -34,15 +35,10 @@ endif
 define Package/base-files
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+!USE_NETIFD:base-files-network +USE_NETIFD:netifd
+  DEPENDS:=+netifd
   TITLE:=Base filesystem for OpenWrt
   URL:=http://openwrt.org/
   VERSION:=$(PKG_RELEASE)-$(REVISION)
-  $(call Config,network.lan.proto,string,static,LAN Protocol)
-  $(call Config,network.lan.ipaddr,ip,192.168.1.1,LAN IP Address)
-  $(call Config,network.lan.netmask,netmask,255.255.255.0,LAN Network Mask)
-  $(call Config,network.lan.gateway,ip,,LAN Gateway)
-  $(call Config,network.lan.dns,ip,,LAN DNS server)
 endef
 
 define Package/base-files/conffiles
@@ -64,12 +60,6 @@ endef
 
 define Package/base-files/description
  This package contains a base filesystem and system scripts for OpenWrt.
-endef
-
-define Package/base-files/config
-  config USE_NETIFD
-    bool "Use netifd instead of the old network init scripts (experimental!)"
-	default n
 endef
 
 define Package/gcc/Default
@@ -458,7 +448,11 @@ define Package/base-files/install
 	cut -d ':' -f 1-2 $(1)/etc/passwd > $(1)/etc/shadow; \
 	$(SED) 's/$$$$/:0:0:99999:7:::/' $(1)/etc/shadow
 
-	$(SED) 's,$$$$R,$(REVISION),g' $(1)/etc/banner
+	$(VERSION_SED) \
+		$(1)/etc/banner \
+		$(1)/etc/openwrt_version \
+		$(1)/etc/openwrt_release
+
 	mkdir -p $(1)/CONTROL
 	mkdir -p $(1)/dev
 	mkdir -p $(1)/etc/crontabs
@@ -512,12 +506,12 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 	$(CP) $(TOOLCHAIN_DIR)/lib/libstdc++.so.* $(1)/usr/lib/
   endef
 
-  use_libutil=$(if $(CONFIG_USE_GLIBC)$(CONFIG_EGLIBC_OPTION_EGLIBC_UTMP),libutil)
-  use_libnsl=$(if $(CONFIG_USE_GLIBC)$(CONFIG_EGLIBC_OPTION_EGLIBC_NIS),libnsl)
-  use_nsswitch=$(if $(CONFIG_USE_GLIBC)$(CONFIG_EGLIBC_OPTION_EGLIBC_NSSWITCH),libnss_dns libnss_files)
+  use_libutil=$(if $(CONFIG_EGLIBC_OPTION_EGLIBC_UTMP),libutil)
+  use_libnsl=$(if $(CONFIG_EGLIBC_OPTION_EGLIBC_NIS),libnsl)
+  use_nsswitch=$(if $(CONFIG_EGLIBC_OPTION_EGLIBC_NSSWITCH),libnss_dns libnss_files)
 
-  define Package/glibc/install
-	$(CP) ./glibc-files/* $(1)/
+  define Package/eglibc/install
+	$(CP) ./eglibc-files/* $(1)/
 	rm -f $(1)/etc/localtime
 	ln -sf /tmp/localtime $(1)/etc/localtime
 	$(INSTALL_DIR) $(1)/lib
@@ -532,10 +526,6 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 			fi; \
 		done; \
 	done
-  endef
-
-  define Package/eglibc/install
-    $(call Package/glibc/install,$1)
   endef
 
   define Package/uClibc/install

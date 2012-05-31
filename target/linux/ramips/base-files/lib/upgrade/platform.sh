@@ -21,6 +21,7 @@ platform_check_image() {
 	dir-600-b2 | \
 	esr-9753 | \
 	fonera20n | \
+	freestation5 | \
 	hw550-3g | \
 	mofi3500-3gn | \
 	nbg-419n | \
@@ -31,12 +32,16 @@ platform_check_image() {
 	rt-n15 | \
 	rt-n56u | \
 	sl-r7205 | \
+	w306r-v20 |\
 	w502u |\
 	wr6202 |\
 	v22rw-2x2 | \
 	wl341v3 | \
+	wl-330n | \
+	wl-351 | \
 	wli-tx4-ag300n | \
 	whr-g300n |\
+	ur-336un |\
 	wr512-3gn)
 		[ "$magic" != "2705" ] && {
 			echo "Invalid image type."

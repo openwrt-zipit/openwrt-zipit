@@ -90,6 +90,9 @@ get_status_led() {
 	rb-411 | rb-411u | rb-433 | rb-433u | rb-450 | rb-450g | rb-493)
 		status_led="rb4xx:yellow:user"
 		;;
+       rb-750)
+               status_led="rb750:green:act"
+               ;;
 	routerstation | routerstation-pro)
 		status_led="ubnt:green:rf"
 		;;
@@ -109,6 +112,7 @@ get_status_led() {
 	tl-mr3420 | \
 	tl-wa901nd | \
 	tl-wa901nd-v2 | \
+	tl-wr1041n-v2 | \
 	tl-wr1043nd | \
 	tl-wr741nd | \
 	tl-wr741nd-v4 | \
@@ -162,6 +166,8 @@ set_state() {
 	case "$1" in
 	preinit)
 		insmod leds-gpio
+		insmod ledtrig-default-on
+		insmod ledtrig-timer
 		status_led_set_timer 200 200
 		;;
 	failsafe)

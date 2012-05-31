@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -44,14 +44,7 @@ define KernelPackage/bluetooth
 	$(LINUX_DIR)/net/bluetooth/hidp/hidp.ko \
 	$(LINUX_DIR)/drivers/bluetooth/hci_uart.ko \
 	$(LINUX_DIR)/drivers/bluetooth/btusb.ko
-  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,2.6.39)),1)
-    AUTOLOAD:=$(call AutoLoad,90,bluetooth rfcomm bnep hidp hci_uart btusb)
-  else
-    FILES+= \
-	$(LINUX_DIR)/net/bluetooth/l2cap.ko \
-	$(LINUX_DIR)/net/bluetooth/sco.ko
-    AUTOLOAD:=$(call AutoLoad,90,bluetooth l2cap sco rfcomm bnep hidp hci_uart btusb)
-  endif
+  AUTOLOAD:=$(call AutoLoad,90,bluetooth rfcomm bnep hidp hci_uart btusb)
 endef
 
 define KernelPackage/bluetooth/description
@@ -139,34 +132,13 @@ endef
 $(eval $(call KernelPackage,eeprom-at25))
 
 
-define KernelPackage/gpio-cs5535
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=AMD CS5535/CS5536 GPIO driver
-  DEPENDS:=@TARGET_x86 @LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_35||LINUX_2_6_36||LINUX_2_6_37
-  KCONFIG:=CONFIG_CS5535_GPIO
-  FILES:=$(LINUX_DIR)/drivers/char/cs5535_gpio.ko
-  AUTOLOAD:=$(call AutoLoad,50,cs5535_gpio)
-endef
-
-define KernelPackage/gpio-cs5535/description
- This package contains the AMD CS5535/CS5536 GPIO driver
-endef
-
-$(eval $(call KernelPackage,gpio-cs5535))
-
-
 define KernelPackage/gpio-cs5535-new
   SUBMENU:=$(OTHER_MENU)
   TITLE:=AMD CS5535/CS5536 GPIO driver with improved sysfs support
-  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd @!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32)
+  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd
   KCONFIG:=CONFIG_GPIO_CS5535
-ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.1.0)),1)
   FILES:=$(LINUX_DIR)/drivers/gpio/gpio-cs5535.ko
   AUTOLOAD:=$(call AutoLoad,50,gpio-cs5535)
-else
-  FILES:=$(LINUX_DIR)/drivers/gpio/cs5535-gpio.ko
-  AUTOLOAD:=$(call AutoLoad,50,cs5535-gpio)
-endif
 endef
 
 define KernelPackage/gpio-cs5535-new/description
@@ -342,7 +314,7 @@ $(eval $(call KernelPackage,input-gpio-keys))
 define KernelPackage/input-gpio-keys-polled
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Polled GPIO key support
-  DEPENDS:=@GPIO_SUPPORT @!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_34||LINUX_2_6_35||LINUX_2_6_36) +kmod-input-polldev
+  DEPENDS:=@GPIO_SUPPORT +kmod-input-polldev
   KCONFIG:= \
 	CONFIG_KEYBOARD_GPIO_POLLED \
 	CONFIG_INPUT_KEYBOARD=y
@@ -505,16 +477,9 @@ define KernelPackage/rfkill
     CONFIG_RFKILL \
     CONFIG_RFKILL_INPUT=y \
     CONFIG_RFKILL_LEDS=y
-ifeq ($(CONFIG_LINUX_2_6_30),)
   FILES:= \
     $(LINUX_DIR)/net/rfkill/rfkill.ko
   AUTOLOAD:=$(call AutoLoad,20,rfkill)
-else
-  FILES:= \
-    $(LINUX_DIR)/net/rfkill/rfkill.ko \
-    $(LINUX_DIR)/net/rfkill/rfkill-input.ko
-  AUTOLOAD:=$(call AutoLoad,20,rfkill rfkill-input)
-endif
   $(call SetDepends/rfkill)
 endef
 
@@ -737,6 +702,22 @@ endef
 $(eval $(call KernelPackage,wdt-ath79))
 
 
+define KernelPackage/booke-wdt
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=PowerPC Book-E Watchdog Timer
+  DEPENDS:=@(TARGET_mpc85xx||TARGET_ppc40x||TARGET_ppc44x)
+  KCONFIG:=CONFIG_BOOKE_WDT
+  FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/booke_wdt.ko
+  AUTOLOAD:=$(call AutoLoad,50,booke_wdt)
+endef
+
+define KernelPackage/booke-wdt/description
+  Kernel module for PowerPC Book-E Watchdog Timer.
+endef
+
+$(eval $(call KernelPackage,booke-wdt))
+
+
 define KernelPackage/pwm
   SUBMENU:=$(OTHER_MENU)
   TITLE:=PWM generic API
@@ -767,25 +748,10 @@ endef
 
 $(eval $(call KernelPackage,pwm-gpio))
 
-define KernelPackage/rtc-core
-  SUBMENU:=$(OTHER_MENU)
-  DEPENDS:=@LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39||BROKEN
-  TITLE:=Real Time Clock class support
-  KCONFIG:=CONFIG_RTC_CLASS
-  FILES:=$(LINUX_DIR)/drivers/rtc/rtc-core.ko
-  AUTOLOAD:=$(call AutoLoad,29,rtc-core)
-endef
-
-define KernelPackage/rtc-core/description
- Generic RTC class support.
-endef
-
-$(eval $(call KernelPackage,rtc-core))
-
 define KernelPackage/rtc-pcf8563
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Philips PCF8563/Epson RTC8564 RTC support
-  DEPENDS:=+(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39||BROKEN):kmod-rtc-core
+  $(call AddDepends/rtc)
   KCONFIG:=CONFIG_RTC_DRV_PCF8563
   FILES:=$(LINUX_DIR)/drivers/rtc/rtc-pcf8563.ko
   AUTOLOAD:=$(call AutoLoad,60,rtc-pcf8563)
@@ -802,7 +768,7 @@ $(eval $(call KernelPackage,rtc-pcf8563))
 define KernelPackage/rtc-pcf2123
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Philips PCF2123 RTC support
-  DEPENDS:=+(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39||BROKEN):kmod-rtc-core
+  $(call AddDepends/rtc)
   KCONFIG:=CONFIG_RTC_DRV_PCF2123
   FILES:=$(LINUX_DIR)/drivers/rtc/rtc-pcf2123.ko
   AUTOLOAD:=$(call AutoLoad,60,rtc-pcf2123)
@@ -814,6 +780,20 @@ endef
 
 $(eval $(call KernelPackage,rtc-pcf2123))
 
+define KernelPackage/rtc-pt7c4338
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Pericom PT7C4338 RTC support
+  $(call AddDepends/rtc,+kmod-i2c-core)
+  KCONFIG:=CONFIG_RTC_DRV_PT7C4338
+  FILES:=$(LINUX_DIR)/drivers/rtc/rtc-pt7c4338.ko
+  AUTOLOAD:=$(call AutoLoad,60,rtc-pt7c4338)
+endef
+
+define KernelPackage/rtc-pt7c4338/description
+ Kernel module for Pericom PT7C4338 i2c RTC chip.
+endef
+
+$(eval $(call KernelPackage,rtc-pt7c4338))
 
 define KernelPackage/n810bm
   SUBMENU:=$(OTHER_MENU)
@@ -874,7 +854,7 @@ $(eval $(call KernelPackage,mtdtests))
 define KernelPackage/nand
   SUBMENU:=$(OTHER_MENU)
   TITLE:=NAND flash support
-  DEPENDS:=@!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39)
+  DEPENDS:=@!LINUX_2_6_39
   KCONFIG:=CONFIG_MTD_NAND \
 	CONFIG_MTD_NAND_IDS \
 	CONFIG_MTD_NAND_ECC
@@ -895,7 +875,7 @@ $(eval $(call KernelPackage,nand))
 define KernelPackage/nandsim
   SUBMENU:=$(OTHER_MENU)
   TITLE:=NAND simulator
-  DEPENDS:=@!(LINUX_2_6_30||LINUX_2_6_31||LINUX_2_6_32||LINUX_2_6_36||LINUX_2_6_37||LINUX_2_6_38||LINUX_2_6_39) +kmod-nand
+  DEPENDS:=+kmod-nand
   KCONFIG:=CONFIG_MTD_NAND_NANDSIM
   FILES:=$(LINUX_DIR)/drivers/mtd/nand/nandsim.ko
 endef
@@ -906,3 +886,38 @@ endef
 
 $(eval $(call KernelPackage,nandsim))
 
+define KernelPackage/serial-8250
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=8250 UARTs
+  KCONFIG:= CONFIG_SERIAL_8250 \
+	CONFIG_SERIAL_8250_NR_UARTS=16 \
+  	CONFIG_SERIAL_8250_RUNTIME_UARTS=16 \
+  	CONFIG_SERIAL_8250_EXTENDED=y \
+  	CONFIG_SERIAL_8250_MANY_PORTS=y \
+	CONFIG_SERIAL_8250_SHARE_IRQ=y \
+	CONFIG_SERIAL_8250_DETECT_IRQ=n \
+	CONFIG_SERIAL_8250_RSA=n
+  FILES:=$(LINUX_DIR)/drivers/tty/serial/8250/8250.ko
+endef
+
+define KernelPackage/serial-8250/description
+ Kernel module for 8250 UART based serial ports.
+endef
+
+$(eval $(call KernelPackage,serial-8250))
+
+
+define KernelPackage/acpi-button
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=ACPI Button Support
+  DEPENDS:=@(TARGET_x86_generic||TARGET_x86_kvm_guest||TARGET_x86_xen_domu) +kmod-input-evdev
+  KCONFIG:=CONFIG_ACPI_BUTTON
+  FILES:=$(LINUX_DIR)/drivers/acpi/button.ko
+  AUTOLOAD:=$(call AutoLoad,06,button)
+endef
+
+define KernelPackage/acpi-button/description
+ Kernel module for ACPI Button support
+endef
+
+$(eval $(call KernelPackage,acpi-button))

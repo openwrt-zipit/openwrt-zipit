@@ -1,15 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ubus
-PKG_VERSION:=2011-10-28
+PKG_VERSION:=2012-05-18
 PKG_RELEASE=$(PKG_SOURCE_VERSION)
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=git://nbd.name/luci2/ubus.git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=3706552c1c42182a8b656f95affc7e787a5b71dd
+PKG_SOURCE_VERSION:=c0c06ec7ead11ca201bcbf0d1c7e986c7d3c90c0
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_MD5SUM:=ec8a83b0678d3d9d2575bb975569576c
+PKG_MIRROR_MD5SUM:=b16d3a0c6e7ca55666dbd786ccadbbcf
 CMAKE_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -38,7 +38,18 @@ define Package/libubus
   TITLE:=OpenWrt RPC client library
 endef
 
+define Package/libubus-lua
+  SECTION:=luci2
+  CATEGORY:=LuCI2
+  SUBMENU:=Libraries
+  DEPENDS:=+libubus +liblua
+  TITLE:=Lua binding for the OpenWrt RPC client
+endef
+
 TARGET_CFLAGS += -I$(STAGING_DIR)/usr/include
+
+CMAKE_OPTIONS = \
+	-DLUAPATH=/usr/lib/lua
 
 define Package/ubus/install
 	$(INSTALL_DIR) $(1)/bin
@@ -56,7 +67,13 @@ define Package/libubus/install
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/* $(1)/lib/
 endef
 
+define Package/libubus-lua/install
+	$(INSTALL_DIR) $(1)/usr/lib/lua
+	$(CP) $(PKG_BUILD_DIR)/lua/ubus.so $(1)/usr/lib/lua/
+endef
+
 $(eval $(call BuildPackage,ubus))
 $(eval $(call BuildPackage,ubusd))
 $(eval $(call BuildPackage,libubus))
+$(eval $(call BuildPackage,libubus-lua))
 

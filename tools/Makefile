@@ -16,7 +16,7 @@ endif
 tools-y += m4 libtool autoconf automake flex bison pkg-config sed mklibs
 tools-y += sstrip ipkg-utils genext2fs e2fsprogs mtd-utils mkimage
 tools-y += firmware-utils patch-cmdline quilt yaffs2 flock padjffs2
-tools-y += mm-macros xorg-macros xfce-macros missing-macros xz cmake
+tools-y += mm-macros xorg-macros xfce-macros missing-macros xz cmake scons
 tools-$(CONFIG_TARGET_orion_generic) += wrt350nv2-builder upslug2
 tools-$(CONFIG_powerpc) += upx
 tools-$(CONFIG_TARGET_x86) += qemu
@@ -24,6 +24,10 @@ ifneq ($(CONFIG_TARGET_ar71xx),)
 tools-y += lzma-old squashfs
 endif
 tools-y += lzma squashfs4
+
+ifneq ($(CONFIG_PACKAGE_firmwarehotplug),)
+tools-y += sdcc
+endif
 
 ifdef CONFIG_GCC_USE_GRAPHITE
   ifeq ($(CONFIG_GCC_USE_SYSTEM_PPL_CLOOG),)
@@ -41,7 +45,7 @@ $(curdir)/squashfs4/compile := $(curdir)/xz/install
 $(curdir)/quilt/compile := $(curdir)/sed/install $(curdir)/autoconf/install
 $(curdir)/dtc/compile := $(curdir)/bison/install
 $(curdir)/autoconf/compile := $(curdir)/m4/install $(curdir)/libtool/install
-$(curdir)/automake/compile := $(curdir)/m4/install $(curdir)/autoconf/install $(curdir)/pkg-config/install
+$(curdir)/automake/compile := $(curdir)/m4/install $(curdir)/autoconf/install $(curdir)/pkg-config/install $(curdir)/xz/install
 $(curdir)/gmp/compile := $(curdir)/automake/install
 $(curdir)/mpc/compile := $(curdir)/mpfr/install $(curdir)/gmp/install
 $(curdir)/mpfr/compile := $(curdir)/gmp/install
@@ -101,10 +105,20 @@ $(STAGING_DIR_HOST)/bin/$(1): $(STAGING_DIR)/.prepared
 endef
 endif
 
+$(STAGING_DIR_HOST)/bin/stat: $(STAGING_DIR)/.prepared
+	@rm -f $@
+	@if stat --version > /dev/null 2>&1; then \
+		ln -s `which stat` $@; \
+	elif gstat --version > /dev/null 2>&1; then \
+		ln -s `which gstat` $@; \
+	else \
+		echo "GNU stat not found"; \
+		false; \
+	fi
+
 $(eval $(call PrepareCommand,find,gfind find))
 $(eval $(call PrepareCommand,md5sum,md5sum $(SCRIPT_DIR)/md5sum))
 $(eval $(call PrepareCommand,cp,gcp cp))
-$(eval $(call PrepareCommand,stat,gstat stat))
 $(eval $(call PrepareCommand,seq,gseq seq))
 
 $(curdir)/cmddeps = $(patsubst %,$(STAGING_DIR_HOST)/bin/%,find md5sum cp stat seq)

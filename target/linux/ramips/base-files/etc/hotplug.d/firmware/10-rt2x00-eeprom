@@ -17,7 +17,7 @@ rt2x00_eeprom_extract() {
 	[ -n "$mtd" ] || \
 		rt2x00_eeprom_die "no mtd device found for partition $part"
 
-	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count || \
+	dd if=$mtd of=/lib/firmware/$FIRMWARE bs=1 skip=$offset count=$count 2>/dev/null || \
 		rt2x00_eeprom_die "failed to extract from $mtd"
 }
 
@@ -53,6 +53,7 @@ case "$FIRMWARE" in
 	bc2 | \
 	esr-9753 | \
 	fonera20n | \
+	freestation5 | \
 	hw550-3g | \
 	mofi3500-3gn | \
 	pwh2004 | \
@@ -64,13 +65,17 @@ case "$FIRMWARE" in
 	sl-r7205 | \
 	v11st-fe | \
 	v22rw-2x2 | \
+	w306r-v20 | \
 	w502u | \
 	wcr-150gn | \
 	whr-g300n | \
+	wl-330n | \
+	wl-330n3g | \
 	wl-351 | \
 	wli-tx4-ag300n | \
 	wr512-3gn | \
 	wr6202 | \
+	ur-336un | \
 	xdxrn502j)
 		rt2x00_eeprom_extract "factory" 0 272
 		;;

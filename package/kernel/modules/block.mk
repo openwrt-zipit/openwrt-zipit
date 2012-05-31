@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2010 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -43,13 +43,10 @@ endef
 define KernelPackage/ata-ahci
   TITLE:=AHCI Serial ATA support
   KCONFIG:=CONFIG_SATA_AHCI
-  FILES:=$(LINUX_DIR)/drivers/ata/ahci.ko
-  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,2.6.35)),1)
-    FILES += $(LINUX_DIR)/drivers/ata/libahci.ko
-    AUTOLOAD:=$(call AutoLoad,41,libahci ahci,1)
-  else
-    AUTOLOAD:=$(call AutoLoad,41,ahci,1)
-  endif
+  FILES:= \
+    $(LINUX_DIR)/drivers/ata/ahci.ko \
+    $(LINUX_DIR)/drivers/ata/libahci.ko
+  AUTOLOAD:=$(call AutoLoad,41,libahci ahci,1)
   $(call AddDepends/ata)
 endef
 
@@ -164,6 +161,21 @@ define KernelPackage/ata-sil24/description
 endef
 
 $(eval $(call KernelPackage,ata-sil24))
+
+
+define KernelPackage/ata-sis
+  TITLE:=SIS SATA support
+  KCONFIG:=CONFIG_SATA_SIS
+  FILES:=$(LINUX_DIR)/drivers/ata/sata_sis.ko
+  AUTOLOAD:=$(call AutoLoad,41,sata_sis,1)
+  $(call AddDepends/ata)
+endef
+
+define KernelPackage/ata-sis/description
+ Support for SIS Serial ATA controllers.
+endef
+
+$(eval $(call KernelPackage,ata-sis))
 
 
 define KernelPackage/ata-via-sata
@@ -328,17 +340,8 @@ $(call KernelPackage/md/Depends,)
 	$(LINUX_DIR)/crypto/async_tx/async_xor.ko \
 	$(LINUX_DIR)/crypto/async_tx/async_pq.ko \
 	$(LINUX_DIR)/crypto/async_tx/async_raid6_recov.ko \
-	$(LINUX_DIR)/drivers/md/raid456.ko
-  # Additional files with kernel-dependent locations or presence
-  # For Linux >= 2.6.36
-  ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,2.6.36)), 1)
-    FILES+= \
+	$(LINUX_DIR)/drivers/md/raid456.ko \
 	$(LINUX_DIR)/lib/raid6/raid6_pq.ko
-  # For Linux < 2.6.36
-  else
-    FILES+= \
-	$(LINUX_DIR)/drivers/md/raid6_pq.ko
-  endif
   AUTOLOAD:=$(call AutoLoad,28, xor async_tx async_memcpy async_xor raid6_pq async_pq async_raid6_recov raid456)
 endef
 
@@ -593,12 +596,10 @@ define KernelPackage/mvsas
   SUBMENU:=$(BLOCK_MENU)
   TITLE:=Marvell 88SE6440 SAS/SATA driver
   DEPENDS:=@TARGET_x86 +kmod-libsas
-  KCONFIG:=CONFIG_SCSI_MVSAS
-  ifneq ($(CONFIG_LINUX_2_6_30),)
-	FILES:=$(LINUX_DIR)/drivers/scsi/mvsas.ko
-  else
-	FILES:=$(LINUX_DIR)/drivers/scsi/mvsas/mvsas.ko
-  endif
+  KCONFIG:= \
+	CONFIG_SCSI_MVSAS \
+	CONFIG_SCSI_MVSAS_TASKLET=n
+  FILES:=$(LINUX_DIR)/drivers/scsi/mvsas/mvsas.ko
   AUTOLOAD:=$(call AutoLoad,40,mvsas,1)
 endef
 

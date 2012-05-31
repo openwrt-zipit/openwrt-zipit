@@ -97,6 +97,9 @@ tplink_board_detect() {
 	"094100"*)
 		model="TP-Link TL-WR941N/ND"
 		;;
+	"104100"*)
+		model="TP-Link TL-WR1041N/ND"
+		;;
 	"104300"*)
 		model="TP-Link TL-WR1043N/ND"
 		;;
@@ -108,6 +111,9 @@ tplink_board_detect() {
 		;;
 	"302000"*)
 		model="TP-Link TL-MR3020"
+		;;
+	"304000"*)
+		model="TP-Link TL-MR3040"
 		;;
 	"322000"*)
 		model="TP-Link TL-MR3220"
@@ -247,6 +253,15 @@ ar71xx_board_detect() {
 	*"RouterBOARD 750")
 		name="rb-750"
 		;;
+	*"RouterBOARD 750GL")
+		name="rb-750gl"
+		;;
+	*"RouterBOARD 751")
+		name="rb-751"
+		;;
+	*"RouterBOARD 751G")
+		name="rb-751g"
+		;;
 	*"Rocket M")
 		name="rocket-m"
 		;;
@@ -264,6 +279,9 @@ ar71xx_board_detect() {
 		;;
 	*TEW-673GRU)
 		name="tew-673gru"
+		;;
+	*"TL-WR1041N v2")
+		name="tl-wr1041n-v2"
 		;;
 	*TL-WR1043ND)
 		name="tl-wr1043nd"

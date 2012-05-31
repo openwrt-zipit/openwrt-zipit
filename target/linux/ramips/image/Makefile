@@ -158,14 +158,14 @@ mtdlayout_dir300b1=192k(u-boot)ro,64k(devdata)ro,64k(devconf)ro,896k(kernel),288
 mtd_dir300b1_kernel_part_size=917504
 mtd_dir300b1_rootfs_part_size=2949120
 define BuildFirmware/DIR300B1
-	$(call BuildFirmware/Generic,$(1),$(2),board=$(3) $(call mkmtd/phys,$(mtdlayout_dir300b1)),$(mtd_dir300b1_kernel_part_size),$(mtd_dir300b1_rootfs_part_size))
+	$(call BuildFirmware/Generic,$(1),$(2),$(call mkcmdline,$(3),ttyS1,57600) $(call mkmtd/phys,$(mtdlayout_dir300b1)),$(mtd_dir300b1_kernel_part_size),$(mtd_dir300b1_rootfs_part_size))
 	mkwrgimg -s $(4) -d /dev/mtdblock/2 \
 		-i $(call sysupname,$(1),$(2)) \
 		-o $(call imgname,$(1),$(2))-factory.bin
 endef
 
 define BuildFirmware/DIR300B1/initramfs
-	$(call BuildFirmware/Generic/initramfs,$(1),$(2),board=$(3) $(call mkmtd/phys,$(mtdlayout_dir300b1)),$(mtd_dir300b1_kernel_part_size),$(mtd_dir300b1_rootfs_part_size))
+	$(call BuildFirmware/Generic/initramfs,$(1),$(2),$(call mkcmdline,$(3),ttyS1,57600) $(call mkmtd/phys,$(mtdlayout_dir300b1)),$(mtd_dir300b1_kernel_part_size),$(mtd_dir300b1_rootfs_part_size))
 endef
 
 define BuildFirmware/Edimax
@@ -186,6 +186,10 @@ endef
 define BuildFirmware/FONERA20N
 	$(call BuildFirmware/GENERIC_8M,$(1),fonera20n,FONERA20N,ttyS1,57600,phys)
 	$(call BuildFirmware/Edimax,$(1),fonera20n,RSDK,NL1T,0x50000,0xc0000)
+endef
+
+define BuildFirmware/FONERA20N/initramfs
+	$(call BuildFirmware/GENERIC_8M/initramfs,$(1),fonera20n,FONERA20N,ttyS1,57600,phys)
 endef
 
 mtdlayout_nw718=192k(u-boot)ro,128k(config)ro,64k(factory)ro,896k(kernel),2816k(rootfs),3712k@0x60000(firmware)
@@ -214,6 +218,18 @@ mtd_rtn10plus_kernel_part_size=917504
 mtd_rtn10plus_rootfs_part_size=2949120
 define BuildFirmware/RTN10PLUS
 	$(call BuildFirmware/Generic,$(1),$(2),board=$(3) $(call mkmtd/phys,$(mtdlayout_rtn10plus)),$(mtd_rtn10plus_kernel_part_size),$(mtd_rtn10plus_rootfs_part_size))
+endef
+
+define BuildFirmware/W306R_4M
+	$(call BuildFirmware/w306r,$(1),$(2),$(call mkcmdline,$(3),$(4),$(5)) $(call mkmtd/$(6),$(mtdlayout_4M)),917504,2949120)
+endef
+
+define BuildFirmware/w306r
+	$(call PatchKernelLzma,$(2),$(3))
+	mkimage -A mips -O linux -T kernel -C lzma $(call kernel_entry)\
+	 -n 'linkn Kernel Image' \
+	 -d $(KDIR)/vmlinux-$(2).bin.lzma $(KDIR)/vmlinux-$(2).uImage
+	$(call CatFiles,$(KDIR)/vmlinux-$(2).uImage,$(4),$(KDIR)/root.$(1),$(5),$(call imgname,$(1),$(2))-factory.bin)
 endef
 
 mtdlayout_whrg300n=192k(u-boot)ro,64k(u-boot-env)ro,64k(factory)ro,960k(kernel),2752k(rootfs),64k(user)ro,3712k@0x50000(firmware)
@@ -312,6 +328,7 @@ define Image/Build/Profile/DIR300B1
 	$(call Image/Build/Template/$(fs_squash)/$(1),DIR300B1,dir-300-b1,DIR-300-B1,wrgn23_dlwbr_dir300b)
 	$(call Image/Build/Template/$(fs_squash)/$(1),DIR300B1,dir-600-b1,DIR-600-B1,wrgn23_dlwbr_dir600b)
 	$(call Image/Build/Template/$(fs_squash)/$(1),DIR300B1,dir-600-b2,DIR-600-B2,wrgn23_dlwbr_dir600b)
+	$(call Image/Build/Template/$(fs_squash)/$(1),DIR300B1,dir-615-d,DIR-615-D,wrgn23_dlwbr_dir615d)
 endef
 
 define Image/Build/Profile/ESR9753
@@ -328,6 +345,10 @@ endef
 
 define Image/Build/Profile/FONERA20N
 	$(call Image/Build/Template/$(fs_squash)/$(1),FONERA20N)
+endef
+
+define Image/Build/Profile/FREESTATION5
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_8M,freestation5,FREESTATION5,ttyS1,115200,phys)
 endef
 
 define Image/Build/Profile/MOFI35003GN
@@ -366,6 +387,11 @@ define Image/Build/Profile/V22RW2X2
 	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_4M,v22rw-2x2,V22RW-2X2,ttyS1,57600,phys)
 endef
 
+define Image/Build/Profile/W306R_V20
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_4M,w306r-v20,W306R_V20,ttyS1,57600,phys)
+	$(call Image/Build/Template/$(fs_squash)/$(1),W306R_4M,w306r-v20,W306R_V20,ttyS1,57600,phys)
+endef
+
 define Image/Build/Profile/W502U
 	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_8M,w502u,W502U,ttyS1,115200,phys)
 endef
@@ -376,6 +402,14 @@ endef
 
 define Image/Build/Profile/WHRG300N
 	$(call Image/Build/Template/$(fs_squashfs)/$(1),WHRG300N)
+endef
+
+define Image/Build/Profile/WL_330N
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_4M,wl-330n,WL_330N,ttyS1,57600,spi)
+endef
+
+define Image/Build/Profile/WL_330N3G
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_4M,wl-330n3g,WL_330N3G,ttyS1,57600,spi)
 endef
 
 define Image/Build/Profile/WL341V3
@@ -389,6 +423,11 @@ endef
 define Image/Build/Profile/WR5123GN
 	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_4M,wr512-3gn-4M,WR512-3GN,ttyS1,57600,phys)
 	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_8M,wr512-3gn-8M,WR512-3GN,ttyS1,57600,phys)
+endef
+
+
+define Image/Build/Profile/UPVEL
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_8M,ur-336un,UR-336UN,ttyS1,57600,phys)
 endef
 
 define Image/Build/Profile/WR6202
@@ -409,6 +448,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/F5D8235V2,$(1))
 	$(call Image/Build/Profile/RTN10PLUS,$(1))
 	$(call Image/Build/Profile/FONERA20N,$(1))
+	$(call Image/Build/Profile/FREESTATION5,$(1))
 	$(call Image/Build/Profile/HW5503G,$(1))
 	$(call Image/Build/Profile/MOFI35003GN,$(1))
 	$(call Image/Build/Profile/NBG419N,$(1))
@@ -418,14 +458,30 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/RTG32B1,$(1))
 	$(call Image/Build/Profile/SLR7205,$(1))
 	$(call Image/Build/Profile/V22RW2X2,$(1))
+	$(call Image/Build/Profile/W306R_V20,$(1))
 	$(call Image/Build/Profile/W502U,$(1))
 	$(call Image/Build/Profile/WCR150GN,$(1))
 	$(call Image/Build/Profile/WHRG300N,$(1))
+	$(call Image/Build/Profile/WL_330N,$(1))
+	$(call Image/Build/Profile/WL_330N3G,$(1))
 	$(call Image/Build/Profile/WL341V3,$(1))
 	$(call Image/Build/Profile/WL351,$(1))
 	$(call Image/Build/Profile/WR5123GN,$(1))
 	$(call Image/Build/Profile/WR6202,$(1))
 	$(call Image/Build/Profile/XDXRN502J,$(1))
+endef
+endif
+
+#
+# RT3662/RT3883 Profiles
+#
+define Image/Build/Profile/RTN56U
+	$(call Image/Build/Template/$(fs_squash)/$(1),GENERIC_8M,rt-n56u,RT-N56U,ttyS1,57600,phys)
+endef
+
+ifeq ($(CONFIG_RALINK_RT3883),y)
+define Image/Build/Profile/Default
+	$(call Image/Build/Profile/RTN56U,$(1))
 endef
 endif
 

@@ -1371,7 +1371,7 @@ int nl80211_get_txpwrlist(const char *ifname, char *buf, int *len)
 		nl80211_free(req);
 	}
 
-	if (dbm_max > -1)
+	if (dbm_max > 0)
 	{
 		for (dbm_cur = 0, dbm_cnt = 0;
 		     dbm_cur < dbm_max;
@@ -1541,7 +1541,8 @@ static int nl80211_get_scanlist_cb(struct nl_msg *msg, void *arg)
 
 	if (bss[NL80211_BSS_SIGNAL_MBM])
 	{
-		sl->e->signal = nla_get_u32(bss[NL80211_BSS_SIGNAL_MBM]) / 100;
+		sl->e->signal =
+			(uint8_t)((int32_t)nla_get_u32(bss[NL80211_BSS_SIGNAL_MBM]) / 100);
 
 		rssi = sl->e->signal - 0x100;
 

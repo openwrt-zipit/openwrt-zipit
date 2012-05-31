@@ -16,7 +16,8 @@ ramips_setup_interfaces()
 	ucidef_set_interface_loopback
 
 	case $board in
-	all0256n)
+	all0256n | \
+	wl-330n)
 		ucidef_set_interface_lan "eth0.1"
 		;;
 
@@ -31,6 +32,10 @@ ramips_setup_interfaces()
 
 	f5d8235-v1 | \
 	f5d8235-v2 | \
+	ur-336un)
+		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
+		;;
+
 	v11st-fe)
 		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
 		ucidef_add_switch "switch0" "1" "1"
@@ -53,8 +58,9 @@ ramips_setup_interfaces()
 		ucidef_add_switch_vlan "switch0" "2" "4 8t"
 		;;
 
+	freestation5 | \
 	wcr-150gn)
-		ucidef_set_interface_lan_wan "eth0.2" "eth0.1"
+		ucidef_set_interfaces_lan_wan "eth0.2" "eth0.1"
 		;;
 
 	wli-tx4-ag300n)
@@ -94,6 +100,11 @@ ramips_setup_macs()
 		wan_mac=$(/usr/sbin/maccalc add "$lan_mac" 1)
 		;;
 
+	w306r-v20)
+		lan_mac=$(ramips_get_mac_binary factory 4)
+		wan_mac=$(/usr/sbin/maccalc add "$lan_mac" 5)
+		;;
+
 	dir-300-b1 |\
 	dir-300-b2 |\
 	dir-600-b1)
@@ -102,6 +113,11 @@ ramips_setup_macs()
 		;;
 
 	esr-9753 | \
+	ur-336un)
+		lan_mac=$(ramips_get_mac_binary devdata 16388)
+		wan_mac=$(/usr/sbin/maccalc add "$lan_mac" 1)
+		;;
+
 	nbg-419n | \
 	wcr-150gn)
                 lan_mac=$(ramips_get_mac_binary factory 4)

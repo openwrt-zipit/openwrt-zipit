@@ -1,60 +1,55 @@
-find_gw() {
-	route -n | awk '$1 == "0.0.0.0" { print $2; exit }'
+#!/bin/sh
+
+. /etc/functions.sh
+. ../netifd-proto.sh
+init_proto "$@"
+
+INCLUDE_ONLY=1
+. ./ppp.sh
+
+proto_pptp_init_config() {
+	ppp_generic_init_config
+	proto_config_add_string "server"
+	proto_config_add_boolean "buffering"
+	available=1
+	no_device=1
 }
 
-scan_pptp() {
-	config_set "$1" device "pptp-$1"
-}
+proto_pptp_setup() {
+	local config="$1"
+	local iface="$2"
+	local load
 
-stop_interface_pptp() {
-	stop_interface_ppp "$1"
-	for ip in $(uci_get_state network "$1" serv_addrs); do
-		route del -host "$ip" 2>/dev/null
+	json_get_vars server buffering
+
+	serv_addr=
+	for ip in $(resolveip -t 5 "$server"); do
+		proto_add_host_dependency "$config" "$server"
+		serv_addr=1
 	done
-}
-
-coldplug_interface_pptp() {
-	setup_interface_pptp "pptp-$1" "$1"
-}
-
-setup_interface_pptp() {
-	local config="$2"
-	local ifname
-
-	local device
-	config_get device "$config" device
-
-	local server
-	config_get server "$config" server
-
-	local buffering
-	config_get_bool buffering "$config" buffering 1
-	[ "$buffering" == 0 ] && buffering="--nobuffer" || buffering=
-
-	for module in slhc ppp_generic ppp_async ip_gre; do
-		/sbin/insmod $module 2>&- >&-
-	done
-	sleep 1
-
-	local gw="$(find_gw)"
-	[ -n "$gw" ] && {
-		local serv_addrs=""
-		for ip in $(resolveip -4 -t 3 "$server"); do
-			append serv_addrs "$ip"
-			route delete -host "$ip" 2>/dev/null
-			route add -host "$ip" gw "$gw"
-		done
-		uci_toggle_state network "$config" serv_addrs "$serv_addrs"
+	[ -n "$serv_addr" ] || {
+		echo "Could not resolve server address"
+		sleep 5
+		proto_setup_failed "$config"
+		exit 1
 	}
 
-	# fix up the netmask
-	config_get netmask "$config" netmask
-	[ -z "$netmask" -o -z "$device" ] || ifconfig $device netmask $netmask
+	[ "${buffering:-1}" == 0 ] && buffering="--nobuffer" || buffering=
 
-	config_get mtu "$config" mtu
-	mtu=${mtu:-1452}
-	start_pppd "$config" \
+	for module in slhc ppp_generic ppp_async ip_gre; do
+		grep -q "$module" /proc/modules && continue
+		/sbin/insmod $module 2>&- >&-
+		load=1
+	done
+	[ "$load" = "1" ] && sleep 1
+
+	ppp_generic_setup "$config" \
 		pty "/usr/sbin/pptp $server --loglevel 0 --nolaunchpppd $buffering" \
-		file /etc/ppp/options.pptp \
-		mtu $mtu mru $mtu
+		file /etc/ppp/options.pptp
 }
+
+proto_pptp_teardown() {
+	ppp_generic_teardown "$@"
+}
+
+add_protocol pptp

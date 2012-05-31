@@ -10,6 +10,7 @@ preinit_set_mac_address() {
 	case $(ramips_board_name) in
 	bc2 |\
 	esr-9753 |\
+	freestation5 |\
 	nw718 |\
 	rt-n56u |\
 	sl-r7205)
@@ -27,7 +28,10 @@ preinit_set_mac_address() {
 	hw550-3g |\
 	nbg-419n |\
 	omni-emb |\
+	w306r-v20 |\
 	w502u    |\
+	wl-330n |\
+	wl-330n3g |\
 	wr6202 |\
 	xdxrn502j)
 		mac=$(ramips_get_mac_binary factory 40)

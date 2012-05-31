@@ -34,13 +34,15 @@ define Package/pptp/conffiles
 /etc/ppp/options.pptp
 endef
 
+MAKE_FLAGS += OPTIMIZE="$(TARGET_CFLAGS)"
+
 define Package/pptp/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/pptp $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/ppp
 	$(INSTALL_DATA) ./files/options.pptp $(1)/etc/ppp/
-	$(INSTALL_DIR) $(1)/lib/network
-	$(INSTALL_BIN) ./files/pptp.sh $(1)/lib/network/
+	$(INSTALL_DIR) $(1)/lib/netifd/proto/
+	$(INSTALL_BIN) ./files/pptp.sh $(1)/lib/netifd/proto/
 endef
 
 $(eval $(call BuildPackage,pptp))

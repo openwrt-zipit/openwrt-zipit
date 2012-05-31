@@ -199,17 +199,25 @@ void __init ath79_register_mdio(unsigned int id, u32 phy_mask)
 
 	switch (ath79_soc) {
 	case ATH79_SOC_AR7240:
-	case ATH79_SOC_AR7241:
-	case ATH79_SOC_AR9330:
-	case ATH79_SOC_AR9331:
 		mdio_data->is_ar7240 = 1;
+		/* fall through */
+	case ATH79_SOC_AR7241:
+		mdio_data->builtin_switch = 1;
+		break;
+
+	case ATH79_SOC_AR9330:
+		mdio_data->is_ar9330 = 1;
+		/* fall through */
+	case ATH79_SOC_AR9331:
+		mdio_data->builtin_switch = 1;
 		break;
 
 	case ATH79_SOC_AR9341:
 	case ATH79_SOC_AR9342:
 	case ATH79_SOC_AR9344:
 		if (id == 1)
-			mdio_data->is_ar7240 = 1;
+			mdio_data->builtin_switch = 1;
+		mdio_data->is_ar934x = 1;
 		break;
 
 	default:
@@ -303,7 +311,12 @@ static void ar91xx_set_speed_ge1(int speed)
 
 static void ar934x_set_speed_ge0(int speed)
 {
-	/* TODO */
+	void __iomem *base;
+	u32 val = ath79_get_eth_pll(0, speed);
+
+	base = ioremap_nocache(AR71XX_PLL_BASE, AR71XX_PLL_SIZE);
+	__raw_writel(val, base + AR934X_PLL_ETH_XMII_CONTROL_REG);
+	iounmap(base);
 }
 
 static void ath79_set_speed_dummy(int speed)
@@ -432,9 +445,9 @@ struct ag71xx_switch_platform_data ath79_switch_data;
 #define AR933X_PLL_VAL_100	0x00001099
 #define AR933X_PLL_VAL_10	0x00991099
 
-#define AR934X_PLL_VAL_1000	0x00110000
-#define AR934X_PLL_VAL_100	0x00001099
-#define AR934X_PLL_VAL_10	0x00991099
+#define AR934X_PLL_VAL_1000	0x16000000
+#define AR934X_PLL_VAL_100	0x00000101
+#define AR934X_PLL_VAL_10	0x00001616
 
 static void __init ath79_init_eth_pll_data(unsigned int id)
 {
@@ -716,6 +729,8 @@ void __init ath79_register_eth(unsigned int id)
 			pdata->speed = SPEED_1000;
 			pdata->duplex = DUPLEX_FULL;
 			pdata->switch_data = &ath79_switch_data;
+
+			ath79_switch_data.phy_poll_mask |= BIT(4);
 		}
 		pdata->has_gbit = 1;
 		pdata->is_ar724x = 1;
@@ -771,6 +786,8 @@ void __init ath79_register_eth(unsigned int id)
 			pdata->speed = SPEED_1000;
 			pdata->duplex = DUPLEX_FULL;
 			pdata->switch_data = &ath79_switch_data;
+
+			ath79_switch_data.phy_poll_mask |= BIT(4);
 		}
 
 		pdata->has_gbit = 1;

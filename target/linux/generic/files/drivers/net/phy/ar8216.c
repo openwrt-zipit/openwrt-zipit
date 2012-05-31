@@ -2,6 +2,7 @@
  * ar8216.c: AR8216 switch driver
  *
  * Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (C) 2011-2012 Gabor Juhos <juhosg@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,11 +31,38 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
+#include <linux/ar8216_platform.h>
 #include "ar8216.h"
 
 /* size of the vlan table */
 #define AR8X16_MAX_VLANS	128
 #define AR8X16_PROBE_RETRIES	10
+#define AR8X16_MAX_PORTS	8
+
+struct ar8216_priv;
+
+#define AR8XXX_CAP_GIGE		BIT(0)
+
+enum {
+	AR8XXX_VER_AR8216 = 0x01,
+	AR8XXX_VER_AR8236 = 0x03,
+	AR8XXX_VER_AR8316 = 0x10,
+	AR8XXX_VER_AR8327 = 0x12,
+};
+
+struct ar8xxx_chip {
+	unsigned long caps;
+
+	int (*hw_init)(struct ar8216_priv *priv);
+	void (*init_globals)(struct ar8216_priv *priv);
+	void (*init_port)(struct ar8216_priv *priv, int port);
+	void (*setup_port)(struct ar8216_priv *priv, int port, u32 egress,
+			   u32 ingress, u32 members, u32 pvid);
+	u32 (*read_port_status)(struct ar8216_priv *priv, int port);
+	int (*atu_flush)(struct ar8216_priv *priv);
+	void (*vtu_flush)(struct ar8216_priv *priv);
+	void (*vtu_load_vlan)(struct ar8216_priv *priv, u32 vid, u32 port_mask);
+};
 
 struct ar8216_priv {
 	struct switch_dev dev;
@@ -44,22 +72,50 @@ struct ar8216_priv {
 	const struct net_device_ops *ndo_old;
 	struct net_device_ops ndo;
 	struct mutex reg_mutex;
-	int chip;
+	u8 chip_ver;
+	u8 chip_rev;
+	const struct ar8xxx_chip *chip;
 	bool initialized;
 	bool port4_phy;
 	char buf[80];
 
 	bool init;
+	bool mii_lo_first;
 
 	/* all fields below are cleared on reset */
 	bool vlan;
 	u16 vlan_id[AR8X16_MAX_VLANS];
 	u8 vlan_table[AR8X16_MAX_VLANS];
 	u8 vlan_tagged;
-	u16 pvid[AR8216_NUM_PORTS];
+	u16 pvid[AR8X16_MAX_PORTS];
 };
 
 #define to_ar8216(_dev) container_of(_dev, struct ar8216_priv, dev)
+
+static inline bool ar8xxx_has_gige(struct ar8216_priv *priv)
+{
+	return priv->chip->caps & AR8XXX_CAP_GIGE;
+}
+
+static inline bool chip_is_ar8216(struct ar8216_priv *priv)
+{
+	return priv->chip_ver == AR8XXX_VER_AR8216;
+}
+
+static inline bool chip_is_ar8236(struct ar8216_priv *priv)
+{
+	return priv->chip_ver == AR8XXX_VER_AR8236;
+}
+
+static inline bool chip_is_ar8316(struct ar8216_priv *priv)
+{
+	return priv->chip_ver == AR8XXX_VER_AR8316;
+}
+
+static inline bool chip_is_ar8327(struct ar8216_priv *priv)
+{
+	return priv->chip_ver == AR8XXX_VER_AR8327;
+}
 
 static inline void
 split_addr(u32 regaddr, u16 *r1, u16 *r2, u16 *page)
@@ -112,8 +168,13 @@ ar8216_mii_write(struct ar8216_priv *priv, int reg, u32 val)
 
 	bus->write(bus, 0x18, 0, r3);
 	usleep_range(1000, 2000); /* wait for the page switch to propagate */
-	bus->write(bus, 0x10 | r2, r1 + 1, hi);
-	bus->write(bus, 0x10 | r2, r1, lo);
+	if (priv->mii_lo_first) {
+		bus->write(bus, 0x10 | r2, r1, lo);
+		bus->write(bus, 0x10 | r2, r1 + 1, hi);
+	} else {
+		bus->write(bus, 0x10 | r2, r1 + 1, hi);
+		bus->write(bus, 0x10 | r2, r1, lo);
+	}
 
 	mutex_unlock(&bus->mdio_lock);
 }
@@ -127,6 +188,17 @@ ar8216_phy_dbg_write(struct ar8216_priv *priv, int phy_addr,
 	mutex_lock(&bus->mdio_lock);
 	bus->write(bus, phy_addr, MII_ATH_DBG_ADDR, dbg_addr);
 	bus->write(bus, phy_addr, MII_ATH_DBG_DATA, dbg_data);
+	mutex_unlock(&bus->mdio_lock);
+}
+
+static void
+ar8216_phy_mmd_write(struct ar8216_priv *priv, int phy_addr, u16 addr, u16 data)
+{
+	struct mii_bus *bus = priv->phy->bus;
+
+	mutex_lock(&bus->mdio_lock);
+	bus->write(bus, phy_addr, MII_ATH_MMD_ADDR, addr);
+	bus->write(bus, phy_addr, MII_ATH_MMD_DATA, data);
 	mutex_unlock(&bus->mdio_lock);
 }
 
@@ -145,57 +217,6 @@ ar8216_rmw(struct ar8216_priv *priv, int reg, u32 mask, u32 val)
 	return v;
 }
 
-static inline int
-ar8216_id_chip(struct ar8216_priv *priv)
-{
-	u32 val;
-	u16 id;
-	int i;
-
-	priv->chip = UNKNOWN;
-
-	val = ar8216_mii_read(priv, AR8216_REG_CTRL);
-	if (val == ~0)
-		return -ENODEV;
-
-	id = val & (AR8216_CTRL_REVISION | AR8216_CTRL_VERSION);
-	for (i = 0; i < AR8X16_PROBE_RETRIES; i++) {
-		u16 t;
-
-		val = ar8216_mii_read(priv, AR8216_REG_CTRL);
-		if (val == ~0)
-			return -ENODEV;
-
-		t = val & (AR8216_CTRL_REVISION | AR8216_CTRL_VERSION);
-		if (t != id)
-			return -ENODEV;
-	}
-
-	switch (id) {
-	case 0x0101:
-		priv->chip = AR8216;
-		break;
-	case 0x0301:
-		priv->chip = AR8236;
-		break;
-	case 0x1000:
-	case 0x1001:
-		priv->chip = AR8316;
-		break;
-	default:
-		printk(KERN_DEBUG
-			"ar8216: Unknown Atheros device [ver=%d, rev=%d, phy_id=%04x%04x]\n",
-			(int)(id >> AR8216_CTRL_VERSION_S),
-			(int)(id & AR8216_CTRL_REVISION),
-			mdiobus_read(priv->phy->bus, priv->phy->addr, 2),
-			mdiobus_read(priv->phy->bus, priv->phy->addr, 3));
-
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static void
 ar8216_read_port_link(struct ar8216_priv *priv, int port,
 		      struct switch_port_link *link)
@@ -205,7 +226,7 @@ ar8216_read_port_link(struct ar8216_priv *priv, int port,
 
 	memset(link, '\0', sizeof(*link));
 
-	status = priv->read(priv, AR8216_REG_PORT_STATUS(port));
+	status = priv->chip->read_port_status(priv, port);
 
 	link->aneg = !!(status & AR8216_PORT_STATUS_LINK_AUTO);
 	if (link->aneg) {
@@ -239,77 +260,8 @@ ar8216_read_port_link(struct ar8216_priv *priv, int port,
 	}
 }
 
-static int
-ar8216_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
-		struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	priv->vlan = !!val->value.i;
-	return 0;
-}
-
-static int
-ar8216_get_vlan(struct switch_dev *dev, const struct switch_attr *attr,
-		struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	val->value.i = priv->vlan;
-	return 0;
-}
-
-
-static int
-ar8216_set_pvid(struct switch_dev *dev, int port, int vlan)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-
-	/* make sure no invalid PVIDs get set */
-
-	if (vlan >= dev->vlans)
-		return -EINVAL;
-
-	priv->pvid[port] = vlan;
-	return 0;
-}
-
-static int
-ar8216_get_pvid(struct switch_dev *dev, int port, int *vlan)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	*vlan = priv->pvid[port];
-	return 0;
-}
-
-static int
-ar8216_set_vid(struct switch_dev *dev, const struct switch_attr *attr,
-	       struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	priv->vlan_id[val->port_vlan] = val->value.i;
-	return 0;
-}
-
-static int
-ar8216_get_vid(struct switch_dev *dev, const struct switch_attr *attr,
-	       struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	val->value.i = priv->vlan_id[val->port_vlan];
-	return 0;
-}
-
-static int
-ar8216_get_port_link(struct switch_dev *dev, int port,
-		     struct switch_port_link *link)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-
-	ar8216_read_port_link(priv, port, link);
-	return 0;
-}
-
-static int
-ar8216_mangle_tx(struct sk_buff *skb, struct net_device *dev)
+static struct sk_buff *
+ar8216_mangle_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ar8216_priv *priv = dev->phy_ptr;
 	unsigned char *buf;
@@ -330,32 +282,27 @@ ar8216_mangle_tx(struct sk_buff *skb, struct net_device *dev)
 	buf[1] = 0x80;
 
 send:
-	return priv->ndo_old->ndo_start_xmit(skb, dev);
+	return skb;
 
 error:
 	dev_kfree_skb_any(skb);
-	return 0;
+	return NULL;
 }
 
-static int
-ar8216_mangle_rx(struct sk_buff *skb, int napi)
+static void
+ar8216_mangle_rx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ar8216_priv *priv;
-	struct net_device *dev;
 	unsigned char *buf;
 	int port, vlan;
 
-	dev = skb->dev;
-	if (!dev)
-		goto error;
-
 	priv = dev->phy_ptr;
 	if (!priv)
-		goto error;
+		return;
 
 	/* don't strip the header if vlan mode is disabled */
 	if (!priv->vlan)
-		goto recv;
+		return;
 
 	/* strip header, get vlan id */
 	buf = skb->data;
@@ -363,13 +310,13 @@ ar8216_mangle_rx(struct sk_buff *skb, int napi)
 
 	/* check for vlan header presence */
 	if ((buf[12 + 2] != 0x81) || (buf[13 + 2] != 0x00))
-		goto recv;
+		return;
 
 	port = buf[0] & 0xf;
 
 	/* no need to fix up packets coming from a tagged source */
 	if (priv->vlan_tagged & (1 << port))
-		goto recv;
+		return;
 
 	/* lookup port vid from local table, the switch passes an invalid vlan id */
 	vlan = priv->vlan_id[priv->pvid[port]];
@@ -377,113 +324,6 @@ ar8216_mangle_rx(struct sk_buff *skb, int napi)
 	buf[14 + 2] &= 0xf0;
 	buf[14 + 2] |= vlan >> 8;
 	buf[15 + 2] = vlan & 0xff;
-
-recv:
-	skb->protocol = eth_type_trans(skb, skb->dev);
-
-	if (napi)
-		return netif_receive_skb(skb);
-	else
-		return netif_rx(skb);
-
-error:
-	/* no vlan? eat the packet! */
-	dev_kfree_skb_any(skb);
-	return NET_RX_DROP;
-}
-
-static int
-ar8216_netif_rx(struct sk_buff *skb)
-{
-	return ar8216_mangle_rx(skb, 0);
-}
-
-static int
-ar8216_netif_receive_skb(struct sk_buff *skb)
-{
-	return ar8216_mangle_rx(skb, 1);
-}
-
-
-static struct switch_attr ar8216_globals[] = {
-	{
-		.type = SWITCH_TYPE_INT,
-		.name = "enable_vlan",
-		.description = "Enable VLAN mode",
-		.set = ar8216_set_vlan,
-		.get = ar8216_get_vlan,
-		.max = 1
-	},
-};
-
-static struct switch_attr ar8216_port[] = {
-};
-
-static struct switch_attr ar8216_vlan[] = {
-	{
-		.type = SWITCH_TYPE_INT,
-		.name = "vid",
-		.description = "VLAN ID (0-4094)",
-		.set = ar8216_set_vid,
-		.get = ar8216_get_vid,
-		.max = 4094,
-	},
-};
-
-
-static int
-ar8216_get_ports(struct switch_dev *dev, struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	u8 ports = priv->vlan_table[val->port_vlan];
-	int i;
-
-	val->len = 0;
-	for (i = 0; i < AR8216_NUM_PORTS; i++) {
-		struct switch_port *p;
-
-		if (!(ports & (1 << i)))
-			continue;
-
-		p = &val->value.ports[val->len++];
-		p->id = i;
-		if (priv->vlan_tagged & (1 << i))
-			p->flags = (1 << SWITCH_PORT_FLAG_TAGGED);
-		else
-			p->flags = 0;
-	}
-	return 0;
-}
-
-static int
-ar8216_set_ports(struct switch_dev *dev, struct switch_val *val)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	u8 *vt = &priv->vlan_table[val->port_vlan];
-	int i, j;
-
-	*vt = 0;
-	for (i = 0; i < val->len; i++) {
-		struct switch_port *p = &val->value.ports[i];
-
-		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
-			priv->vlan_tagged |= (1 << p->id);
-		} else {
-			priv->vlan_tagged &= ~(1 << p->id);
-			priv->pvid[p->id] = val->port_vlan;
-
-			/* make sure that an untagged port does not
-			 * appear in other vlans */
-			for (j = 0; j < AR8X16_MAX_VLANS; j++) {
-				if (j == val->port_vlan)
-					continue;
-				priv->vlan_table[j] &= ~(1 << p->id);
-			}
-		}
-
-		*vt |= 1 << p->id;
-	}
-	return 0;
 }
 
 static int
@@ -523,12 +363,45 @@ ar8216_vtu_op(struct ar8216_priv *priv, u32 op, u32 val)
 }
 
 static void
+ar8216_vtu_flush(struct ar8216_priv *priv)
+{
+	ar8216_vtu_op(priv, AR8216_VTU_OP_FLUSH, 0);
+}
+
+static void
+ar8216_vtu_load_vlan(struct ar8216_priv *priv, u32 vid, u32 port_mask)
+{
+	u32 op;
+
+	op = AR8216_VTU_OP_LOAD | (vid << AR8216_VTU_VID_S);
+	ar8216_vtu_op(priv, op, port_mask);
+}
+
+static int
+ar8216_atu_flush(struct ar8216_priv *priv)
+{
+	int ret;
+
+	ret = ar8216_wait_bit(priv, AR8216_REG_ATU, AR8216_ATU_ACTIVE, 0);
+	if (!ret)
+		priv->write(priv, AR8216_REG_ATU, AR8216_ATU_OP_FLUSH);
+
+	return ret;
+}
+
+static u32
+ar8216_read_port_status(struct ar8216_priv *priv, int port)
+{
+	return priv->read(priv, AR8216_REG_PORT_STATUS(port));
+}
+
+static void
 ar8216_setup_port(struct ar8216_priv *priv, int port, u32 egress, u32 ingress,
 		  u32 members, u32 pvid)
 {
 	u32 header;
 
-	if (priv->vlan && port == AR8216_PORT_CPU && priv->chip == AR8216)
+	if (chip_is_ar8216(priv) && priv->vlan && port == AR8216_PORT_CPU)
 		header = AR8216_PORT_CTRL_HEADER;
 	else
 		header = 0;
@@ -548,6 +421,59 @@ ar8216_setup_port(struct ar8216_priv *priv, int port, u32 egress, u32 ingress,
 		   (ingress << AR8216_PORT_VLAN_MODE_S) |
 		   (pvid << AR8216_PORT_VLAN_DEFAULT_ID_S));
 }
+
+static int
+ar8216_hw_init(struct ar8216_priv *priv)
+{
+	return 0;
+}
+
+static void
+ar8216_init_globals(struct ar8216_priv *priv)
+{
+	/* standard atheros magic */
+	priv->write(priv, 0x38, 0xc000050e);
+
+	ar8216_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+		   AR8216_GCTRL_MTU, 1518 + 8 + 2);
+}
+
+static void
+ar8216_init_port(struct ar8216_priv *priv, int port)
+{
+	/* Enable port learning and tx */
+	priv->write(priv, AR8216_REG_PORT_CTRL(port),
+		AR8216_PORT_CTRL_LEARN |
+		(4 << AR8216_PORT_CTRL_STATE_S));
+
+	priv->write(priv, AR8216_REG_PORT_VLAN(port), 0);
+
+	if (port == AR8216_PORT_CPU) {
+		priv->write(priv, AR8216_REG_PORT_STATUS(port),
+			AR8216_PORT_STATUS_LINK_UP |
+			(ar8xxx_has_gige(priv) ?
+                                AR8216_PORT_SPEED_1000M : AR8216_PORT_SPEED_100M) |
+			AR8216_PORT_STATUS_TXMAC |
+			AR8216_PORT_STATUS_RXMAC |
+			(chip_is_ar8316(priv) ? AR8216_PORT_STATUS_RXFLOW : 0) |
+			(chip_is_ar8316(priv) ? AR8216_PORT_STATUS_TXFLOW : 0) |
+			AR8216_PORT_STATUS_DUPLEX);
+	} else {
+		priv->write(priv, AR8216_REG_PORT_STATUS(port),
+			AR8216_PORT_STATUS_LINK_AUTO);
+	}
+}
+
+static const struct ar8xxx_chip ar8216_chip = {
+	.hw_init = ar8216_hw_init,
+	.init_globals = ar8216_init_globals,
+	.init_port = ar8216_init_port,
+	.setup_port = ar8216_setup_port,
+	.read_port_status = ar8216_read_port_status,
+	.atu_flush = ar8216_atu_flush,
+	.vtu_flush = ar8216_vtu_flush,
+	.vtu_load_vlan = ar8216_vtu_load_vlan,
+};
 
 static void
 ar8236_setup_port(struct ar8216_priv *priv, int port, u32 egress, u32 ingress,
@@ -573,85 +499,6 @@ ar8236_setup_port(struct ar8216_priv *priv, int port, u32 egress, u32 ingress,
 }
 
 static int
-ar8216_hw_apply(struct switch_dev *dev)
-{
-	struct ar8216_priv *priv = to_ar8216(dev);
-	u8 portmask[AR8216_NUM_PORTS];
-	int i, j;
-
-	mutex_lock(&priv->reg_mutex);
-	/* flush all vlan translation unit entries */
-	ar8216_vtu_op(priv, AR8216_VTU_OP_FLUSH, 0);
-
-	memset(portmask, 0, sizeof(portmask));
-	if (!priv->init) {
-		/* calculate the port destination masks and load vlans
-		 * into the vlan translation unit */
-		for (j = 0; j < AR8X16_MAX_VLANS; j++) {
-			u8 vp = priv->vlan_table[j];
-
-			if (!vp)
-				continue;
-
-			for (i = 0; i < AR8216_NUM_PORTS; i++) {
-				u8 mask = (1 << i);
-				if (vp & mask)
-					portmask[i] |= vp & ~mask;
-			}
-
-			ar8216_vtu_op(priv,
-				AR8216_VTU_OP_LOAD |
-				(priv->vlan_id[j] << AR8216_VTU_VID_S),
-				priv->vlan_table[j]);
-		}
-	} else {
-		/* vlan disabled:
-		 * isolate all ports, but connect them to the cpu port */
-		for (i = 0; i < AR8216_NUM_PORTS; i++) {
-			if (i == AR8216_PORT_CPU)
-				continue;
-
-			portmask[i] = 1 << AR8216_PORT_CPU;
-			portmask[AR8216_PORT_CPU] |= (1 << i);
-		}
-	}
-
-	/* update the port destination mask registers and tag settings */
-	for (i = 0; i < AR8216_NUM_PORTS; i++) {
-		int egress, ingress;
-		int pvid;
-
-		if (priv->vlan) {
-			pvid = priv->vlan_id[priv->pvid[i]];
-			if (priv->vlan_tagged & (1 << i))
-				egress = AR8216_OUT_ADD_VLAN;
-			else
-				egress = AR8216_OUT_STRIP_VLAN;
-			ingress = AR8216_IN_SECURE;
-		} else {
-			pvid = i;
-			egress = AR8216_OUT_KEEP;
-			ingress = AR8216_IN_PORT_ONLY;
-		}
-
-		if (priv->chip == AR8236)
-			ar8236_setup_port(priv, i, egress, ingress, portmask[i],
-					  pvid);
-		else
-			ar8216_setup_port(priv, i, egress, ingress, portmask[i],
-					  pvid);
-	}
-	mutex_unlock(&priv->reg_mutex);
-	return 0;
-}
-
-static int
-ar8216_hw_init(struct ar8216_priv *priv)
-{
-	return 0;
-}
-
-static int
 ar8236_hw_init(struct ar8216_priv *priv)
 {
 	int i;
@@ -673,6 +520,25 @@ ar8236_hw_init(struct ar8216_priv *priv)
 	priv->initialized = true;
 	return 0;
 }
+
+static void
+ar8236_init_globals(struct ar8216_priv *priv)
+{
+	/* enable jumbo frames */
+	ar8216_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+		   AR8316_GCTRL_MTU, 9018 + 8 + 2);
+}
+
+static const struct ar8xxx_chip ar8236_chip = {
+	.hw_init = ar8236_hw_init,
+	.init_globals = ar8236_init_globals,
+	.init_port = ar8216_init_port,
+	.setup_port = ar8236_setup_port,
+	.read_port_status = ar8216_read_port_status,
+	.atu_flush = ar8216_atu_flush,
+	.vtu_flush = ar8216_vtu_flush,
+	.vtu_load_vlan = ar8216_vtu_load_vlan,
+};
 
 static int
 ar8316_hw_init(struct ar8216_priv *priv)
@@ -735,60 +601,548 @@ out:
 }
 
 static void
-ar8216_init_globals(struct ar8216_priv *priv)
+ar8316_init_globals(struct ar8216_priv *priv)
 {
-	switch (priv->chip) {
-	case AR8216:
-		/* standard atheros magic */
-		priv->write(priv, 0x38, 0xc000050e);
+	/* standard atheros magic */
+	priv->write(priv, 0x38, 0xc000050e);
 
-		ar8216_rmw(priv, AR8216_REG_GLOBAL_CTRL,
-			   AR8216_GCTRL_MTU, 1518 + 8 + 2);
+	/* enable cpu port to receive multicast and broadcast frames */
+	priv->write(priv, AR8216_REG_FLOOD_MASK, 0x003f003f);
+
+	/* enable jumbo frames */
+	ar8216_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+		   AR8316_GCTRL_MTU, 9018 + 8 + 2);
+}
+
+static const struct ar8xxx_chip ar8316_chip = {
+	.caps = AR8XXX_CAP_GIGE,
+	.hw_init = ar8316_hw_init,
+	.init_globals = ar8316_init_globals,
+	.init_port = ar8216_init_port,
+	.setup_port = ar8216_setup_port,
+	.read_port_status = ar8216_read_port_status,
+	.atu_flush = ar8216_atu_flush,
+	.vtu_flush = ar8216_vtu_flush,
+	.vtu_load_vlan = ar8216_vtu_load_vlan,
+};
+
+static u32
+ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
+{
+	u32 t;
+
+	if (!cfg)
+		return 0;
+
+	t = 0;
+	switch (cfg->mode) {
+	case AR8327_PAD_NC:
 		break;
-	case AR8316:
-		/* standard atheros magic */
-		priv->write(priv, 0x38, 0xc000050e);
 
-		/* enable cpu port to receive multicast and broadcast frames */
-		priv->write(priv, AR8216_REG_FLOOD_MASK, 0x003f003f);
+	case AR8327_PAD_MAC2MAC_MII:
+		t = AR8327_PAD_MAC_MII_EN;
+		if (cfg->rxclk_sel)
+			t |= AR8327_PAD_MAC_MII_RXCLK_SEL;
+		if (cfg->txclk_sel)
+			t |= AR8327_PAD_MAC_MII_TXCLK_SEL;
+		break;
 
-		/* fall through */
-	case AR8236:
-		/* enable jumbo frames */
-		ar8216_rmw(priv, AR8216_REG_GLOBAL_CTRL,
-			   AR8316_GCTRL_MTU, 9018 + 8 + 2);
+	case AR8327_PAD_MAC2MAC_GMII:
+		t = AR8327_PAD_MAC_GMII_EN;
+		if (cfg->rxclk_sel)
+			t |= AR8327_PAD_MAC_GMII_RXCLK_SEL;
+		if (cfg->txclk_sel)
+			t |= AR8327_PAD_MAC_GMII_TXCLK_SEL;
+		break;
+
+	case AR8327_PAD_MAC_SGMII:
+		t = AR8327_PAD_SGMII_EN;
+		break;
+
+	case AR8327_PAD_MAC2PHY_MII:
+		t = AR8327_PAD_PHY_MII_EN;
+		if (cfg->rxclk_sel)
+			t |= AR8327_PAD_PHY_MII_RXCLK_SEL;
+		if (cfg->txclk_sel)
+			t |= AR8327_PAD_PHY_MII_TXCLK_SEL;
+		break;
+
+	case AR8327_PAD_MAC2PHY_GMII:
+		t = AR8327_PAD_PHY_GMII_EN;
+		if (cfg->pipe_rxclk_sel)
+			t |= AR8327_PAD_PHY_GMII_PIPE_RXCLK_SEL;
+		if (cfg->rxclk_sel)
+			t |= AR8327_PAD_PHY_GMII_RXCLK_SEL;
+		if (cfg->txclk_sel)
+			t |= AR8327_PAD_PHY_GMII_TXCLK_SEL;
+		break;
+
+	case AR8327_PAD_MAC_RGMII:
+		t = AR8327_PAD_RGMII_EN;
+		t |= cfg->txclk_delay_sel << AR8327_PAD_RGMII_TXCLK_DELAY_SEL_S;
+		t |= cfg->rxclk_delay_sel << AR8327_PAD_RGMII_RXCLK_DELAY_SEL_S;
+		if (cfg->rxclk_delay_en)
+			t |= AR8327_PAD_RGMII_RXCLK_DELAY_EN;
+		if (cfg->txclk_delay_en)
+			t |= AR8327_PAD_RGMII_TXCLK_DELAY_EN;
+		break;
+
+	case AR8327_PAD_PHY_GMII:
+		t = AR8327_PAD_PHYX_GMII_EN;
+		break;
+
+	case AR8327_PAD_PHY_RGMII:
+		t = AR8327_PAD_PHYX_RGMII_EN;
+		break;
+
+	case AR8327_PAD_PHY_MII:
+		t = AR8327_PAD_PHYX_MII_EN;
 		break;
 	}
+
+	return t;
 }
 
 static void
-ar8216_init_port(struct ar8216_priv *priv, int port)
+ar8327_phy_fixup(struct ar8216_priv *priv, int phy)
 {
-	/* Enable port learning and tx */
-	priv->write(priv, AR8216_REG_PORT_CTRL(port),
-		AR8216_PORT_CTRL_LEARN |
-		(4 << AR8216_PORT_CTRL_STATE_S));
+	switch (priv->chip_rev) {
+	case 1:
+		/* For 100M waveform */
+		ar8216_phy_dbg_write(priv, phy, 0, 0x02ea);
+		/* Turn on Gigabit clock */
+		ar8216_phy_dbg_write(priv, phy, 0x3d, 0x68a0);
+		break;
 
-	priv->write(priv, AR8216_REG_PORT_VLAN(port), 0);
+	case 2:
+		ar8216_phy_mmd_write(priv, phy, 0x7, 0x3c);
+		ar8216_phy_mmd_write(priv, phy, 0x4007, 0x0);
+		/* fallthrough */
+	case 4:
+		ar8216_phy_mmd_write(priv, phy, 0x3, 0x800d);
+		ar8216_phy_mmd_write(priv, phy, 0x4003, 0x803f);
 
-	if (port == AR8216_PORT_CPU) {
-		priv->write(priv, AR8216_REG_PORT_STATUS(port),
-			AR8216_PORT_STATUS_LINK_UP |
-			((priv->chip == AR8316) ?
-				AR8216_PORT_SPEED_1000M : AR8216_PORT_SPEED_100M) |
-			AR8216_PORT_STATUS_TXMAC |
-			AR8216_PORT_STATUS_RXMAC |
-			((priv->chip == AR8316) ? AR8216_PORT_STATUS_RXFLOW : 0) |
-			((priv->chip == AR8316) ? AR8216_PORT_STATUS_TXFLOW : 0) |
-			AR8216_PORT_STATUS_DUPLEX);
-	} else {
-		priv->write(priv, AR8216_REG_PORT_STATUS(port),
-			AR8216_PORT_STATUS_LINK_AUTO);
+		ar8216_phy_dbg_write(priv, phy, 0x3d, 0x6860);
+		ar8216_phy_dbg_write(priv, phy, 0x5, 0x2c46);
+		ar8216_phy_dbg_write(priv, phy, 0x3c, 0x6000);
+		break;
 	}
 }
 
 static int
-ar8216_reset_switch(struct switch_dev *dev)
+ar8327_hw_init(struct ar8216_priv *priv)
+{
+	struct ar8327_platform_data *pdata;
+	u32 t;
+	int i;
+
+	pdata = priv->phy->dev.platform_data;
+	if (!pdata)
+		return -EINVAL;
+
+	t = ar8327_get_pad_cfg(pdata->pad0_cfg);
+	priv->write(priv, AR8327_REG_PAD0_MODE, t);
+	t = ar8327_get_pad_cfg(pdata->pad5_cfg);
+	priv->write(priv, AR8327_REG_PAD5_MODE, t);
+	t = ar8327_get_pad_cfg(pdata->pad6_cfg);
+	priv->write(priv, AR8327_REG_PAD6_MODE, t);
+
+	priv->write(priv, AR8327_REG_POWER_ON_STRIP, 0x40000000);
+
+	for (i = 0; i < AR8327_NUM_PHYS; i++)
+		ar8327_phy_fixup(priv, i);
+
+	return 0;
+}
+
+static void
+ar8327_init_globals(struct ar8216_priv *priv)
+{
+	u32 t;
+
+	/* enable CPU port and disable mirror port */
+	t = AR8327_FWD_CTRL0_CPU_PORT_EN |
+	    AR8327_FWD_CTRL0_MIRROR_PORT;
+	priv->write(priv, AR8327_REG_FWD_CTRL0, t);
+
+	/* forward multicast and broadcast frames to CPU */
+	t = (AR8327_PORTS_ALL << AR8327_FWD_CTRL1_UC_FLOOD_S) |
+	    (AR8327_PORTS_ALL << AR8327_FWD_CTRL1_MC_FLOOD_S) |
+	    (AR8327_PORTS_ALL << AR8327_FWD_CTRL1_BC_FLOOD_S);
+	priv->write(priv, AR8327_REG_FWD_CTRL1, t);
+
+	/* setup MTU */
+	ar8216_rmw(priv, AR8327_REG_MAX_FRAME_SIZE,
+		   AR8327_MAX_FRAME_SIZE_MTU, 1518 + 8 + 2);
+}
+
+static void
+ar8327_init_cpuport(struct ar8216_priv *priv)
+{
+	struct ar8327_platform_data *pdata;
+	struct ar8327_port_cfg *cfg;
+	u32 t;
+
+	pdata = priv->phy->dev.platform_data;
+	if (!pdata)
+		return;
+
+	cfg = &pdata->cpuport_cfg;
+	if (!cfg->force_link) {
+		priv->write(priv, AR8327_REG_PORT_STATUS(AR8216_PORT_CPU),
+			    AR8216_PORT_STATUS_LINK_AUTO);
+		return;
+	}
+
+	t = AR8216_PORT_STATUS_TXMAC | AR8216_PORT_STATUS_RXMAC;
+	t |= cfg->duplex ? AR8216_PORT_STATUS_DUPLEX : 0;
+	t |= cfg->rxpause ? AR8216_PORT_STATUS_RXFLOW : 0;
+	t |= cfg->txpause ? AR8216_PORT_STATUS_TXFLOW : 0;
+	switch (cfg->speed) {
+	case AR8327_PORT_SPEED_10:
+		t |= AR8216_PORT_SPEED_10M;
+		break;
+	case AR8327_PORT_SPEED_100:
+		t |= AR8216_PORT_SPEED_100M;
+		break;
+	case AR8327_PORT_SPEED_1000:
+		t |= AR8216_PORT_SPEED_1000M;
+		break;
+	}
+
+	priv->write(priv, AR8327_REG_PORT_STATUS(AR8216_PORT_CPU), t);
+}
+
+static void
+ar8327_init_port(struct ar8216_priv *priv, int port)
+{
+	u32 t;
+
+	if (port == AR8216_PORT_CPU) {
+		ar8327_init_cpuport(priv);
+	} else {
+		t = AR8216_PORT_STATUS_LINK_AUTO;
+		priv->write(priv, AR8327_REG_PORT_STATUS(port), t);
+	}
+
+	priv->write(priv, AR8327_REG_PORT_HEADER(port), 0);
+
+	priv->write(priv, AR8327_REG_PORT_VLAN0(port), 0);
+
+	t = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH << AR8327_PORT_VLAN1_OUT_MODE_S;
+	priv->write(priv, AR8327_REG_PORT_VLAN1(port), t);
+
+	t = AR8327_PORT_LOOKUP_LEARN;
+	t |= AR8216_PORT_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
+	priv->write(priv, AR8327_REG_PORT_LOOKUP(port), t);
+}
+
+static u32
+ar8327_read_port_status(struct ar8216_priv *priv, int port)
+{
+	return priv->read(priv, AR8327_REG_PORT_STATUS(port));
+}
+
+static int
+ar8327_atu_flush(struct ar8216_priv *priv)
+{
+	int ret;
+
+	ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
+			      AR8327_ATU_FUNC_BUSY, 0);
+	if (!ret)
+		priv->write(priv, AR8327_REG_ATU_FUNC,
+			    AR8327_ATU_FUNC_OP_FLUSH);
+
+	return ret;
+}
+
+static void
+ar8327_vtu_op(struct ar8216_priv *priv, u32 op, u32 val)
+{
+	if (ar8216_wait_bit(priv, AR8327_REG_VTU_FUNC1,
+			    AR8327_VTU_FUNC1_BUSY, 0))
+		return;
+
+	if ((op & AR8327_VTU_FUNC1_OP) == AR8327_VTU_FUNC1_OP_LOAD)
+		priv->write(priv, AR8327_REG_VTU_FUNC0, val);
+
+	op |= AR8327_VTU_FUNC1_BUSY;
+	priv->write(priv, AR8327_REG_VTU_FUNC1, op);
+}
+
+static void
+ar8327_vtu_flush(struct ar8216_priv *priv)
+{
+	ar8327_vtu_op(priv, AR8327_VTU_FUNC1_OP_FLUSH, 0);
+}
+
+static void
+ar8327_vtu_load_vlan(struct ar8216_priv *priv, u32 vid, u32 port_mask)
+{
+	u32 op;
+	u32 val;
+	int i;
+
+	op = AR8327_VTU_FUNC1_OP_LOAD | (vid << AR8327_VTU_FUNC1_VID_S);
+	val = AR8327_VTU_FUNC0_VALID | AR8327_VTU_FUNC0_IVL;
+	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+		u32 mode;
+
+		if ((port_mask & BIT(i)) == 0)
+			mode = AR8327_VTU_FUNC0_EG_MODE_NOT;
+		else if (priv->vlan == 0)
+			mode = AR8327_VTU_FUNC0_EG_MODE_KEEP;
+		else if (priv->vlan_tagged & BIT(i))
+			mode = AR8327_VTU_FUNC0_EG_MODE_TAG;
+		else
+			mode = AR8327_VTU_FUNC0_EG_MODE_UNTAG;
+
+		val |= mode << AR8327_VTU_FUNC0_EG_MODE_S(i);
+	}
+	ar8327_vtu_op(priv, op, val);
+}
+
+static void
+ar8327_setup_port(struct ar8216_priv *priv, int port, u32 egress, u32 ingress,
+		  u32 members, u32 pvid)
+{
+	u32 t;
+	u32 mode;
+
+	t = pvid << AR8327_PORT_VLAN0_DEF_SVID_S;
+	t |= pvid << AR8327_PORT_VLAN0_DEF_CVID_S;
+	priv->write(priv, AR8327_REG_PORT_VLAN0(port), t);
+
+	mode = AR8327_PORT_VLAN1_OUT_MODE_UNMOD;
+	switch (egress) {
+	case AR8216_OUT_KEEP:
+		mode = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH;
+		break;
+	case AR8216_OUT_STRIP_VLAN:
+		mode = AR8327_PORT_VLAN1_OUT_MODE_UNTAG;
+		break;
+	case AR8216_OUT_ADD_VLAN:
+		mode = AR8327_PORT_VLAN1_OUT_MODE_TAG;
+		break;
+	}
+
+	t = AR8327_PORT_VLAN1_PORT_VLAN_PROP;
+	t |= mode << AR8327_PORT_VLAN1_OUT_MODE_S;
+	priv->write(priv, AR8327_REG_PORT_VLAN1(port), t);
+
+	t = members;
+	t |= AR8327_PORT_LOOKUP_LEARN;
+	t |= ingress << AR8327_PORT_LOOKUP_IN_MODE_S;
+	t |= AR8216_PORT_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
+	priv->write(priv, AR8327_REG_PORT_LOOKUP(port), t);
+}
+
+static const struct ar8xxx_chip ar8327_chip = {
+	.caps = AR8XXX_CAP_GIGE,
+	.hw_init = ar8327_hw_init,
+	.init_globals = ar8327_init_globals,
+	.init_port = ar8327_init_port,
+	.setup_port = ar8327_setup_port,
+	.read_port_status = ar8327_read_port_status,
+	.atu_flush = ar8327_atu_flush,
+	.vtu_flush = ar8327_vtu_flush,
+	.vtu_load_vlan = ar8327_vtu_load_vlan,
+};
+
+static int
+ar8216_sw_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
+		   struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	priv->vlan = !!val->value.i;
+	return 0;
+}
+
+static int
+ar8216_sw_get_vlan(struct switch_dev *dev, const struct switch_attr *attr,
+		   struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	val->value.i = priv->vlan;
+	return 0;
+}
+
+
+static int
+ar8216_sw_set_pvid(struct switch_dev *dev, int port, int vlan)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+
+	/* make sure no invalid PVIDs get set */
+
+	if (vlan >= dev->vlans)
+		return -EINVAL;
+
+	priv->pvid[port] = vlan;
+	return 0;
+}
+
+static int
+ar8216_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	*vlan = priv->pvid[port];
+	return 0;
+}
+
+static int
+ar8216_sw_set_vid(struct switch_dev *dev, const struct switch_attr *attr,
+		  struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	priv->vlan_id[val->port_vlan] = val->value.i;
+	return 0;
+}
+
+static int
+ar8216_sw_get_vid(struct switch_dev *dev, const struct switch_attr *attr,
+		  struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	val->value.i = priv->vlan_id[val->port_vlan];
+	return 0;
+}
+
+static int
+ar8216_sw_get_port_link(struct switch_dev *dev, int port,
+			struct switch_port_link *link)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+
+	ar8216_read_port_link(priv, port, link);
+	return 0;
+}
+
+static int
+ar8216_sw_get_ports(struct switch_dev *dev, struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	u8 ports = priv->vlan_table[val->port_vlan];
+	int i;
+
+	val->len = 0;
+	for (i = 0; i < dev->ports; i++) {
+		struct switch_port *p;
+
+		if (!(ports & (1 << i)))
+			continue;
+
+		p = &val->value.ports[val->len++];
+		p->id = i;
+		if (priv->vlan_tagged & (1 << i))
+			p->flags = (1 << SWITCH_PORT_FLAG_TAGGED);
+		else
+			p->flags = 0;
+	}
+	return 0;
+}
+
+static int
+ar8216_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	u8 *vt = &priv->vlan_table[val->port_vlan];
+	int i, j;
+
+	*vt = 0;
+	for (i = 0; i < val->len; i++) {
+		struct switch_port *p = &val->value.ports[i];
+
+		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
+			priv->vlan_tagged |= (1 << p->id);
+		} else {
+			priv->vlan_tagged &= ~(1 << p->id);
+			priv->pvid[p->id] = val->port_vlan;
+
+			/* make sure that an untagged port does not
+			 * appear in other vlans */
+			for (j = 0; j < AR8X16_MAX_VLANS; j++) {
+				if (j == val->port_vlan)
+					continue;
+				priv->vlan_table[j] &= ~(1 << p->id);
+			}
+		}
+
+		*vt |= 1 << p->id;
+	}
+	return 0;
+}
+
+static int
+ar8216_sw_hw_apply(struct switch_dev *dev)
+{
+	struct ar8216_priv *priv = to_ar8216(dev);
+	u8 portmask[AR8X16_MAX_PORTS];
+	int i, j;
+
+	mutex_lock(&priv->reg_mutex);
+	/* flush all vlan translation unit entries */
+	priv->chip->vtu_flush(priv);
+
+	memset(portmask, 0, sizeof(portmask));
+	if (!priv->init) {
+		/* calculate the port destination masks and load vlans
+		 * into the vlan translation unit */
+		for (j = 0; j < AR8X16_MAX_VLANS; j++) {
+			u8 vp = priv->vlan_table[j];
+
+			if (!vp)
+				continue;
+
+			for (i = 0; i < dev->ports; i++) {
+				u8 mask = (1 << i);
+				if (vp & mask)
+					portmask[i] |= vp & ~mask;
+			}
+
+			priv->chip->vtu_load_vlan(priv, priv->vlan_id[j],
+						 priv->vlan_table[j]);
+		}
+	} else {
+		/* vlan disabled:
+		 * isolate all ports, but connect them to the cpu port */
+		for (i = 0; i < dev->ports; i++) {
+			if (i == AR8216_PORT_CPU)
+				continue;
+
+			portmask[i] = 1 << AR8216_PORT_CPU;
+			portmask[AR8216_PORT_CPU] |= (1 << i);
+		}
+	}
+
+	/* update the port destination mask registers and tag settings */
+	for (i = 0; i < dev->ports; i++) {
+		int egress, ingress;
+		int pvid;
+
+		if (priv->vlan) {
+			pvid = priv->vlan_id[priv->pvid[i]];
+			if (priv->vlan_tagged & (1 << i))
+				egress = AR8216_OUT_ADD_VLAN;
+			else
+				egress = AR8216_OUT_STRIP_VLAN;
+			ingress = AR8216_IN_SECURE;
+		} else {
+			pvid = i;
+			egress = AR8216_OUT_KEEP;
+			ingress = AR8216_IN_PORT_ONLY;
+		}
+
+		priv->chip->setup_port(priv, i, egress, ingress, portmask[i],
+				       pvid);
+	}
+	mutex_unlock(&priv->reg_mutex);
+	return 0;
+}
+
+static int
+ar8216_sw_reset_switch(struct switch_dev *dev)
 {
 	struct ar8216_priv *priv = to_ar8216(dev);
 	int i;
@@ -801,17 +1155,41 @@ ar8216_reset_switch(struct switch_dev *dev)
 		priv->vlan_id[i] = i;
 
 	/* Configure all ports */
-	for (i = 0; i < AR8216_NUM_PORTS; i++)
-		ar8216_init_port(priv, i);
+	for (i = 0; i < dev->ports; i++)
+		priv->chip->init_port(priv, i);
 
-	ar8216_init_globals(priv);
+	priv->chip->init_globals(priv);
 	mutex_unlock(&priv->reg_mutex);
 
-	return ar8216_hw_apply(dev);
+	return ar8216_sw_hw_apply(dev);
 }
 
+static struct switch_attr ar8216_globals[] = {
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "enable_vlan",
+		.description = "Enable VLAN mode",
+		.set = ar8216_sw_set_vlan,
+		.get = ar8216_sw_get_vlan,
+		.max = 1
+	},
+};
 
-static const struct switch_dev_ops ar8216_ops = {
+static struct switch_attr ar8216_port[] = {
+};
+
+static struct switch_attr ar8216_vlan[] = {
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "vid",
+		.description = "VLAN ID (0-4094)",
+		.set = ar8216_sw_set_vid,
+		.get = ar8216_sw_get_vid,
+		.max = 4094,
+	},
+};
+
+static const struct switch_dev_ops ar8216_sw_ops = {
 	.attr_global = {
 		.attr = ar8216_globals,
 		.n_attr = ARRAY_SIZE(ar8216_globals),
@@ -824,14 +1202,68 @@ static const struct switch_dev_ops ar8216_ops = {
 		.attr = ar8216_vlan,
 		.n_attr = ARRAY_SIZE(ar8216_vlan),
 	},
-	.get_port_pvid = ar8216_get_pvid,
-	.set_port_pvid = ar8216_set_pvid,
-	.get_vlan_ports = ar8216_get_ports,
-	.set_vlan_ports = ar8216_set_ports,
-	.apply_config = ar8216_hw_apply,
-	.reset_switch = ar8216_reset_switch,
-	.get_port_link = ar8216_get_port_link,
+	.get_port_pvid = ar8216_sw_get_pvid,
+	.set_port_pvid = ar8216_sw_set_pvid,
+	.get_vlan_ports = ar8216_sw_get_ports,
+	.set_vlan_ports = ar8216_sw_set_ports,
+	.apply_config = ar8216_sw_hw_apply,
+	.reset_switch = ar8216_sw_reset_switch,
+	.get_port_link = ar8216_sw_get_port_link,
 };
+
+static int
+ar8216_id_chip(struct ar8216_priv *priv)
+{
+	u32 val;
+	u16 id;
+	int i;
+
+	val = ar8216_mii_read(priv, AR8216_REG_CTRL);
+	if (val == ~0)
+		return -ENODEV;
+
+	id = val & (AR8216_CTRL_REVISION | AR8216_CTRL_VERSION);
+	for (i = 0; i < AR8X16_PROBE_RETRIES; i++) {
+		u16 t;
+
+		val = ar8216_mii_read(priv, AR8216_REG_CTRL);
+		if (val == ~0)
+			return -ENODEV;
+
+		t = val & (AR8216_CTRL_REVISION | AR8216_CTRL_VERSION);
+		if (t != id)
+			return -ENODEV;
+	}
+
+	priv->chip_ver = (id & AR8216_CTRL_VERSION) >> AR8216_CTRL_VERSION_S;
+	priv->chip_rev = (id & AR8216_CTRL_REVISION);
+
+	switch (priv->chip_ver) {
+	case AR8XXX_VER_AR8216:
+		priv->chip = &ar8216_chip;
+		break;
+	case AR8XXX_VER_AR8236:
+		priv->chip = &ar8236_chip;
+		break;
+	case AR8XXX_VER_AR8316:
+		priv->chip = &ar8316_chip;
+		break;
+	case AR8XXX_VER_AR8327:
+		priv->mii_lo_first = true;
+		priv->chip = &ar8327_chip;
+		break;
+	default:
+		printk(KERN_DEBUG
+			"ar8216: Unknown Atheros device [ver=%d, rev=%d, phy_id=%04x%04x]\n",
+			priv->chip_ver, priv->chip_rev,
+			mdiobus_read(priv->phy->bus, priv->phy->addr, 2),
+			mdiobus_read(priv->phy->bus, priv->phy->addr, 3));
+
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static int
 ar8216_config_init(struct phy_device *pdev)
@@ -854,10 +1286,12 @@ ar8216_config_init(struct phy_device *pdev)
 		goto err_free_priv;
 
 	if (pdev->addr != 0) {
-		if (priv->chip == AR8316) {
+		if (ar8xxx_has_gige(priv)) {
 			pdev->supported |= SUPPORTED_1000baseT_Full;
 			pdev->advertising |= ADVERTISED_1000baseT_Full;
+		}
 
+		if (chip_is_ar8316(priv)) {
 			/* check if we're attaching to the switch twice */
 			pdev = pdev->bus->phy_map[0];
 			if (!pdev) {
@@ -887,11 +1321,10 @@ ar8216_config_init(struct phy_device *pdev)
 		return 0;
 	}
 
-	printk(KERN_INFO "%s: AR%d switch driver attached.\n",
-		pdev->attached_dev->name, priv->chip);
-
-	pdev->supported = priv->chip == AR8316 ?
-		SUPPORTED_1000baseT_Full : SUPPORTED_100baseT_Full;
+	if (ar8xxx_has_gige(priv))
+		pdev->supported = SUPPORTED_1000baseT_Full;
+	else
+		pdev->supported = SUPPORTED_100baseT_Full;
 	pdev->advertising = pdev->supported;
 
 	mutex_init(&priv->reg_mutex);
@@ -902,10 +1335,10 @@ ar8216_config_init(struct phy_device *pdev)
 
 	swdev = &priv->dev;
 	swdev->cpu_port = AR8216_PORT_CPU;
-	swdev->ops = &ar8216_ops;
+	swdev->ops = &ar8216_sw_ops;
 	swdev->ports = AR8216_NUM_PORTS;
 
-	if (priv->chip == AR8316) {
+	if (chip_is_ar8316(priv)) {
 		swdev->name = "Atheros AR8316";
 		swdev->vlans = AR8X16_MAX_VLANS;
 
@@ -913,10 +1346,14 @@ ar8216_config_init(struct phy_device *pdev)
 			/* port 5 connected to the other mac, therefore unusable */
 			swdev->ports = (AR8216_NUM_PORTS - 1);
 		}
-	} else if (priv->chip == AR8236) {
+	} else if (chip_is_ar8236(priv)) {
 		swdev->name = "Atheros AR8236";
 		swdev->vlans = AR8216_NUM_VLANS;
 		swdev->ports = AR8216_NUM_PORTS;
+	} else if (chip_is_ar8327(priv)) {
+		swdev->name = "Atheros AR8327";
+		swdev->vlans = AR8X16_MAX_VLANS;
+		swdev->ports = AR8327_NUM_PORTS;
 	} else {
 		swdev->name = "Atheros AR8216";
 		swdev->vlans = AR8216_NUM_VLANS;
@@ -926,34 +1363,26 @@ ar8216_config_init(struct phy_device *pdev)
 	if (ret)
 		goto err_free_priv;
 
+	printk(KERN_INFO "%s: %s switch driver attached.\n",
+		pdev->attached_dev->name, swdev->name);
+
 	priv->init = true;
 
-	ret = 0;
-	if (priv->chip == AR8216)
-		ret = ar8216_hw_init(priv);
-	else if (priv->chip == AR8236)
-		ret = ar8236_hw_init(priv);
-	else if (priv->chip == AR8316)
-		ret = ar8316_hw_init(priv);
-
+	ret = priv->chip->hw_init(priv);
 	if (ret)
 		goto err_free_priv;
 
-	ret = ar8216_reset_switch(&priv->dev);
+	ret = ar8216_sw_reset_switch(&priv->dev);
 	if (ret)
 		goto err_free_priv;
 
 	dev->phy_ptr = priv;
 
 	/* VID fixup only needed on ar8216 */
-	if (pdev->addr == 0 && priv->chip == AR8216) {
-		pdev->pkt_align = 2;
-		pdev->netif_receive_skb = ar8216_netif_receive_skb;
-		pdev->netif_rx = ar8216_netif_rx;
-		priv->ndo_old = dev->netdev_ops;
-		memcpy(&priv->ndo, priv->ndo_old, sizeof(struct net_device_ops));
-		priv->ndo.ndo_start_xmit = ar8216_mangle_tx;
-		dev->netdev_ops = &priv->ndo;
+	if (chip_is_ar8216(priv) && pdev->addr == 0) {
+		dev->priv_flags |= IFF_NO_IP_ALIGN;
+		dev->eth_mangle_rx = ar8216_mangle_rx;
+		dev->eth_mangle_tx = ar8216_mangle_tx;
 	}
 
 	priv->init = false;
@@ -997,9 +1426,7 @@ ar8216_read_status(struct phy_device *phydev)
 
 	/* flush the address translation unit */
 	mutex_lock(&priv->reg_mutex);
-	ret = ar8216_wait_bit(priv, AR8216_REG_ATU, AR8216_ATU_ACTIVE, 0);
-	if (!ret)
-		priv->write(priv, AR8216_REG_ATU, AR8216_ATU_OP_FLUSH);
+	ret = priv->chip->atu_flush(priv);
 	mutex_unlock(&priv->reg_mutex);
 
 	phydev->state = PHY_RUNNING;
@@ -1036,8 +1463,10 @@ ar8216_remove(struct phy_device *pdev)
 	if (!priv)
 		return;
 
-	if (priv->ndo_old && dev)
-		dev->netdev_ops = priv->ndo_old;
+	dev->priv_flags &= ~IFF_NO_IP_ALIGN;
+	dev->eth_mangle_rx = NULL;
+	dev->eth_mangle_tx = NULL;
+
 	if (pdev->addr == 0)
 		unregister_switch(&priv->dev);
 	kfree(priv);

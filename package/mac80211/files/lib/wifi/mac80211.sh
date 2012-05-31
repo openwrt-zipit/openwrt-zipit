@@ -315,7 +315,6 @@ enable_mac80211() {
 	config_get ath9k_chanbw "$device" ath9k_chanbw
 	[ -n "$ath9k_chanbw" -a -d /sys/kernel/debug/ieee80211/$phy/ath9k ] && echo "$ath9k_chanbw" > /sys/kernel/debug/ieee80211/$phy/ath9k/chanbw
 
-	[ -n "$country" ] && iw reg set "$country"
 	[ "$channel" = "auto" -o "$channel" = "0" ] || {
 		fixed=1
 	}
@@ -447,6 +446,17 @@ enable_mac80211() {
 				config_get mcast_rate "$vif" mcast_rate
 
 				local keyspec=""
+				[ "$encryption" == "psk" -o "$encryption" == "psk2" ] && {
+					if eval "type wpa_supplicant_setup_vif" 2>/dev/null >/dev/null; then
+						wpa_supplicant_setup_vif "$vif" nl80211 "${hostapd_ctrl:+-H $hostapd_ctrl}" $freq || {
+							echo "enable_mac80211($device): Failed to set up wpa_supplicant for interface $ifname" >&2
+							# make sure this wifi interface won't accidentally stay open without encryption
+							ifconfig "$ifname" down
+							continue
+						}
+					fi
+				}
+
 				[ "$encryption" == "wep" ] && {
 					case "$key" in
 						[1234])
@@ -486,7 +496,7 @@ enable_mac80211() {
 
 				config_get htmode "$device" htmode
 				case "$htmode" in
-					HT20|HT40+|HT40-) ;;
+					HT20|HT40+|HT40-|NOHT) ;;
 					*) htmode= ;;
 				esac
 

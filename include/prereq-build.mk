@@ -1,5 +1,5 @@
 # 
-# Copyright (C) 2006 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -20,7 +20,7 @@ $(eval $(call Require,non-root, \
 
 # Required for the toolchain
 define Require/working-make
-	$(MAKE) -v | awk '($$$$1 == "GNU") && ($$$$2 = "Make") && ($$$$3 >= "3.81") { print "ok" }' | grep ok > /dev/null
+	$(MAKE) -v | awk '($$$$1 == "GNU") && ($$$$2 == "Make") && ($$$$3 >= "3.81") { print "ok" }' | grep ok > /dev/null
 endef
 
 $(eval $(call Require,working-make, \
@@ -121,8 +121,12 @@ $(eval $(call RequireCommand,wget, \
 	Please install wget. \
 ))
 
-$(eval $(call RequireCommand,git, \
-	Please install git (git-core). \
+define Require/git
+	git --version | awk '($$$$1 == "git") && ($$$$2 == "version") && ($$$$3 >= "1.6.5") { print "ok" }' | grep ok > /dev/null
+endef
+
+$(eval $(call Require,git, \
+	Please install git (git-core) v1.6.5 or later. \
 ))
 
 define Require/gnutar
