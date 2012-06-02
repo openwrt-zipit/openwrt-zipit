@@ -1,5 +1,4 @@
 BOARDNAME:=ZipIt Z2
-LINUX_VERSION:=3.2
 
 define Target/Description
 	Build firmware images for ZipIt Z2 PXA-based handeld messenger device
