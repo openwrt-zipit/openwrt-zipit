@@ -3,7 +3,7 @@
 [ -x /usr/sbin/pppd ] || exit 0
 
 [ -n "$INCLUDE_ONLY" ] || {
-	. /etc/functions.sh
+	. /lib/functions.sh
 	. ../netifd-proto.sh
 	init_proto "$@"
 }
@@ -72,6 +72,10 @@ ppp_generic_teardown() {
 			proto_notify_error "$interface" AUTH_FAILED
 			proto_block_restart "$interface"
 		;;
+		2)
+			proto_notify_error "$interface" INVALID_OPTIONS
+			proto_block_restart "$interface"
+		;;
 	esac
 	proto_kill_command "$interface"
 }
@@ -133,6 +137,8 @@ proto_pppoa_init_config() {
 	proto_config_add_int "vci"
 	proto_config_add_int "vpi"
 	proto_config_add_string "encaps"
+	no_device=1
+	available=1
 }
 
 proto_pppoa_setup() {
@@ -160,9 +166,53 @@ proto_pppoa_teardown() {
 	ppp_generic_teardown "$@"
 }
 
+proto_pptp_init_config() {
+	ppp_generic_init_config
+	proto_config_add_string "server"
+	available=1
+	no_device=1
+}
+
+proto_pptp_setup() {
+	local config="$1"
+	local iface="$2"
+
+	local ip serv_addr server
+	json_get_var server server && {
+		for ip in $(resolveip -t 5 "$server"); do
+			( proto_add_host_dependency "$config" "$ip" )
+			serv_addr=1
+		done
+	}
+	[ -n "$serv_addr" ] || {
+		echo "Could not resolve server address"
+		sleep 5
+		proto_setup_failed "$config"
+		exit 1
+	}
+
+	local load
+	for module in slhc ppp_generic ppp_async ppp_mppe ip_gre gre pptp; do
+		grep -q "$module" /proc/modules && continue
+		/sbin/insmod $module 2>&- >&-
+		load=1
+	done
+	[ "$load" = "1" ] && sleep 1
+
+	ppp_generic_setup "$config" \
+		plugin pptp.so \
+		pptp_server $server \
+		file /etc/ppp/options.pptp
+}
+
+proto_pptp_teardown() {
+	ppp_generic_teardown "$@"
+}
+
 [ -n "$INCLUDE_ONLY" ] || {
 	add_protocol ppp
 	[ -f /usr/lib/pppd/*/rp-pppoe.so ] && add_protocol pppoe
 	[ -f /usr/lib/pppd/*/pppoatm.so ] && add_protocol pppoa
+	[ -f /usr/lib/pppd/*/pptp.so ] && add_protocol pptp
 }
 

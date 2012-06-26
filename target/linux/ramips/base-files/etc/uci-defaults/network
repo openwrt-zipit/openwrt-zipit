@@ -24,6 +24,7 @@ ramips_setup_interfaces()
 	argus-atp52b | \
 	b2c | \
 	nw718 | \
+	psr-680w | \
 	sl-r7205 | \
 	w502u | \
 	wr6202)
@@ -93,6 +94,7 @@ ramips_setup_macs()
 	b2c | \
 	f5d8235-v1 | \
 	nw718 | \
+	psr-680w | \
 	rt-n15 | \
 	sl-r7205 | \
 	wl-351)
@@ -103,6 +105,11 @@ ramips_setup_macs()
 	w306r-v20)
 		lan_mac=$(ramips_get_mac_binary factory 4)
 		wan_mac=$(/usr/sbin/maccalc add "$lan_mac" 5)
+		;;
+
+	fonera20n)
+		lan_mac=$(ramips_get_mac_binary factory 40)
+		wan_mac=$(/usr/sbin/maccalc add "$lan_mac" 1)
 		;;
 
 	dir-300-b1 |\

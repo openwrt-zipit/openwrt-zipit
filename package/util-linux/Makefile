@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=util-linux
-PKG_VERSION:=2.21.1
+PKG_VERSION:=2.21.2
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.21
-PKG_MD5SUM:=ad602dcd528f340b1329cfa6200d8f80
+PKG_MD5SUM:=54ba880f1d66782c2287ee2c898520e9
 
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_DEPENDS:=libncurses
@@ -34,7 +34,8 @@ CONFIGURE_ARGS += \
 	--enable-new-mount	\
 	--with-ncurses		\
 	--disable-nls 		\
-	--disable-tls
+	--disable-tls		\
+	--without-udev
 
 TARGET_CFLAGS += $(FPIC)
 
@@ -64,6 +65,7 @@ endef
 
 define Package/libblkid
 $(call Package/util-linux/Default)
+  DEPENDS:=+libuuid
   TITLE:=block device id library
   SECTION:=libs
   CATEGORY:=Libraries
@@ -78,6 +80,7 @@ endef
 
 define Package/libmount
 $(call Package/util-linux/Default)
+  DEPENDS:=+libblkid
   TITLE:=mount library
   SECTION:=libs
   CATEGORY:=Libraries
@@ -116,7 +119,7 @@ endef
 define Package/blkid
 $(call Package/util-linux/Default)
   TITLE:=locate/print block device attributes
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU=disc
 endef
 
@@ -138,7 +141,7 @@ endef
 define Package/cfdisk
 $(call Package/util-linux/Default)
   TITLE:=display or manipulate disk partition table
-  DEPENDS:= +libblkid +libncurses +libuuid
+  DEPENDS:= +libblkid +libncurses
   SUBMENU:=disc
 endef
 
@@ -158,7 +161,7 @@ endef
 define Package/fdisk
 $(call Package/util-linux/Default)
   TITLE:=manipulate disk partition table
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU=disc
 endef
 
@@ -169,7 +172,7 @@ endef
 define Package/findfs
 $(call Package/util-linux/Default)
   TITLE:=find a filesystem by label or UUID
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU=disc
 endef
 
@@ -212,7 +215,8 @@ $(call Package/util-linux/Default)
 endef
 
 define Package/logger/description
- logger makes entries in the system log, it provides a shell command interface to the syslog system log module
+ logger makes entries in the system log, it provides a shell command interface
+ to the syslog system log module
 endef
 
 define Package/look
@@ -237,7 +241,7 @@ endef
 define Package/lsblk
 $(call Package/util-linux/Default)
   TITLE:=list block devices
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU=disc
 endef
 
@@ -258,7 +262,7 @@ endef
 define Package/mount-utils
 $(call Package/util-linux/Default)
   TITLE:=related (u)mount utilities
-  DEPENDS+= +libblkid +libmount +libuuid
+  DEPENDS+= +libmount
 endef
 
 define Package/mount-utils/description
@@ -288,7 +292,7 @@ endef
 define Package/partx-utils
 $(call Package/util-linux/Default)
   TITLE:=inform kernel about the presence and numbering of on-disk partitions
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU=disc
 endef
 
@@ -309,6 +313,7 @@ endef
 define Package/setterm
 $(call Package/util-linux/Default)
   TITLE:=set terminal attributes
+  DEPENDS:= +libncurses
   SUBMENU:=Terminal
 endef
 
@@ -331,7 +336,7 @@ endef
 define Package/swap-utils
 $(call Package/util-linux/Default)
   TITLE:=swap space management utilities
-  DEPENDS+= +libblkid +libuuid
+  DEPENDS+= +libblkid
   SUBMENU:=disc
 endef
 
@@ -372,7 +377,7 @@ $(call Package/util-linux/Default)
 endef
 
 define Package/wall/description
- Wall sends a message to everybody logged in with their mesg permission
+ wall sends a message to everybody logged in with their mesg permission
  set to yes
 endef
 
@@ -388,7 +393,7 @@ endef
 define Package/wipefs
 $(call Package/util-linux/Default)
   TITLE:=wipe a signature from a device
-  DEPENDS:= +libblkid +libuuid
+  DEPENDS:= +libblkid
   SUBMENU:=disc
 endef
 

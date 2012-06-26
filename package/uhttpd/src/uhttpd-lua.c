@@ -298,9 +298,13 @@ static bool uh_lua_socket_cb(struct client *cl)
 		else
 			state->content_length = 0;
 
-		/* ... write to CGI process */
+		/* ... write to Lua process */
 		len = uh_raw_send(state->wfd, buf, len,
 						  cl->server->conf->script_timeout);
+
+		/* explicit EOF notification for the child */
+		if (state->content_length <= 0)
+			close(state->wfd);
 	}
 
 	/* try to read data from child */
@@ -312,13 +316,7 @@ static bool uh_lua_socket_cb(struct client *cl)
 		state->data_sent = true;
 	}
 
-	/* child has been marked dead by timeout or child handler, bail out */
-	if (false && cl->dead)
-	{
-		D("Lua: Child(%d) is marked dead, returning\n", state->cl->proc.pid);
-		goto out;
-	}
-
+	/* got EOF or read error from child */
 	if ((len == 0) ||
 		((errno != EAGAIN) && (errno != EWOULDBLOCK) && (len == -1)))
 	{
@@ -398,6 +396,9 @@ bool uh_lua_request(struct client *cl, lua_State *L)
 #ifdef DEBUG
 		sleep(atoi(getenv("UHTTPD_SLEEP_ON_FORK") ?: "0"));
 #endif
+
+		/* do not leak parent epoll descriptor */
+		uloop_done();
 
 		/* close loose pipe ends */
 		close(rfd[0]);

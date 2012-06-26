@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2011 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -9,11 +9,11 @@ include $(TOPDIR)/rules.mk
 ARCH:=i386
 BOARD:=rdc
 BOARDNAME:=RDC 321x
-FEATURES:=squashfs jffs2 pci usb pcmcia broken
+FEATURES:=squashfs jffs2 pci usb pcmcia
 CFLAGS:=-Os -pipe -march=i486 -mtune=i486 -fno-caller-saves
 MAINTAINER:=Florian Fainelli <florian@openwrt.org>
 
-LINUX_VERSION:=3.3.7
+LINUX_VERSION:=3.3.8
 
 include $(INCLUDE_DIR)/target.mk
 

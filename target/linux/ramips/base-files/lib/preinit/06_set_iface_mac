@@ -12,6 +12,7 @@ preinit_set_mac_address() {
 	esr-9753 |\
 	freestation5 |\
 	nw718 |\
+	psr-680w |\
 	rt-n56u |\
 	sl-r7205)
 		mac=$(ramips_get_mac_binary factory 4)
@@ -25,6 +26,7 @@ preinit_set_mac_address() {
                 ifconfig eth0 hw ether $mac 2>/dev/null
                 ;;
 	all0256n |\
+	fonera20n |\
 	hw550-3g |\
 	nbg-419n |\
 	omni-emb |\
