@@ -1,0 +1,27 @@
+*** a/arch/arm/mach-pxa/z2.c	2012-07-13 11:36:14.957784087 -0500
+--- b/arch/arm/mach-pxa/z2.c	2012-10-02 02:09:59.603066134 -0500
+***************
+*** 168,176 ****
+  		.offset	= 0x40000,
+  		.size	= 0x20000,
+  	}, {
+! 		.name	= "Flash",
+  		.offset	= 0x60000,
+! 		.size	= 0x780000,
+  	}, {
+  		.name	= "U-Boot Logo",
+  		.offset = 0x7e0000,
+--- 168,180 ----
+  		.offset	= 0x40000,
+  		.size	= 0x20000,
+  	}, {
+! 		.name	= "Kernel",
+  		.offset	= 0x60000,
+! 		.size	= 0x120000,
+!         }, {
+!                 .name   = "Filesystem",
+!                 .offset = 0x180000,
+!                 .size   = 0x660000,
+  	}, {
+  		.name	= "U-Boot Logo",
+  		.offset = 0x7e0000,
