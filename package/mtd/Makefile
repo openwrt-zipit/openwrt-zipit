@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2010 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -9,10 +9,13 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=mtd
-PKG_RELEASE:=17
+PKG_RELEASE:=20
 
 PKG_BUILD_DIR := $(KERNEL_BUILD_DIR)/$(PKG_NAME)
 STAMP_PREPARED := $(STAMP_PREPARED)_$(call confvar,CONFIG_MTD_REDBOOT_PARTS)
+
+PKG_LICENSE:=GPLv2 GPLv2+
+PKG_LICENSE_FILES:=
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -35,7 +38,7 @@ endef
 target=$(firstword $(subst -, ,$(BOARD)))
 
 MAKE_FLAGS += TARGET="$(target)"
-TARGET_CFLAGS := -I$(LINUX_DIR)/include $(TARGET_CFLAGS) -Dtarget_$(target)=1 -Wall
+TARGET_CFLAGS := $(TARGET_CFLAGS) -Dtarget_$(target)=1 -Wall
 
 ifdef CONFIG_MTD_REDBOOT_PARTS
   MAKE_FLAGS += FIS_SUPPORT=1

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2009 OpenWrt.org
+# Copyright (C) 2009-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -20,11 +20,13 @@ include $(INCLUDE_DIR)/host-build.mk
 
 define Host/Compile
 	$(MAKE) -C $(HOST_BUILD_DIR)/squashfs-tools \
+		CC="$(HOSTCC)" \
 		XZ_SUPPORT=1 \
 		LZMA_XZ_SUPPORT=1 \
 		XATTR_SUPPORT= \
 		LZMA_LIB="$(STAGING_DIR_HOST)/lib/liblzma.a" \
 		EXTRA_CFLAGS="-I$(STAGING_DIR_HOST)/include" \
+		EXTRA_LDFLAGS="$(HOST_STATIC_LINKING)" \
 		mksquashfs unsquashfs
 endef
 

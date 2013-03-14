@@ -60,6 +60,15 @@ define Image/Build/CFEHW553
 		--block-size 0x20000 --image-offset $(4)
 endef
 
+define Image/Build/CFEHW556
+	# Generate the tagged image
+	$(STAGING_DIR_HOST)/bin/imagetag -i $(KDIR)/vmlinux.lzma.cfe -f $(KDIR)/root.$(1) \
+	--output $(BIN_DIR)/openwrt-$(2)-$(1)-cfe.bin \
+	--boardid $(2) --chipid $(3) --entry $(LOADADDR) \
+	--load-addr $(LOADADDR) --tag-version 8 --rsa-signature "$(5)" \
+	--image-offset $(4) --info1 "$(6)" --block-size 0x20000
+endef
+
 define Image/Build/CFEAGPF
 	# Generate the tagged image
 	$(STAGING_DIR_HOST)/bin/imagetag -i $(KDIR)/vmlinux.lzma.cfe -f $(KDIR)/root.$(1) \
@@ -148,9 +157,12 @@ define Image/Build
 	$(call Image/Build/CFE,$(1),96328avng,6328,96328avng-4M-flash-generic,,--pad 2)
 	$(call Image/Build/CFE,$(1),96328avng,6328,96328avng-8M-flash-generic,,--pad 4)
 	$(call Image/Build/CFE,$(1),96328avng,6328,96328avng-16M-flash-generic,,--pad 8)
-	$(call Image/Build/CFE,$(1),963281TAN,6328,963481TAN-4M-flash-generic,,--pad 2)
-	$(call Image/Build/CFE,$(1),963281TAN,6328,963481TAN-8M-flash-generic,,--pad 4)
-	$(call Image/Build/CFE,$(1),963281TAN,6328,963481TAN-16M-flash-generic,,--pad 8)
+	$(call Image/Build/CFE,$(1),96328A-1241N,6328,96328A-1241N-generic,,--pad 8)
+	$(call Image/Build/CFE,$(1),96328A-1441N1,6328,96328A-1441N1-generic,,--pad 8)
+	$(call Image/Build/CFE,$(1),963281TAN,6328,963281TAN-4M-flash-generic,,--pad 2)
+	$(call Image/Build/CFE,$(1),963281TAN,6328,963281TAN-8M-flash-generic,,--pad 4)
+	$(call Image/Build/CFE,$(1),963281TAN,6328,963281TAN-16M-flash-generic,,--pad 8)
+	$(call Image/Build/CFE,$(1),963281T_TEF,6328,963281T_TEF-generic,,--pad 8)
 	$(call Image/Build/CFE,$(1),96345GW2,6345,96345GW2-generic)
 	$(call Image/Build/CFE,$(1),96345GW2,6345,96348GW2-bc221,,--layoutver 5)
 	$(call Image/Build/CFE,$(1),96345GW2,6345,92345GW2-rev,OpenWRT-$(REVISION))
@@ -161,6 +173,7 @@ define Image/Build
 	$(call Image/Build/CFE,$(1),6338W,6338,6338W-generic,,)
 	$(call Image/Build/CFE,$(1),96348GW-11,6348,96348GW-11-generic)
 	$(call Image/Build/CFE,$(1),96348GW-10,6348,96348GW-10-generic)
+	$(call Image/Build/CFE,$(1),96348A-122,6348,96348A-122-generic)
 	$(call Image/Build/CFE,$(1),96358VW,6358,96358VW-generic)
 	$(call Image/Build/CFE,$(1),96358VW2,6358,96358VW2-generic)
 	$(call Image/Build/CFE,$(1),96368MVNgr,6368,96368MVNgr-generic)
@@ -190,6 +203,10 @@ define Image/Build
 	$(call Image/Build/CFEFIXUP,$(1),96348GW,GW6200,6348,GW6200,$(shell printf '\x99'))
 	# Neufbox4
 	$(call Image/Build/CFE,$(1),96358VW,6358,NEUFBOX4,OpenWRT-$(REVISION))
+	# Neufbox6
+	$(call Image/Build/CFE,$(1),NB6-SER-r0,6362,NEUFBOX6,OpenWRT-$(REVISION))
+	# Comtrend 6373
+	$(call Image/Build/CFE,$(1),CT6373-1,6358,CT6373)
 	# Comtrend 536, 5621
 	$(call Image/Build/CFEFIXUP,$(1),96348GW-11,CT536_CT5621,6348,CT536_CT5621)
 	# Davolink DV201AMR
@@ -212,7 +229,7 @@ define Image/Build
 	$(call Image/Build/CFE,$(1),AW4339U,6328,DSL274XB-F1-EU,,--signature2="4.06.01.EUF1" --pad 4)
 	$(call Image/Build/CFE,$(1),AW4339U,6328,DSL274XB-F1-AU,,--signature2="4.06.01.AUF1" --pad 4)
 	# D-Link DVA-G3810BN/TL
-	$(call Image/Build/CFE,$(1),96358GW,6358,DVAG3810BN)
+	$(call Image/Build/CFEFIXUP,$(1),96358VW,DVAG3810BN,6358,DVAG3810BN)
 
 	# TP-Link TD-8810A, TD-8810B, TD-8811A, TD-8811B
 	$(call Image/Build/CFE,$(1),8L-2M-8M,6338,TP8810_8811)
@@ -222,6 +239,9 @@ define Image/Build
 	# Sagem F@ST2404
 	$(call Image/Build/CFE,$(1),F@ST2404,6348,F@ST2404-cfe)
 	$(call Image/Build/CFE,$(1),F@ST2404,6348,F@ST2404,OpenWRT-$(REVISION))
+	# Sagem F@ST2604
+	$(call Image/Build/CFE,$(1),F@ST2604,6348,F@ST2604-cfe)
+	$(call Image/Build/CFE,$(1),F@ST2604,6348,F@ST2604,OpenWRT-$(REVISION))
 	# Inventel Livebox
 	$(call Image/Build/RedBoot,livebox)
 	# Pirelli Alice Gate VoIP 2 Plus Wi-Fi AGPF-S0
@@ -246,6 +266,9 @@ define Image/Build
 
 	#HW553
 	$(call Image/Build/CFEHW553,$(1),HW553,6358,0x20000,HW553)
+
+	#HW556
+	$(call Image/Build/CFEHW556,$(1),HW556,6358,0x20000,EchoLife_HG556a,OpenWRT-$(REVISION))
 
 	# T-Com Speedport W 303V Typ B
 	$(call Image/Build/SPW303V,$(1),96358-502V,6358,SPW303V)

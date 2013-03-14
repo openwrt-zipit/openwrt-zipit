@@ -31,7 +31,6 @@
 #include <sys/syscall.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <error.h>
 #include <time.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -137,6 +136,7 @@ image_check(int imagefd, const char *mtd)
 	if (trx_check) {
 	  ret = trx_check(imagefd, mtd, buf, &buflen);
 	}
+
 	return ret;
 }
 
@@ -286,7 +286,7 @@ indicate_writing(const char *mtd)
 }
 
 static int
-mtd_write(int imagefd, const char *mtd, char *fis_layout)
+mtd_write(int imagefd, const char *mtd, char *fis_layout, size_t part_offset)
 {
 	char *next = NULL;
 	char *str = NULL;
@@ -294,6 +294,7 @@ mtd_write(int imagefd, const char *mtd, char *fis_layout)
 	ssize_t r, w, e;
 	ssize_t skip = 0;
 	uint32_t offset = 0;
+	int jffs2_replaced = 0;
 
 #ifdef FIS_SUPPORT
 	static struct fis_part new_parts[MAX_ARGS];
@@ -370,6 +371,11 @@ resume:
 		exit(1);
 	}
 
+	if (part_offset > 0) {
+		fprintf(stderr, "Seeking on mtd device '%s' to: %u\n", mtd, part_offset);
+		lseek(fd, part_offset, SEEK_SET);
+	}
+
 	indicate_writing(mtd);
 
 	w = e = 0;
@@ -412,6 +418,7 @@ resume:
 					fprintf(stderr, "\nAppending jffs2 data from %s to %s...", jffs2file, mtd);
 				/* got an EOF marker - this is the place to add some jffs2 data */
 				skip = mtd_replace_jffs2(mtd, fd, e, jffs2file);
+				jffs2_replaced = 1;
 
 				/* don't add it again */
 				jffs2file = NULL;
@@ -477,6 +484,10 @@ resume:
 		offset = 0;
 	}
 
+	if (jffs2_replaced && trx_fixup) {
+		trx_fixup(fd, mtd);
+	}
+
 	if (!quiet)
 		fprintf(stderr, "\b\b\b\b    ");
 
@@ -509,7 +520,11 @@ static void usage(void)
 	    fprintf(stderr,
 	"        fixtrx                  fix the checksum in a trx header on first boot\n");
 	}
-    fprintf(stderr,	
+	if (mtd_fixseama) {
+	    fprintf(stderr,
+	"        fixseama                fix the checksum in a seama header on first boot\n");
+	}
+    fprintf(stderr,
 	"Following options are available:\n"
 	"        -q                      quiet mode (once: no [w] on writing,\n"
 	"                                           twice: no status messages)\n"
@@ -518,7 +533,8 @@ static void usage(void)
 	"        -f                      force write without trx checks\n"
 	"        -e <device>             erase <device> before executing the command\n"
 	"        -d <name>               directory for jffs2write, defaults to \"tmp\"\n"
-	"        -j <name>               integrate <file> into jffs2 data when writing an image\n");
+	"        -j <name>               integrate <file> into jffs2 data when writing an image\n"
+	"        -p                      write beginning at partition offset\n");
 	if (mtd_fixtrx) {
 	    fprintf(stderr,
 	"        -o offset               offset of the image header in the partition(for fixtrx)\n");
@@ -554,7 +570,7 @@ int main (int argc, char **argv)
 	int ch, i, boot, imagefd = 0, force, unlocked;
 	char *erase[MAX_ARGS], *device = NULL;
 	char *fis_layout = NULL;
-	size_t offset = 0;
+	size_t offset = 0, part_offset = 0;
 	enum {
 		CMD_ERASE,
 		CMD_WRITE,
@@ -562,6 +578,7 @@ int main (int argc, char **argv)
 		CMD_REFRESH,
 		CMD_JFFS2WRITE,
 		CMD_FIXTRX,
+		CMD_FIXSEAMA,
 	} cmd = -1;
 
 	erase[0] = NULL;
@@ -569,13 +586,13 @@ int main (int argc, char **argv)
 	force = 0;
 	buflen = 0;
 	quiet = 0;
-  no_erase = 0;
+	no_erase = 0;
 
 	while ((ch = getopt(argc, argv,
 #ifdef FIS_SUPPORT
 			"F:"
 #endif
-			"frnqe:d:j:o:")) != -1)
+			"frnqe:d:j:p:o:")) != -1)
 		switch (ch) {
 			case 'f':
 				force = 1;
@@ -602,6 +619,14 @@ int main (int argc, char **argv)
 				break;
 			case 'd':
 				jffs2dir = optarg;
+				break;
+			case 'p':
+				errno = 0;
+				part_offset = strtoul(optarg, 0, 0);
+				if (errno) {
+					fprintf(stderr, "-p: illegal numeric string\n");
+					usage();
+				}
 				break;
 			case 'o':
 				if (!mtd_fixtrx) {
@@ -641,6 +666,9 @@ int main (int argc, char **argv)
 		device = argv[1];
 	} else if (((strcmp(argv[0], "fixtrx") == 0) && (argc == 2)) && mtd_fixtrx) {
 		cmd = CMD_FIXTRX;
+		device = argv[1];
+	} else if (((strcmp(argv[0], "fixseama") == 0) && (argc == 2)) && mtd_fixseama) {
+		cmd = CMD_FIXSEAMA;
 		device = argv[1];
 	} else if ((strcmp(argv[0], "write") == 0) && (argc == 3)) {
 		cmd = CMD_WRITE;
@@ -704,7 +732,7 @@ int main (int argc, char **argv)
 		case CMD_WRITE:
 			if (!unlocked)
 				mtd_unlock(device);
-			mtd_write(imagefd, device, fis_layout);
+			mtd_write(imagefd, device, fis_layout, part_offset);
 			break;
 		case CMD_JFFS2WRITE:
 			if (!unlocked)
@@ -718,6 +746,9 @@ int main (int argc, char **argv)
 		    if (mtd_fixtrx) {
 			    mtd_fixtrx(device, offset);
             }
+		case CMD_FIXSEAMA:
+			if (mtd_fixseama)
+			    mtd_fixseama(device, 0);
 			break;
 	}
 

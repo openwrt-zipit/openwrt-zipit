@@ -38,7 +38,7 @@
 #include "gpio.h"
 
 #ifdef CONFIG_BCM47XX
-#include <nvram.h>
+#include <bcm47xx_nvram.h>
 #endif
 
 #define DRIVER_NAME "adm6996"
@@ -89,7 +89,7 @@ static unsigned int get_gpiopin(char *pin_name, unsigned int def_pin)
 	/* Go thru all possibilities till a match in pin name */
 	for (pin = 0; pin < 16; pin ++) {
 		sprintf(name, "gpio%d", pin);
-		if (nvram_getenv(name, val, sizeof(val)) >= 0) {
+		if (bcm47xx_nvram_getenv(name, val, sizeof(val)) >= 0) {
 			if (!strcmp(val, pin_name))
 				return pin;
 		}
@@ -104,7 +104,7 @@ static void adm_write(int cs, char *buf, unsigned int bits)
 	int i, len = (bits + 7) / 8;
 	__u8 mask;
 
-	gpio_out(eecs, (cs ? eecs : 0));
+	bcm47xx_gpio_out(eecs, (cs ? eecs : 0));
 	udelay(EECK_EDGE_TIME);
 
 	/* Byte assemble from MSB to LSB */
@@ -112,25 +112,25 @@ static void adm_write(int cs, char *buf, unsigned int bits)
 		/* Bit bang from MSB to LSB */
 		for (mask = 0x80; mask && bits > 0; mask >>= 1, bits --) {
 			/* Clock low */
-			gpio_out(eesk, 0);
+			bcm47xx_gpio_out(eesk, 0);
 			udelay(EECK_EDGE_TIME);
 
 			/* Output on rising edge */
-			gpio_out(eedi, ((mask & buf[i]) ? eedi : 0));
+			bcm47xx_gpio_out(eedi, ((mask & buf[i]) ? eedi : 0));
 			udelay(EEDI_SETUP_TIME);
 
 			/* Clock high */
-			gpio_out(eesk, eesk);
+			bcm47xx_gpio_out(eesk, eesk);
 			udelay(EECK_EDGE_TIME);
 		}
 	}
 
 	/* Clock low */
-	gpio_out(eesk, 0);
+	bcm47xx_gpio_out(eesk, 0);
 	udelay(EECK_EDGE_TIME);
 
 	if (cs)
-		gpio_out(eecs, 0);
+		bcm47xx_gpio_out(eecs, 0);
 }
 
 
@@ -139,7 +139,7 @@ static void adm_read(int cs, char *buf, unsigned int bits)
 	int i, len = (bits + 7) / 8;
 	__u8 mask;
 
-	gpio_out(eecs, (cs ? eecs : 0));
+	bcm47xx_gpio_out(eecs, (cs ? eecs : 0));
 	udelay(EECK_EDGE_TIME);
 
 	/* Byte assemble from MSB to LSB */
@@ -151,16 +151,16 @@ static void adm_read(int cs, char *buf, unsigned int bits)
 			__u8 gp;
 
 			/* Clock low */
-			gpio_out(eesk, 0);
+			bcm47xx_gpio_out(eesk, 0);
 			udelay(EECK_EDGE_TIME);
 
 			/* Input on rising edge */
-			gp = gpio_in();
+			gp = bcm47xx_gpio_in(~0);
 			if (gp & eedi)
 				byte |= mask;
 
 			/* Clock high */
-			gpio_out(eesk, eesk);
+			bcm47xx_gpio_out(eesk, eesk);
 			udelay(EECK_EDGE_TIME);
 		}
 
@@ -168,11 +168,11 @@ static void adm_read(int cs, char *buf, unsigned int bits)
 	}
 
 	/* Clock low */
-	gpio_out(eesk, 0);
+	bcm47xx_gpio_out(eesk, 0);
 	udelay(EECK_EDGE_TIME);
 
 	if (cs)
-		gpio_out(eecs, 0);
+		bcm47xx_gpio_out(eecs, 0);
 }
 
 
@@ -180,10 +180,10 @@ static void adm_read(int cs, char *buf, unsigned int bits)
 static void adm_enout(__u8 pins, __u8 val)
 {
 	/* Prepare GPIO output value */
-	gpio_out(pins, val);
+	bcm47xx_gpio_out(pins, val);
 
 	/* Enable GPIO outputs */
-	gpio_outen(pins, pins);
+	bcm47xx_gpio_outen(pins, pins);
 	udelay(EECK_EDGE_TIME);
 }
 
@@ -192,7 +192,7 @@ static void adm_enout(__u8 pins, __u8 val)
 static void adm_disout(__u8 pins)
 {
 	/* Disable GPIO outputs */
-	gpio_outen(pins, 0);
+	bcm47xx_gpio_outen(pins, 0);
 	udelay(EECK_EDGE_TIME);
 }
 
@@ -203,11 +203,11 @@ static void adm_adclk(int clocks)
 	int i;
 	for (i = 0; i < clocks; i++) {
 		/* Clock high */
-		gpio_out(eesk, eesk);
+		bcm47xx_gpio_out(eesk, eesk);
 		udelay(EECK_EDGE_TIME);
 
 		/* Clock low */
-		gpio_out(eesk, 0);
+		bcm47xx_gpio_out(eesk, 0);
 		udelay(EECK_EDGE_TIME);
 	}
 }
@@ -386,7 +386,7 @@ static int handle_port_media_write(void *driver, char *buf, int nr)
 	int media = switch_parse_media(buf);
 	int reg = adm_rreg(0, port_conf[nr]);
 
-	if (media < 0)
+	if (media < 0 || media & SWITCH_MEDIA_1000)
 		return -1;
 
 	reg &= ~((1 << 1) | (1 << 2) | (1 << 3));
@@ -497,10 +497,10 @@ static int detect_adm(void)
 	int boardflags = 0;
 	int boardnum = 0;
 		
-	if (nvram_getenv("boardflags", buf, sizeof(buf)) >= 0)
+	if (bcm47xx_nvram_getenv("boardflags", buf, sizeof(buf)) >= 0)
 		boardflags = simple_strtoul(buf, NULL, 0);
 
-	if (nvram_getenv("boardnum", buf, sizeof(buf)) >= 0)
+	if (bcm47xx_nvram_getenv("boardnum", buf, sizeof(buf)) >= 0)
 		boardnum = simple_strtoul(buf, NULL, 0);
 
 	if ((boardnum == 44) && (boardflags == 0x0388)) {  /* Trendware TEW-411BRP+ */
@@ -519,9 +519,9 @@ static int detect_adm(void)
 		eedi = get_gpiopin("adm_eedi", 4);
 		eerc = get_gpiopin("adm_rc", 0);
 
-	} else if (nvram_getenv("boardtype", buf, sizeof(buf)) >= 0) {
+	} else if (bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf)) >= 0) {
 		if (strcmp(buf, "bcm94710dev") == 0) {
-			if (nvram_getenv("boardnum", buf, sizeof(buf)) >= 0) {
+			if (bcm47xx_nvram_getenv("boardnum", buf, sizeof(buf)) >= 0) {
 				if (strncmp(buf, "42", 2) == 0) {
 					/* WRT54G v1.1 hack */
 					eecs = 2;
@@ -578,6 +578,7 @@ static int __init adm_init(void)
 		port_handlers: port,
 		vlan_handlers: vlan,
 	};
+	snprintf(driver.dev_name, SWITCH_NAME_BUFSZ, DRIVER_NAME);
 
 	if (!detect_adm())
 		return -ENODEV;

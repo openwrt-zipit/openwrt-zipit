@@ -24,70 +24,6 @@ endef
 $(eval $(call KernelPackage,leds-gpio))
 
 
-define KernelPackage/leds-net48xx
-  SUBMENU:=$(LEDS_MENU)
-  TITLE:=Soekris Net48xx LED support
-  DEPENDS:=@TARGET_x86 +kmod-gpio-scx200
-  KCONFIG:=CONFIG_LEDS_NET48XX
-  FILES:=$(LINUX_DIR)/drivers/leds/leds-net48xx.ko
-  AUTOLOAD:=$(call AutoLoad,50,leds-net48xx)
-endef
-
-define KernelPackage/leds-net48xx/description
- Kernel module for Soekris Net48xx LEDs
-endef
-
-$(eval $(call KernelPackage,leds-net48xx))
-
-
-define KernelPackage/leds-rb750
-  SUBMENU:=$(LEDS_MENU)
-  TITLE:=RouterBOARD 750 LED support
-  DEPENDS:=@TARGET_ar71xx
-  KCONFIG:=CONFIG_LEDS_RB750
-  FILES:=$(LINUX_DIR)/drivers/leds/leds-rb750.ko
-  AUTOLOAD:=$(call AutoLoad,60,leds-rb750)
-endef
-
-define KernelPackage/leds-rb750/description
- Kernel module for the LEDs on the MikroTik RouterBOARD 750.
-endef
-
-$(eval $(call KernelPackage,leds-rb750))
-
-
-define KernelPackage/leds-wndr3700-usb
-  SUBMENU:=$(LEDS_MENU)
-  TITLE:=WNDR3700 USB LED support
-  DEPENDS:=@TARGET_ar71xx
-  KCONFIG:=CONFIG_LEDS_WNDR3700_USB
-  FILES:=$(LINUX_DIR)/drivers/leds/leds-wndr3700-usb.ko
-  AUTOLOAD:=$(call AutoLoad,60,leds-wndr3700-usb)
-endef
-
-define KernelPackage/leds-wndr3700-usb/description
- Kernel module for the USB LED on the NETGWR WNDR3700 board.
-endef
-
-$(eval $(call KernelPackage,leds-wndr3700-usb))
-
-
-define KernelPackage/leds-wrap
-  SUBMENU:=$(LEDS_MENU)
-  TITLE:=PCengines WRAP LED support
-  DEPENDS:=@TARGET_x86 +kmod-gpio-scx200
-  KCONFIG:=CONFIG_LEDS_WRAP
-  FILES:=$(LINUX_DIR)/drivers/leds/leds-wrap.ko
-  AUTOLOAD:=$(call AutoLoad,50,leds-wrap)
-endef
-
-define KernelPackage/leds-wrap/description
- Kernel module for PCengines WRAP LEDs
-endef
-
-$(eval $(call KernelPackage,leds-wrap))
-
-
 define KernelPackage/ledtrig-heartbeat
   SUBMENU:=$(LEDS_MENU)
   TITLE:=LED Heartbeat Trigger
@@ -172,7 +108,7 @@ $(eval $(call KernelPackage,ledtrig-netfilter))
 define KernelPackage/ledtrig-usbdev
   SUBMENU:=$(LEDS_MENU)
   TITLE:=LED USB device Trigger
-  DEPENDS:=@USB_SUPPORT +kmod-usb-core
+  DEPENDS:=@USB_SUPPORT kmod-usb-core
   KCONFIG:=CONFIG_LEDS_TRIGGER_USBDEV
   FILES:=$(LINUX_DIR)/drivers/leds/ledtrig-usbdev.ko
   AUTOLOAD:=$(call AutoLoad,50,ledtrig-usbdev)
@@ -214,3 +150,20 @@ define KernelPackage/ledtrig-timer/description
 endef
 
 $(eval $(call KernelPackage,ledtrig-timer))
+
+
+define KernelPackage/ledtrig-oneshot
+  SUBMENU:=$(LEDS_MENU)
+  TITLE:=LED One-Shot Trigger
+  DEPENDS:=@!LINUX_3_3
+  KCONFIG:=CONFIG_LEDS_TRIGGER_ONESHOT
+  FILES:=$(LINUX_DIR)/drivers/leds/ledtrig-oneshot.ko
+  AUTOLOAD:=$(call AutoLoad,50,ledtrig-oneshot)
+endef
+
+define KernelPackage/ledtrig-oneshot/description
+ Kernel module that allows LEDs to be triggered by sporadic events in
+ one-shot pulses.
+endef
+
+$(eval $(call KernelPackage,ledtrig-oneshot))

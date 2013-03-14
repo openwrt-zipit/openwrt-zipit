@@ -53,7 +53,7 @@
  			IF_FEATURE_DATE_ISOFMT("I::D:"),
  			&date_str, &date_str, &filename
  			IF_FEATURE_DATE_ISOFMT(, &isofmt_arg, &fmt_str2dt));
-@@ -241,6 +247,27 @@ int date_main(int argc UNUSED_PARAM, cha
+@@ -241,6 +247,31 @@ int date_main(int argc UNUSED_PARAM, cha
  	if (*argv)
  		bb_show_usage();
  
@@ -67,7 +67,11 @@
 +		settimeofday(NULL, &tz);
 +
 +		memset(&tz, 0, sizeof(tz));
++#ifdef __USE_BSD
 +		tz.tz_minuteswest = -(tm_time.tm_gmtoff / 60);
++#else
++		tz.tz_minuteswest = -(tm_time.__tm_gmtoff / 60);
++#endif
 +
 +		if (settimeofday(NULL, &tz))
 +		{

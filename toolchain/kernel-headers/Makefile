@@ -36,6 +36,7 @@ HOST_EXTRACFLAGS=
 LINUX_HAS_HEADERS_INSTALL:=y
 
 KMAKE := $(MAKE) -C $(HOST_BUILD_DIR) \
+	HOSTCFLAGS="$(HOST_CFLAGS) -Wall -Wmissing-prototypes -Wstrict-prototypes" \
 	ARCH=$(LINUX_KARCH) \
 	CC="$(KERNEL_CC)" \
 	CFLAGS="$(TARGET_CFLAGS)" \
@@ -67,15 +68,6 @@ define Host/Configure/post/cris
 	ln -snf $(BUILD_DIR_TOOLCHAIN)/linux-dev/include/arch-v10/arch \
 		$(BUILD_DIR_TOOLCHAIN)/linux-dev/include/arch
 	$(SED) '/#include <asm\/page\.h>/d' $(BUILD_DIR_TOOLCHAIN)/linux-dev/include/asm/user.h
-endef
-
-define Host/Configure/post/ubicom32
-	$(CP) \
-		$(HOST_BUILD_DIR)/arch/ubicom32/include/asm/elf.h \
-		$(HOST_BUILD_DIR)/arch/ubicom32/include/asm/user.h \
-		$(HOST_BUILD_DIR)/arch/ubicom32/include/asm/page.h \
-		$(HOST_BUILD_DIR)/arch/ubicom32/include/asm/page_offset.h \
-		$(BUILD_DIR_TOOLCHAIN)/linux-dev/include/asm/
 endef
 
 define Host/Configure/post/mips

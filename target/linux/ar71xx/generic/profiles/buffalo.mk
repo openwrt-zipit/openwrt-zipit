@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2009 OpenWrt.org
+# Copyright (C) 2009-2013 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -49,6 +49,17 @@ endef
 
 $(eval $(call Profile,WZRHPG450H))
 
+define Profile/WZR600DHP
+	NAME:=Buffalo WZR-600DHP
+	PACKAGES:=kmod-usb-core kmod-usb2 kmod-ledtrig-usbdev
+endef
+
+define Profile/WZR600DHP/Description
+	Package set optimized for the Buffalo WZR-600DHP
+endef
+
+$(eval $(call Profile,WZR600DHP))
+
 define Profile/WHRG301N
 	NAME:=Buffalo WHR-G301N
 	PACKAGES:=
@@ -83,3 +94,14 @@ define Profile/WHRHPGN/Description
 endef
 
 $(eval $(call Profile,WHRHPGN))
+
+define Profile/WLAEAG300N
+	NAME:=Buffalo WLAE-AG300N
+	PACKAGES:=kmod-ledtrig-netdev
+endef
+
+define Profile/WLAEAG300N/Description
+	Package set optimized for the Buffalo WLAE-AG300N
+endef
+
+$(eval $(call Profile,WLAEAG300N))

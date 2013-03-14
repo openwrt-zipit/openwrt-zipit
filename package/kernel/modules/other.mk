@@ -70,22 +70,6 @@ endef
 $(eval $(call KernelPackage,bluetooth-hci-h4p))
 
 
-define KernelPackage/cpu-msr
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=x86 CPU MSR support
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_X86_MSR
-  FILES:=$(LINUX_DIR)/arch/x86/kernel/msr.ko
-  AUTOLOAD:=$(call AutoLoad,20,msr)
-endef
-
-define KernelPackage/cpu-msr/description
- Kernel module for Model Specific Registers support in x86 CPUs
-endef
-
-$(eval $(call KernelPackage,cpu-msr))
-
-
 define KernelPackage/eeprom-93cx6
   SUBMENU:=$(OTHER_MENU)
   TITLE:=EEPROM 93CX6 support
@@ -132,22 +116,6 @@ endef
 $(eval $(call KernelPackage,eeprom-at25))
 
 
-define KernelPackage/gpio-cs5535-new
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=AMD CS5535/CS5536 GPIO driver with improved sysfs support
-  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd
-  KCONFIG:=CONFIG_GPIO_CS5535
-  FILES:=$(LINUX_DIR)/drivers/gpio/gpio-cs5535.ko
-  AUTOLOAD:=$(call AutoLoad,50,gpio-cs5535)
-endef
-
-define KernelPackage/gpio-cs5535-new/description
- This package contains the new AMD CS5535/CS5536 GPIO driver
-endef
-
-$(eval $(call KernelPackage,gpio-cs5535-new))
-
-
 define KernelPackage/gpio-dev
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Generic GPIO char device support
@@ -164,57 +132,9 @@ endef
 $(eval $(call KernelPackage,gpio-dev))
 
 
-define KernelPackage/gpio-nsc
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Natsemi GPIO support
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_NSC_GPIO
-  FILES:=$(LINUX_DIR)/drivers/char/nsc_gpio.ko
-  AUTOLOAD:=$(call AutoLoad,40,nsc_gpio)
-endef
-
-define KernelPackage/gpio-nsc/description
- Kernel module for Natsemi GPIO
-endef
-
-$(eval $(call KernelPackage,gpio-nsc))
-
-
-define KernelPackage/gpio-pc8736x
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=PC8736x GPIO support
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_PC8736x_GPIO
-  FILES:=$(LINUX_DIR)/drivers/char/pc8736x_gpio.ko
-  AUTOLOAD:=$(call AutoLoad,40,pc8736x_gpio)
-endef
-
-define KernelPackage/gpio-pc8736x/description
- Kernel module for PC8736x GPIO
-endef
-
-$(eval $(call KernelPackage,gpio-pc8736x))
-
-
-define KernelPackage/gpio-scx200
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Natsemi SCX200 GPIO support
-  DEPENDS:=@TARGET_x86 +kmod-gpio-nsc
-  KCONFIG:=CONFIG_SCx200_GPIO
-  FILES:=$(LINUX_DIR)/drivers/char/scx200_gpio.ko
-  AUTOLOAD:=$(call AutoLoad,50,scx200_gpio)
-endef
-
-define KernelPackage/gpio-scx200/description
- Kernel module for SCX200 GPIO
-endef
-
-$(eval $(call KernelPackage,gpio-scx200))
-
 define KernelPackage/gpio-nxp-74hc164
   SUBMENU:=$(OTHER_MENU)
   TITLE:=NXP 74HC164 GPIO expander support
-  DEPENDS:=@TARGET_brcm63xx
   KCONFIG:=CONFIG_GPIO_NXP_74HC164
   FILES:=$(LINUX_DIR)/drivers/gpio/nxp_74hc164.ko
   AUTOLOAD:=$(call AutoLoad,99,nxp_74hc164)
@@ -394,7 +314,6 @@ endef
 $(eval $(call KernelPackage,input-userlevel))
 
 
-
 define KernelPackage/lp
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Parallel port and line printer support
@@ -439,22 +358,6 @@ endef
 $(eval $(call KernelPackage,mmc))
 
 
-define KernelPackage/mmc-atmelmci
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Amtel MMC Support
-  DEPENDS:=@TARGET_avr32 +kmod-mmc
-  KCONFIG:=CONFIG_MMC_ATMELMCI
-  FILES:=$(LINUX_DIR)/drivers/mmc/host/atmel-mci.ko
-  AUTOLOAD:=$(call AutoLoad,90,atmel-mci)
-endef
-
-define KernelPackage/mmc-atmelmci/description
- Kernel support for  Atmel Multimedia Card Interface.
-endef
-
-$(eval $(call KernelPackage,mmc-atmelmci,1))
-
-
 define KernelPackage/oprofile
   SUBMENU:=$(OTHER_MENU)
   TITLE:=OProfile profiling support
@@ -476,7 +379,8 @@ define KernelPackage/rfkill
   KCONFIG:= \
     CONFIG_RFKILL \
     CONFIG_RFKILL_INPUT=y \
-    CONFIG_RFKILL_LEDS=y
+    CONFIG_RFKILL_LEDS=y \
+    CONFIG_RFKILL_GPIO=y
   FILES:= \
     $(LINUX_DIR)/net/rfkill/rfkill.ko
   AUTOLOAD:=$(call AutoLoad,20,rfkill)
@@ -544,6 +448,7 @@ define KernelPackage/bcma
 	CONFIG_BCMA_HOST_PCI=y \
 	CONFIG_BCMA_DRIVER_MIPS=n \
 	CONFIG_BCMA_DRIVER_PCI_HOSTMODE=n \
+	CONFIG_BCMA_DRIVER_GMAC_CMN=n \
 	CONFIG_BCMA_DEBUG=n
   FILES:=$(LINUX_DIR)/drivers/bcma/bcma.ko
   AUTOLOAD:=$(call AutoLoad,29,bcma)
@@ -554,72 +459,6 @@ define KernelPackage/bcma/description
 endef
 
 $(eval $(call KernelPackage,bcma))
-
-
-define KernelPackage/wdt-geode
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Geode/LX Watchdog timer
-  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfgpt
-  KCONFIG:=CONFIG_GEODE_WDT
-  FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/geodewdt.ko
-  AUTOLOAD:=$(call AutoLoad,50,geodewdt)
-endef
-
-define KernelPackage/wdt-geode/description
-  Kernel module for Geode watchdog timer.
-endef
-
-$(eval $(call KernelPackage,wdt-geode))
-
-
-define KernelPackage/cs5535-clockevt
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=CS5535/CS5536 high-res timer (MFGPT) events
-  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfgpt
-  KCONFIG:=CONFIG_CS5535_CLOCK_EVENT_SRC
-  FILES:=$(LINUX_DIR)/drivers/clocksource/cs5535-clockevt.ko
-  AUTOLOAD:=$(call AutoLoad,50,cs5535-clockevt)
-endef
-
-define KernelPackage/cs5535-clockevt/description
-  Kernel module for CS5535/6 high-res clock event source
-endef
-
-$(eval $(call KernelPackage,cs5535-clockevt))
-
-
-define KernelPackage/cs5535-mfgpt
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=CS5535/6 Multifunction General Purpose Timer
-  DEPENDS:=@TARGET_x86 +kmod-cs5535-mfd
-  KCONFIG:=CONFIG_CS5535_MFGPT
-  FILES:=$(LINUX_DIR)/drivers/misc/cs5535-mfgpt.ko
-  AUTOLOAD:=$(call AutoLoad,45,cs5535-mfgpt)
-endef
-
-define KernelPackage/cs5535-mfgpt/description
-  Kernel module for CS5535/6 multifunction general purpose timer.
-endef
-
-$(eval $(call KernelPackage,cs5535-mfgpt))
-
-
-define KernelPackage/cs5535-mfd
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=CS5535/6 Multifunction General Purpose Driver
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_MFD_CS5535
-  FILES:= \
-  	$(LINUX_DIR)/drivers/mfd/mfd-core.ko \
-  	$(LINUX_DIR)/drivers/mfd/cs5535-mfd.ko
-  AUTOLOAD:=$(call AutoLoad,44,mfd-core cs5535-mfd)
-endef
-
-define KernelPackage/cs5535-mfd/description
-  Core driver for CS5535/CS5536 MFD functions.
-endef
-
-$(eval $(call KernelPackage,cs5535-mfd))
 
 
 define KernelPackage/wdt-omap
@@ -641,65 +480,17 @@ $(eval $(call KernelPackage,wdt-omap))
 define KernelPackage/wdt-orion
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Marvell Orion Watchdog timer
-  DEPENDS:=@TARGET_orion
+  DEPENDS:=@TARGET_orion||TARGET_kirkwood||TARGET_mvebu
   KCONFIG:=CONFIG_ORION_WATCHDOG
   FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/orion_wdt.ko
   AUTOLOAD:=$(call AutoLoad,50,orion_wdt)
 endef
 
 define KernelPackage/wdt-orion/description
-  Kernel module for Marvell orion watchdog timer.
+  Kernel module for Marvell Orion, Kirkwood and Armada XP/370 watchdog timer.
 endef
 
 $(eval $(call KernelPackage,wdt-orion))
-
-
-define KernelPackage/wdt-sc520
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Natsemi SC520 Watchdog support
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_SC520_WDT
-  FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/sc520_wdt.ko
-  AUTOLOAD:=$(call AutoLoad,50,sc520_wdt)
-endef
-
-define KernelPackage/wdt-sc520/description
-  Kernel module for SC520 Watchdog
-endef
-
-$(eval $(call KernelPackage,wdt-sc520))
-
-
-define KernelPackage/wdt-scx200
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Natsemi SCX200 Watchdog support
-  DEPENDS:=@TARGET_x86
-  KCONFIG:=CONFIG_SCx200_WDT
-  FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/scx200_wdt.ko
-  AUTOLOAD:=$(call AutoLoad,50,scx200_wdt)
-endef
-
-define KernelPackage/wdt-scx200/description
- Kernel module for SCX200 Watchdog
-endef
-
-$(eval $(call KernelPackage,wdt-scx200))
-
-
-define KernelPackage/wdt-ath79
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Atheros AR7XXX/AR9XXX watchdog timer
-  DEPENDS:=@TARGET_ar71xx
-  KCONFIG:=CONFIG_ATH79_WDT
-  FILES:=$(LINUX_DIR)/drivers/$(WATCHDOG_DIR)/ath79_wdt.ko
-  AUTOLOAD:=$(call AutoLoad,50,ath79_wdt)
-endef
-
-define KernelPackage/wdt-ath79/description
-  Kernel module for AR7XXX/AR9XXX watchdog timer.
-endef
-
-$(eval $(call KernelPackage,wdt-ath79))
 
 
 define KernelPackage/booke-wdt
@@ -747,6 +538,40 @@ define KernelPackage/pwm-gpio/description
 endef
 
 $(eval $(call KernelPackage,pwm-gpio))
+
+
+define KernelPackage/rtc-isl1208
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Intersil ISL1208 RTC support
+  $(call AddDepends/rtc)
+  DEPENDS+=+kmod-i2c-core
+  KCONFIG:=CONFIG_RTC_DRV_ISL1208
+  FILES:=$(LINUX_DIR)/drivers/rtc/rtc-isl1208.ko
+  AUTOLOAD:=$(call AutoLoad,60,rtc-isl1208)
+endef
+
+define KernelPackage/rtc-isl1208/description
+ Kernel module for Intersil ISL1208 RTC.
+endef
+
+$(eval $(call KernelPackage,rtc-isl1208))
+
+
+define KernelPackage/rtc-marvell
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Marvell SoC built-in RTC support
+  $(call AddDepends/rtc)
+  DEPENDS+=@TARGET_kirkwood||TARGET_orion||TARGET_mvebu
+  KCONFIG:=CONFIG_RTC_DRV_MV
+  FILES:=$(LINUX_DIR)/drivers/rtc/rtc-mv.ko
+  AUTOLOAD:=$(call AutoLoad,60,rtc-mv)
+endef
+
+define KernelPackage/rtc-marvell/description
+ Kernel module for Marvell SoC built-in RTC.
+endef
+
+$(eval $(call KernelPackage,rtc-marvell))
 
 define KernelPackage/rtc-pcf8563
   SUBMENU:=$(OTHER_MENU)
@@ -854,7 +679,6 @@ $(eval $(call KernelPackage,mtdtests))
 define KernelPackage/nand
   SUBMENU:=$(OTHER_MENU)
   TITLE:=NAND flash support
-  DEPENDS:=@!LINUX_2_6_39
   KCONFIG:=CONFIG_MTD_NAND \
 	CONFIG_MTD_NAND_IDS \
 	CONFIG_MTD_NAND_ECC
@@ -897,7 +721,7 @@ define KernelPackage/serial-8250
 	CONFIG_SERIAL_8250_SHARE_IRQ=y \
 	CONFIG_SERIAL_8250_DETECT_IRQ=n \
 	CONFIG_SERIAL_8250_RSA=n
-  FILES:=$(LINUX_DIR)/drivers/tty/serial/8250/8250.ko
+  FILES:=$(LINUX_DIR)/drivers/tty/serial/8250/8250$(if $(call kernel_patchver_ge,3.7),_core).ko
 endef
 
 define KernelPackage/serial-8250/description
@@ -907,17 +731,126 @@ endef
 $(eval $(call KernelPackage,serial-8250))
 
 
-define KernelPackage/acpi-button
+define KernelPackage/regmap
   SUBMENU:=$(OTHER_MENU)
-  TITLE:=ACPI Button Support
-  DEPENDS:=@(TARGET_x86_generic||TARGET_x86_kvm_guest||TARGET_x86_xen_domu) +kmod-input-evdev
-  KCONFIG:=CONFIG_ACPI_BUTTON
-  FILES:=$(LINUX_DIR)/drivers/acpi/button.ko
-  AUTOLOAD:=$(call AutoLoad,06,button)
+  TITLE:=Generic register map support
+  DEPENDS:=+kmod-lib-lzo +kmod-i2c-core
+  KCONFIG:=CONFIG_REGMAP \
+	   CONFIG_REGMAP_SPI \
+	   CONFIG_REGMAP_I2C \
+	   CONFIG_SPI=y
+  FILES:= \
+	$(LINUX_DIR)/drivers/base/regmap/regmap-core.ko \
+	$(LINUX_DIR)/drivers/base/regmap/regmap-i2c.ko \
+	$(LINUX_DIR)/drivers/base/regmap/regmap-spi.ko
+  AUTOLOAD:=$(call AutoLoad,10,regmap-core regmap-i2c regmap-spi)
 endef
 
-define KernelPackage/acpi-button/description
- Kernel module for ACPI Button support
+define KernelPackage/regmap/description
+  Generic register map support
 endef
 
-$(eval $(call KernelPackage,acpi-button))
+$(eval $(call KernelPackage,regmap))
+
+define KernelPackage/ikconfig
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Kernel configuration via /proc/config.gz
+  KCONFIG:=CONFIG_IKCONFIG \
+	   CONFIG_IKCONFIG_PROC=y
+  FILES:=$(LINUX_DIR)/kernel/configs.ko
+  AUTOLOAD:=$(call AutoLoad,70,configs)
+endef
+
+define KernelPackage/ikconfig/description
+	Kernel configuration via /proc/config.gz
+endef
+
+$(eval $(call KernelPackage,ikconfig))
+
+
+define KernelPackage/zram
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=ZRAM
+  DEPENDS:=@!LINUX_3_3 +kmod-lib-lzo
+  KCONFIG:= \
+	CONFIG_ZSMALLOC \
+	CONFIG_ZRAM \
+	CONFIG_ZRAM_DEBUG=n
+  FILES:= \
+	$(LINUX_DIR)/drivers/staging/zsmalloc/zsmalloc.ko \
+	$(LINUX_DIR)/drivers/staging/zram/zram.ko
+  AUTOLOAD:=$(call AutoLoad,20,zsmalloc zram)
+endef
+
+define KernelPackage/zram/description
+ Compressed RAM block device support
+endef
+
+$(eval $(call KernelPackage,zram))
+
+
+define KernelPackage/mvsdio
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Marvell SDIO support
+  DEPENDS:=@TARGET_orion||TARGET_kirkwood||TARGET_mvebu +kmod-mmc
+  KCONFIG:=CONFIG_MMC_MVSDIO
+  FILES:=$(LINUX_DIR)/drivers/mmc/host/mvsdio.ko
+  AUTOLOAD:=$(call AutoLoad,91,mvsdio)
+endef
+
+define KernelPacakge/mvsdio/description
+  Kernel support for the Marvell SDIO controller
+endef
+
+$(eval $(call KernelPackage,mvsdio))
+
+
+define KernelPackage/pps
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=PPS support
+  KCONFIG:=CONFIG_PPS
+  FILES:=$(LINUX_DIR)/drivers/pps/pps_core.ko
+  AUTOLOAD:=$(call AutoLoad,20,pps_core)
+endef
+
+define KernelPacakge/pps/description
+  PPS (Pulse Per Second) is a special pulse provided by some GPS
+  antennae. Userland can use it to get a high-precision time
+  reference.
+endef
+
+$(eval $(call KernelPackage,pps))
+
+
+define KernelPackage/ptp
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=PTP clock support
+  DEPENDS:=+kmod-pps
+  KCONFIG:=CONFIG_PTP_1588_CLOCK
+  FILES:=$(LINUX_DIR)/drivers/ptp/ptp.ko
+  AUTOLOAD:=$(call AutoLoad,25,ptp)
+endef
+
+define KernelPacakge/ptp/description
+  The IEEE 1588 standard defines a method to precisely
+  synchronize distributed clocks over Ethernet networks.
+endef
+
+$(eval $(call KernelPackage,ptp))
+
+
+define KernelPackage/ptp-gianfar
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Freescale Gianfar PTP support
+  DEPENDS:=@TARGET_mpc85xx +kmod-gianfar +kmod-ptp
+  KCONFIG:=CONFIG_PTP_1588_CLOCK_GIANFAR
+  FILES:=$(LINUX_DIR)/drivers/net/ethernet/freescale/gianfar_ptp.ko
+  AUTOLOAD:=$(call AutoLoad,51,gianfar_ptp)
+endef
+
+define KernelPacakge/ptp-gianfar/description
+  Kernel module for IEEE 1588 support for Freescale
+  Gianfar Ethernet drivers.
+endef
+
+$(eval $(call KernelPackage,ptp-gianfar))

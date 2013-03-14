@@ -11,7 +11,7 @@ GCC_CONFIGURE += \
 
 define Host/Compile
 	$(CP) $(BUILD_DIR_TOOLCHAIN)/linux-dev/* $(BUILD_DIR_TOOLCHAIN)/$(LIBC)-dev/
-	$(GCC_MAKE) -C $(GCC_BUILD_DIR) \
+	+$(GCC_MAKE) $(HOST_JOBS) -C $(GCC_BUILD_DIR) \
 		all-build-libiberty \
 		all-gcc \
 		$(if $(GCC_BUILD_TARGET_LIBGCC),all-target-libgcc)
@@ -30,8 +30,7 @@ define Host/Install
 	)
 
 	$(call FixupLibdir,$(TOOLCHAIN_DIR)/initial)
-
-	$(CP) $(TOOLCHAIN_DIR)/initial/. $(TOOLCHAIN_DIR)/
+	$$(call file_copy,$(TOOLCHAIN_DIR)/initial/.,$(TOOLCHAIN_DIR)/)
 endef
 
 $(eval $(call HostBuild))

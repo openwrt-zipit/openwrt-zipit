@@ -10,6 +10,7 @@ ARCH:=arm
 BOARD:=pxa
 BOARDNAME:=Marvell/Intel PXA2xx
 SUBTARGETS=verdex zipitz2
+FEATURES:=squashfs jffs2
 MAINTAINER:=Imre Kaloz <kaloz@openwrt.org>
 
 LINUX_VERSION:=3.3.8

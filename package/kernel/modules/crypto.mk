@@ -15,11 +15,9 @@ CRYPTOMGR_MODULES = \
 	BLKCIPHER2=crypto_blkcipher
 
 crypto_confvar=CONFIG_CRYPTO_$(word 1,$(subst =,$(space),$(1)))
-crypto_file=$(if $(findstring y,$($(call crypto_confvar,$(1)))),,$(LINUX_DIR)/crypto/$(word 2,$(subst =,$(space),$(1))).ko)
+crypto_file=$(LINUX_DIR)/crypto/$(word 2,$(subst =,$(space),$(1))).ko
 crypto_name=$(if $(findstring y,$($(call crypto_confvar,$(1)))),,$(word 2,$(subst =,$(space),$(1))))
 
-# XXX: added CONFIG_CRYPTO_HMAC to KCONFIG so that CONFIG_CRYPTO_HASH is
-# always set, even if no hash modules are selected
 define KernelPackage/crypto-core
   SUBMENU:=$(CRYPTO_MENU)
   TITLE:=Core CryptoAPI modules
@@ -36,7 +34,7 @@ $(eval $(call KernelPackage,crypto-core))
 
 define AddDepends/crypto
   SUBMENU:=$(CRYPTO_MENU)
-  DEPENDS+=kmod-crypto-core $(1)
+  DEPENDS+=+kmod-crypto-core $(1)
 endef
 
 define KernelPackage/crypto-hash
@@ -61,6 +59,17 @@ define KernelPackage/crypto-manager
   $(call AddDepends/crypto)
 endef
 $(eval $(call KernelPackage,crypto-manager))
+
+define KernelPackage/crypto-pcompress
+  TITLE:=CryptoAPI Partial (de)compression operations
+  KCONFIG:= \
+	CONFIG_CRYPTO_PCOMP=y \
+	CONFIG_CRYPTO_PCOMP2
+  FILES:=$(LINUX_DIR)/crypto/pcompress.ko
+  AUTOLOAD:=$(call AutoLoad,09,pcompress)
+  $(call AddDepends/crypto)
+endef
+$(eval $(call KernelPackage,crypto-pcompress))
 
 define KernelPackage/crypto-user
   TITLE:=CryptoAPI userspace interface
@@ -141,7 +150,6 @@ $(eval $(call KernelPackage,crypto-hw-geode))
 
 define KernelPackage/crypto-hw-hifn-795x
   TITLE:=HIFN 795x crypto accelerator
-  DEPENDS:=@!TARGET_ubicom32
   KCONFIG:= \
 	CONFIG_HW_RANDOM=y \
 	CONFIG_CRYPTO_DEV_HIFN_795X \
@@ -152,23 +160,6 @@ define KernelPackage/crypto-hw-hifn-795x
 endef
 
 $(eval $(call KernelPackage,crypto-hw-hifn-795x))
-
-
-define KernelPackage/crypto-hw-ixp4xx
-  TITLE:=Intel IXP4xx hardware crypto module
-  DEPENDS:=@TARGET_ixp4xx
-  KCONFIG:= \
-	CONFIG_CRYPTO_DEV_IXP4XX
-  FILES:=$(LINUX_DIR)/drivers/crypto/ixp4xx_crypto.ko
-  AUTOLOAD:=$(call AutoLoad,90,ixp4xx_crypto)
-  $(call AddDepends/crypto,+kmod-crypto-authenc +kmod-crypto-des)
-endef
-
-define KernelPackage/crypto-hw-ixp4xx/description
-  Kernel support for the Intel IXP4xx HW crypto engine.
-endef
-
-$(eval $(call KernelPackage,crypto-hw-ixp4xx))
 
 
 define KernelPackage/crypto-hw-ppc4xx
@@ -209,7 +200,7 @@ define KernelPackage/crypto-arc4
   KCONFIG:=CONFIG_CRYPTO_ARC4
   FILES:=$(LINUX_DIR)/crypto/arc4.ko
   AUTOLOAD:=$(call AutoLoad,09,arc4)
-  $(call AddDepends/crypto)
+  $(call AddDepends/crypto,+!LINUX_3_3:kmod-crypto-manager)
 endef
 
 $(eval $(call KernelPackage,crypto-arc4))
@@ -341,6 +332,23 @@ endef
 
 $(eval $(call KernelPackage,crypto-sha1))
 
+define KernelPackage/crypto-sha256
+  TITLE:=SHA224 SHA256 digest CryptoAPI module
+  DEPENDS:=+kmod-crypto-hash
+  KCONFIG:=CONFIG_CRYPTO_SHA256
+  FILES:=$(LINUX_DIR)/crypto/sha256_generic.ko
+  AUTOLOAD:=$(call AutoLoad,09,sha256_generic)
+  $(call AddDepends/crypto)
+endef
+
+$(eval $(call KernelPackage,crypto-sha256))
+
+ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.6.0)),1)
+camellia_mod_suffix=_generic
+endif
+ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.7.0)),1)
+cast56_mod_suffix=_generic
+endif
 
 define KernelPackage/crypto-misc
   TITLE:=Other CryptoAPI modules
@@ -354,7 +362,6 @@ define KernelPackage/crypto-misc
 	CONFIG_CRYPTO_FCRYPT \
 	CONFIG_CRYPTO_KHAZAD \
 	CONFIG_CRYPTO_SERPENT \
-	CONFIG_CRYPTO_SHA256 \
 	CONFIG_CRYPTO_SHA512 \
 	CONFIG_CRYPTO_TEA \
 	CONFIG_CRYPTO_TGR192 \
@@ -364,12 +371,11 @@ define KernelPackage/crypto-misc
 	CONFIG_CRYPTO_WP512
   FILES:= \
 	$(LINUX_DIR)/crypto/anubis.ko \
-	$(LINUX_DIR)/crypto/camellia.ko \
-	$(LINUX_DIR)/crypto/cast5.ko \
-	$(LINUX_DIR)/crypto/cast6.ko \
+	$(LINUX_DIR)/crypto/camellia$(camellia_mod_suffix).ko \
+	$(LINUX_DIR)/crypto/cast5$(cast56_mod_suffix).ko \
+	$(LINUX_DIR)/crypto/cast6$(cast56_mod_suffix).ko \
 	$(LINUX_DIR)/crypto/fcrypt.ko \
 	$(LINUX_DIR)/crypto/khazad.ko \
-	$(LINUX_DIR)/crypto/sha256_generic.ko \
 	$(LINUX_DIR)/crypto/sha512_generic.ko \
 	$(LINUX_DIR)/crypto/tea.ko \
 	$(LINUX_DIR)/crypto/tgr192.ko \
@@ -393,7 +399,7 @@ $(eval $(call KernelPackage,crypto-misc))
 
 define KernelPackage/crypto-ocf
   TITLE:=OCF modules
-  DEPENDS:=+@OPENSSL_ENGINE @!TARGET_uml +kmod-crypto-manager
+  DEPENDS:=+@OPENSSL_ENGINE_CRYPTO @!TARGET_uml +kmod-crypto-manager
   KCONFIG:= \
 	CONFIG_OCF_OCF \
 	CONFIG_OCF_CRYPTODEV \
@@ -417,7 +423,7 @@ $(eval $(call KernelPackage,crypto-ocf))
 
 define KernelPackage/crypto-ocf-hifn7751
   TITLE:=OCF support for Hifn 6500/7751/7811/795x, Invertex AEON and NetSec 7751 devices
-  DEPENDS:=+@OPENSSL_ENGINE @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
+  DEPENDS:=+@OPENSSL_ENGINE_CRYPTO @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
   KCONFIG:=CONFIG_OCF_HIFN
   FILES:=$(LINUX_DIR)/crypto/ocf/hifn/hifn7751.ko
   AUTOLOAD:=$(call AutoLoad,10,hifn7751)
@@ -429,7 +435,7 @@ $(eval $(call KernelPackage,crypto-ocf-hifn7751))
 
 define KernelPackage/crypto-ocf-hifnhipp
   TITLE:=OCF support for Hifn 7855/8155 devices
-  DEPENDS:=+@OPENSSL_ENGINE @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
+  DEPENDS:=+@OPENSSL_ENGINE_CRYPTO @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
   KCONFIG:=CONFIG_OCF_HIFNHIPP
   FILES:=$(LINUX_DIR)/crypto/ocf/hifn/hifnHIPP.ko
   AUTOLOAD:=$(call AutoLoad,10,hifnHIPP)
@@ -480,7 +486,7 @@ $(eval $(call KernelPackage,crypto-xts))
 
 define KernelPackage/crypto-mv-cesa
   TITLE:=Marvell crypto engine
-  DEPENDS:=+kmod-crypto-manager +kmod-crypto-aes @TARGET_kirkwood||TARGET_orion
+  DEPENDS:=+kmod-crypto-manager +kmod-crypto-aes @TARGET_kirkwood||TARGET_orion||TARGET_mvebu
   KCONFIG:=CONFIG_CRYPTO_DEV_MV_CESA
   FILES:=$(LINUX_DIR)/drivers/crypto/mv_cesa.ko
   AUTOLOAD:=$(call AutoLoad,09,mv_cesa)
@@ -488,19 +494,3 @@ define KernelPackage/crypto-mv-cesa
 endef
 
 $(eval $(call KernelPackage,crypto-mv-cesa))
-
-
-define KernelPackage/ocf-ubsec-ssb
-  TITLE:=BCM5365P IPSec Core driver
-  DEPENDS:=@TARGET_brcm47xx +kmod-crypto-ocf
-  KCONFIG:=CONFIG_OCF_UBSEC_SSB
-  FILES:=$(LINUX_DIR)/crypto/ocf/ubsec_ssb/ubsec_ssb.ko
-  AUTOLOAD:=$(call AutoLoad,10,ubsec_ssb)
-  $(call AddDepends/crypto)
-endef
-
-define KernelPackage/ocf-ubsec-ssb/description
-  This package contains the OCF driver for the BCM5365p IPSec Core
-endef
-
-$(eval $(call KernelPackage,ocf-ubsec-ssb))

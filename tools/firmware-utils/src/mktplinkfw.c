@@ -32,16 +32,24 @@
 #define HEADER_VERSION_V1	0x01000000
 #define HWID_TL_MR3020_V1	0x30200001
 #define HWID_TL_MR3220_V1	0x32200001
+#define HWID_TL_MR3220_V2	0x32200002
 #define HWID_TL_MR3420_V1	0x34200001
+#define HWID_TL_MR3420_V2	0x34200002
 #define HWID_TL_WA701N_V1	0x07010001
+#define HWID_TL_WA7510N_V1	0x75100001
+#define HWID_TL_WA801ND_V1	0x08010001
+#define HWID_TL_WA830RE_V1	0x08300010
+#define HWID_TL_WA830RE_V2	0x08300002
 #define HWID_TL_WA901ND_V1	0x09010001
 #define HWID_TL_WA901ND_V2	0x09010002
+#define HWID_TL_WDR4900_V1	0x49000001
 #define HWID_TL_WR703N_V1	0x07030101
 #define HWID_TL_WR741ND_V1	0x07410001
 #define HWID_TL_WR741ND_V4	0x07410004
 #define HWID_TL_WR740N_V1	0x07400001
 #define HWID_TL_WR740N_V3	0x07400003
 #define HWID_TL_WR743ND_V1	0x07430001
+#define HWID_TL_WR743ND_V2	0x07430002
 #define HWID_TL_WR841N_V1_5	0x08410002
 #define HWID_TL_WR841ND_V3	0x08410003
 #define HWID_TL_WR841ND_V5	0x08410005
@@ -79,7 +87,10 @@ struct fw_header {
 	uint32_t	rootfs_len;	/* rootfs data length */
 	uint32_t	boot_ofs;	/* bootloader data offset */
 	uint32_t	boot_len;	/* bootloader data length */
-	uint8_t		pad[360];
+	uint16_t	ver_hi;
+	uint16_t	ver_mid;
+	uint16_t	ver_lo;
+	uint8_t		pad[354];
 } __attribute__ ((packed));
 
 struct flash_layout {
@@ -104,6 +115,7 @@ static char *ofname;
 static char *progname;
 static char *vendor = "TP-LINK Technologies";
 static char *version = "ver. 1.0";
+static char *fw_ver = "0.0.0";
 
 static char *board_id;
 static struct board_info *board;
@@ -113,6 +125,9 @@ static char *opt_hw_id;
 static uint32_t hw_id;
 static char *opt_hw_rev;
 static uint32_t hw_rev;
+static int fw_ver_lo;
+static int fw_ver_mid;
+static int fw_ver_hi;
 static struct file_info kernel_info;
 static uint32_t kernel_la = 0;
 static uint32_t kernel_ep = 0;
@@ -165,6 +180,12 @@ static struct flash_layout layouts[] = {
 		.kernel_ep	= 0x80060000,
 		.rootfs_ofs	= 0x100000,
 	}, {
+		.id		= "16Mppc",
+		.fw_max_len	= 0xf80000,
+		.kernel_la	= 0x00000000,
+		.kernel_ep	= 0xc0000000,
+		.rootfs_ofs	= 0x2a0000,
+	}, {
 		/* terminating entry */
 	}
 };
@@ -181,13 +202,43 @@ static struct board_info boards[] = {
 		.hw_rev		= 1,
 		.layout_id	= "4M",
 	}, {
+		.id		= "TL-MR3220v2",
+		.hw_id		= HWID_TL_MR3220_V2,
+		.hw_rev		= 1,
+		.layout_id	= "4Mlzma",
+	}, {
 		.id		= "TL-MR3420v1",
 		.hw_id		= HWID_TL_MR3420_V1,
 		.hw_rev		= 1,
 		.layout_id	= "4M",
 	}, {
+		.id		= "TL-MR3420v2",
+		.hw_id		= HWID_TL_MR3420_V2,
+		.hw_rev		= 1,
+		.layout_id	= "4Mlzma",
+	}, {
 		.id		= "TL-WA701Nv1",
 		.hw_id		= HWID_TL_WA701N_V1,
+		.hw_rev		= 1,
+		.layout_id	= "4M",
+	}, {
+		.id		= "TL-WA7510N",
+		.hw_id		= HWID_TL_WA7510N_V1,
+		.hw_rev		= 1,
+		.layout_id	= "4M",
+	}, {
+		.id		= "TL-WA801NDv1",
+		.hw_id		= HWID_TL_WA801ND_V1,
+		.hw_rev		= 1,
+		.layout_id	= "4M",
+	}, {
+		.id		= "TL-WA830REv1",
+		.hw_id		= HWID_TL_WA830RE_V1,
+		.hw_rev		= 1,
+		.layout_id	= "4M",
+	}, {
+		.id		= "TL-WA830REv2",
+		.hw_id		= HWID_TL_WA830RE_V2,
 		.hw_rev		= 1,
 		.layout_id	= "4M",
 	}, {
@@ -200,6 +251,11 @@ static struct board_info boards[] = {
 		.hw_id          = HWID_TL_WA901ND_V2,
 		.hw_rev         = 1,
 		.layout_id	= "4M",
+	}, {
+		.id             = "TL-WDR4900v1",
+		.hw_id          = HWID_TL_WDR4900_V1,
+		.hw_rev         = 1,
+		.layout_id	= "16Mppc",
 	}, {
 		.id		= "TL-WR741NDv1",
 		.hw_id		= HWID_TL_WR741ND_V1,
@@ -225,6 +281,11 @@ static struct board_info boards[] = {
 		.hw_id		= HWID_TL_WR743ND_V1,
 		.hw_rev		= 1,
 		.layout_id	= "4M",
+	}, {
+		.id		= "TL-WR743NDv2",
+		.hw_id		= HWID_TL_WR743ND_V2,
+		.hw_rev		= 1,
+		.layout_id	= "4Mlzma",
 	}, {
 		.id		= "TL-WR841Nv1.5",
 		.hw_id		= HWID_TL_WR841N_V1_5,
@@ -368,6 +429,7 @@ static void usage(int status)
 "  -j              add jffs2 end-of-filesystem markers\n"
 "  -N <vendor>     set image vendor to <vendor>\n"
 "  -V <version>    set image version to <version>\n"
+"  -v <version>    set firmware version to <version>\n"
 "  -i <file>       inspect given firmware file <file>\n"
 "  -x              extract kernel and rootfs while inspecting (requires -i)\n"
 "  -h              show this screen\n"
@@ -545,6 +607,12 @@ static int check_options(void)
 		return -1;
 	}
 
+	ret = sscanf(fw_ver, "%d.%d.%d", &fw_ver_hi, &fw_ver_mid, &fw_ver_lo);
+	if (ret != 3) {
+		ERR("invalid firmware version '%s'", fw_ver);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -574,6 +642,10 @@ static void fill_header(char *buf, int len)
 		hdr->rootfs_ofs = htonl(rootfs_ofs);
 		hdr->rootfs_len = htonl(rootfs_info.file_size);
 	}
+
+	hdr->ver_hi = htons(fw_ver_hi);
+	hdr->ver_mid = htons(fw_ver_mid);
+	hdr->ver_lo = htons(fw_ver_lo);
 
 	get_md5(buf, len, hdr->md5sum1);
 }
@@ -926,7 +998,7 @@ int main(int argc, char *argv[])
 	while ( 1 ) {
 		int c;
 
-		c = getopt(argc, argv, "a:B:H:E:F:L:V:N:W:ci:k:r:R:o:xhsj");
+		c = getopt(argc, argv, "a:B:H:E:F:L:V:N:W:ci:k:r:R:o:xhsjv:");
 		if (c == -1)
 			break;
 
@@ -954,6 +1026,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'V':
 			version = optarg;
+			break;
+		case 'v':
+			fw_ver = optarg;
 			break;
 		case 'N':
 			vendor = optarg;

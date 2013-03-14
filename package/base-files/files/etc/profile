@@ -12,11 +12,4 @@ export PS1='\u@\h:\w\$ '
 [ -z "$KSH_VERSION" -o \! -s /etc/mkshrc ] || . /etc/mkshrc
 
 [ -x /usr/bin/arp ] || arp() { cat /proc/net/arp; }
-[ -z /bin/ldd ] || ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
-
-for i in /etc/profile.d/*.sh ; do
-  if [ -r "$i" ]; then
-    . $i
-  fi
-done
-
+[ -x /usr/bin/ldd ] || ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }

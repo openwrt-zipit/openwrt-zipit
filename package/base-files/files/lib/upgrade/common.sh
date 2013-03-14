@@ -33,17 +33,19 @@ install_bin() { # <file> [ <symlink> ... ]
 	}; done
 }
 
-pivot() { # <new_root> <old_root>
+supivot() { # <new_root> <old_root>
 	mount | grep "on $1 type" 2>&- 1>&- || mount -o bind $1 $1
-	mkdir -p $1$2 $1/proc $1/dev $1/tmp $1/overlay && \
-	mount -o move /proc $1/proc && \
+	mkdir -p $1$2 $1/proc $1/sys $1/dev $1/tmp $1/overlay && \
+	mount -o noatime,move /proc $1/proc && \
 	pivot_root $1 $1$2 || {
-        umount $1 $1
+        umount -l $1 $1
 		return 1
 	}
-	mount -o move $2/dev /dev
-	mount -o move $2/tmp /tmp
-	mount -o move $2/overlay /overlay 2>&-
+
+	mount -o noatime,move $2/sys /sys
+	mount -o noatime,move $2/dev /dev
+	mount -o noatime,move $2/tmp /tmp
+	mount -o noatime,move $2/overlay /overlay 2>&-
 	return 0
 }
 
@@ -60,7 +62,7 @@ run_ramfs() { # <command> [...]
 	done
 	install_file /etc/resolv.conf /lib/functions.sh /lib/functions.sh /lib/upgrade/*.sh $RAMFS_COPY_DATA
 
-	pivot $RAM_ROOT /mnt || {
+	supivot $RAM_ROOT /mnt || {
 		echo "Failed to switch over to ramfs. Please reboot."
 		exit 1
 	}
@@ -69,7 +71,7 @@ run_ramfs() { # <command> [...]
 	umount -l /mnt
 
 	grep /overlay /proc/mounts > /dev/null && {
-		mount -o remount,ro /overlay
+		mount -o noatime,remount,ro /overlay
 		umount -l /overlay
 	}
 
@@ -83,6 +85,8 @@ kill_remaining() { # [ <signal> ]
 
 	local stat
 	for stat in /proc/[0-9]*/stat; do
+		[ -f "$stat" ] || continue
+
 		local pid name state ppid rest
 		read pid name state ppid rest < $stat
 		name="${name#(}"; name="${name%)}"

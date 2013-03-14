@@ -6,6 +6,8 @@ SERVICE_DAEMONIZE=1
 SERVICE_WRITE_PID=1
 
 start_daemon() {
+	. /lib/functions/network.sh
+
 	local cfg="$1"
 
 	local atmdev
@@ -43,11 +45,16 @@ start_daemon() {
 	config_get sendsize "$cfg" sendsize
 
 	local circuit="$atmdev.$vpi.$vci"
-	
+
+	network_defer_device "nas$unit"
+
 	SERVICE_PID_FILE="/var/run/br2684ctl-$circuit.pid" \
 	service_start /usr/sbin/br2684ctl \
 		-c "$unit" -e "$encaps" -p "$payload" \
 		-a "$circuit" ${qos:+-q "$qos"} ${sendsize:+-s "$sendsize"}
+	sleep 1
+
+	network_ready_device "nas$unit"
 }
 
 stop_daemon() {

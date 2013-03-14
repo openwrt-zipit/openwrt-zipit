@@ -1,26 +1,11 @@
 #
-# Copyright (C) 2006-2010 OpenWrt.org
+# Copyright (C) 2006-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
 
 SOUND_MENU:=Sound Support
-
-define KernelPackage/pcspkr
-  SUBMENU:=$(SOUND_MENU)
-  TITLE:=PC speaker support
-  KCONFIG:=CONFIG_INPUT_PCSPKR
-  FILES:=$(LINUX_DIR)/drivers/input/misc/pcspkr.ko
-  AUTOLOAD:=$(call AutoLoad,50,pcspkr)
-endef
-
-define KernelPackage/pcspkr/description
- This enables sounds (tones) through the pc speaker
-endef
-
-$(eval $(call KernelPackage,pcspkr))
-
 
 # allow targets to override the soundcore stuff
 SOUNDCORE_LOAD ?= \
@@ -96,7 +81,7 @@ define KernelPackage/ac97
   KCONFIG:=CONFIG_SND_AC97_CODEC
   FILES:= \
 	$(LINUX_DIR)/sound/ac97_bus.ko \
-	$(LINUX_DIR)/sound/pci/ac97/snd-ac97-codec.ko 
+	$(LINUX_DIR)/sound/pci/ac97/snd-ac97-codec.ko
   AUTOLOAD:=$(call AutoLoad,35,ac97_bus snd-ac97-codec)
   $(call AddDepends/sound)
 endef
@@ -106,6 +91,23 @@ define KernelPackage/ac97/description
 endef
 
 $(eval $(call KernelPackage,ac97))
+
+
+define KernelPackage/sound-seq
+  TITLE:=Sequencer support
+  FILES:= \
+	$(LINUX_DIR)/sound/core/seq/snd-seq.ko \
+	$(LINUX_DIR)/sound/core/seq/snd-seq-midi-event.ko \
+	$(LINUX_DIR)/sound/core/seq/snd-seq-midi.ko
+  AUTOLOAD:=$(call AutoLoad,35,snd-seq snd-seq-midi-event snd-seq-midi)
+  $(call AddDepends/sound)
+endef
+
+define KernelPackage/sound-seq/description
+ Kernel modules for sequencer support
+endef
+
+$(eval $(call KernelPackage,sound-seq))
 
 
 define KernelPackage/sound-i8x0
@@ -119,7 +121,7 @@ endef
 
 define KernelPackage/sound-i8x0/description
  support for the integrated AC97 sound device on motherboards
- with Intel/SiS/nVidia/AMD chipsets, or ALi chipsets using 
+ with Intel/SiS/nVidia/AMD chipsets, or ALi chipsets using
  the M5455 Audio Controller.
 endef
 
@@ -147,6 +149,7 @@ define KernelPackage/sound-soc-core
   DEPENDS:=+kmod-regmap
   KCONFIG:= \
 	CONFIG_SND_SOC \
+	CONFIG_SND_SOC_DMAENGINE_PCM=y \
 	CONFIG_SND_SOC_ALL_CODECS=n
   FILES:=$(LINUX_DIR)/sound/soc/snd-soc-core.ko
   AUTOLOAD:=$(call AutoLoad,55, snd-soc-core)
@@ -156,45 +159,50 @@ endef
 $(eval $(call KernelPackage,sound-soc-core))
 
 
-define KernelPackage/sound-soc-omap
-  TITLE:=OMAP SoC sound support
-  KCONFIG:= \
-	CONFIG_SND_OMAP_SOC
-  FILES:=$(LINUX_DIR)/sound/soc/omap/snd-soc-omap.ko
-  AUTOLOAD:=$(call AutoLoad,60,snd-soc-omap)
-  DEPENDS:=@TARGET_omap24xx +kmod-sound-soc-core
+define KernelPackage/sound-soc-ac97
+  TITLE:=AC97 Codec support
+  KCONFIG:=CONFIG_SND_SOC_AC97_CODEC
+  FILES:=$(LINUX_DIR)/sound/soc/codecs/snd-soc-ac97.ko
+  AUTOLOAD:=$(call AutoLoad,57,snd-soc-ac97)
+  DEPENDS:=+kmod-ac97 +kmod-sound-soc-core
   $(call AddDepends/sound)
 endef
 
-$(eval $(call KernelPackage,sound-soc-omap))
+$(eval $(call KernelPackage,sound-soc-ac97))
 
 
-define KernelPackage/sound-soc-omap-mcbsp
-  TITLE:=OMAP SoC MCBSP support
+define KernelPackage/sound-soc-gw_avila
+  TITLE:=Gateworks Avila SoC sound support
   KCONFIG:= \
-	CONFIG_SND_OMAP_SOC_MCBSP
-  FILES:=$(LINUX_DIR)/sound/soc/omap/snd-soc-omap-mcbsp.ko
-  AUTOLOAD:=$(call AutoLoad,61,snd-soc-omap-mcbsp)
-  DEPENDS:=@TARGET_omap24xx +kmod-sound-soc-omap
-  $(call AddDepends/sound)
-endef
-
-$(eval $(call KernelPackage,sound-soc-omap-mcbsp))
-
-
-define KernelPackage/sound-soc-n810
-  TITLE:=Nokia n810 SoC sound support
-  KCONFIG:= \
-	CONFIG_SND_OMAP_SOC_N810
+	CONFIG_SND_GW_AVILA_SOC \
+	CONFIG_SND_GW_AVILA_SOC_PCM \
+	CONFIG_SND_GW_AVILA_SOC_HSS
   FILES:= \
 	$(LINUX_DIR)/sound/soc/codecs/snd-soc-tlv320aic3x.ko \
-	$(LINUX_DIR)/sound/soc/omap/snd-soc-n810.ko
-  AUTOLOAD:=$(call AutoLoad,65,snd-soc-tlv320aic3x snd-soc-n810)
-  DEPENDS:=@TARGET_omap24xx +kmod-sound-soc-omap +kmod-sound-soc-omap-mcbsp
+	$(LINUX_DIR)/sound/soc/gw-avila/snd-soc-gw-avila.ko \
+	$(LINUX_DIR)/sound/soc/gw-avila/snd-soc-gw-avila-pcm.ko \
+	$(LINUX_DIR)/sound/soc/gw-avila/snd-soc-gw-avila-hss.ko
+  AUTOLOAD:=$(call AutoLoad,65,snd-soc-tlv320aic3x snd-soc-gw-avila snd-soc-gw-avila-pcm snd-soc-gw-avila-hss)
+  DEPENDS:=@TARGET_ixp4xx +kmod-sound-soc-core
   $(call AddDepends/sound)
 endef
 
-$(eval $(call KernelPackage,sound-soc-n810))
+$(eval $(call KernelPackage,sound-soc-gw_avila))
+
+
+define KernelPackage/pcspkr
+  DEPENDS:=@!TARGET_x86
+  TITLE:=PC speaker support
+  KCONFIG:= \
+	CONFIG_INPUT_PCSPKR \
+	CONFIG_SND_PCSP
+  FILES:= \
+	$(LINUX_DIR)/drivers/input/misc/pcspkr.ko \
+	$(LINUX_DIR)/sound/drivers/pcsp/snd-pcsp.ko
+  AUTOLOAD:=$(call AutoLoad,50,pcspkr snd-pcsp)
+  $(call AddDepends/input)
+  $(call AddDepends/sound)
+endef
 
 
 define KernelPackage/sound-zipit-z2
@@ -216,3 +224,10 @@ define KernelPackage/sound-zipit-z2
 endef
 
 $(eval $(call KernelPackage,sound-zipit-z2))
+
+
+define KernelPackage/pcspkr/description
+ This enables sounds (tones) through the pc speaker
+endef
+
+$(eval $(call KernelPackage,pcspkr))

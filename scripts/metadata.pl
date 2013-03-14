@@ -115,6 +115,7 @@ sub gen_kconfig_overrides() {
 					$val = $2;
 				}
 				if ($config{"CONFIG_PACKAGE_$package"} and ($config ne 'n')) {
+					next if $kconfig{$config} eq 'y';
 					$kconfig{$config} = $val;
 				} elsif (!$override) {
 					$kconfig{$config} or $kconfig{$config} = 'n';
@@ -232,6 +233,7 @@ EOF
 	}
 	if (@{$target->{subtargets}} > 0) {
 		$confstr .= "\tselect HAS_SUBTARGETS\n";
+		grep { /broken/ } @{$target->{features}} and $confstr .= "\tdepends BROKEN\n";
 	} else {
 		$confstr .= $features;
 	}
@@ -269,7 +271,7 @@ sub gen_target_config() {
 	print <<EOF;
 choice
 	prompt "Target System"
-	default TARGET_brcm47xx
+	default TARGET_ar71xx
 	reset if !DEVEL
 	
 EOF

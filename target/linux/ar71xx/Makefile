@@ -10,10 +10,10 @@ ARCH:=mips
 BOARD:=ar71xx
 BOARDNAME:=Atheros AR7xxx/AR9xxx
 FEATURES:=squashfs jffs2 targz
-CFLAGS:=-Os -pipe -mips32r2 -mtune=mips32r2 -fno-caller-saves
+CFLAGS:=-Os -pipe -mips32r2 -mtune=mips32r2 -fno-caller-saves -mno-branch-likely
 SUBTARGETS:=generic nand
 
-LINUX_VERSION:=3.3.8
+LINUX_VERSION:=3.8.2
 
 include $(INCLUDE_DIR)/target.mk
 

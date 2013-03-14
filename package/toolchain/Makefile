@@ -9,6 +9,8 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=toolchain
 PKG_RELEASE:=1
 
+PKG_MAINTAINER:=Felix Fietkau <nbd@openwrt.org>
+
 include $(INCLUDE_DIR)/package.mk
 
 ifneq ($(DUMP),1)
@@ -61,7 +63,7 @@ define Package/libssp/config
 	menu "Configuration"
 		depends EXTERNAL_TOOLCHAIN && PACKAGE_libssp
 
-	config LIBSPP_ROOT_DIR
+	config LIBSSP_ROOT_DIR
 		string
 		prompt "libssp shared library base directory"
 		depends EXTERNAL_TOOLCHAIN && PACKAGE_libssp
@@ -168,6 +170,12 @@ define Package/libpthread/config
 endef
 
 
+define Package/libthread-db
+$(call Package/libc/Default)
+  DEPENDS:=@!USE_MUSL
+  TITLE:=POSIX thread library debugging support
+endef
+
 define Package/librt
 $(call Package/libc/Default)
   TITLE:=POSIX.1b RealTime extension library
@@ -223,6 +231,7 @@ endef
 
 define Package/ldd
 $(call Package/libc/Default)
+  DEPENDS:=@!USE_MUSL
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=LDD trace utility
@@ -251,6 +260,7 @@ endef
 
 define Package/ldconfig
 $(call Package/libc/Default)
+  DEPENDS:=@!USE_MUSL
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Shared library path configuration
@@ -355,12 +365,12 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 
   define Package/libgcc/install
 	$(INSTALL_DIR) $(1)/lib
-	$(if $(TARGET_avr32)$(TARGET_coldfire),,$(CP) $(TOOLCHAIN_DIR)/lib/libgcc_s.so.* $(1)/lib/)
+	$(if $(CONFIG_TARGET_avr32)$(CONFIG_TARGET_coldfire),,$(CP) $(TOOLCHAIN_DIR)/lib/libgcc_s.so.* $(1)/lib/)
   endef
 
   define Package/libgfortran/install
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(if $(TARGET_avr32)$(TARGET_coldfire),,$(CP) $(TOOLCHAIN_DIR)/lib/libgfortran.so.* $(1)/usr/lib/)
+	$(if $(CONFIG_TARGET_avr32)$(CONFIG_TARGET_coldfire),,$(CP) $(TOOLCHAIN_DIR)/lib/libgfortran.so.* $(1)/usr/lib/)
   endef
 
   define Package/libssp/install
@@ -419,6 +429,16 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 		$(1)/lib/
   endef
 
+  define Package/musl/install
+	$(INSTALL_DIR) $(1)/lib
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/ld-musl-*.so* \
+		$(1)/lib/
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/libc.so* \
+		$(1)/lib/
+  endef
+
   define Package/libc/install
     $(call Package/$(LIBC)/install,$1)
   endef
@@ -434,6 +454,7 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 
   define Package/libpthread/install
 	$(INSTALL_DIR) $(1)/lib
+  ifneq ($(CONFIG_USE_MUSL),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/libpthread.so.* \
 		$(if $(BUILD_LIBGCC),\
@@ -441,6 +462,18 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 			$(TOOLCHAIN_DIR)/lib/libpthread-$(LIBC_SO_VERSION).so \
 		) \
 		$(1)/lib/
+  endif
+  endef
+
+  define Package/libthread-db/install
+	$(INSTALL_DIR) $(1)/lib
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/libthread_db.so.* $(1)/lib
+  ifeq ($(USE_UCLIBC),y)
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/libthread_db-$(LIBC_SO_VERSION).so \
+		$(1)/lib/
+  endif
   endef
 
   define Package/libpthread/install_lib
@@ -449,10 +482,12 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 
   define Package/librt/install
 	$(INSTALL_DIR) $(1)/lib
+  ifneq ($(CONFIG_USE_MUSL),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/librt.so.* \
 		$(TOOLCHAIN_DIR)/lib/librt-$(LIBC_SO_VERSION).so \
 		$(1)/lib/
+  endif
   endef
 
   define Package/ldd/install
@@ -554,6 +589,7 @@ $(eval $(call BuildPackage,libgcc))
 $(eval $(call BuildPackage,libssp))
 $(eval $(call BuildPackage,libstdcpp))
 $(eval $(call BuildPackage,libpthread))
+$(eval $(call BuildPackage,libthread-db))
 $(eval $(call BuildPackage,librt))
 $(eval $(call BuildPackage,libgfortran))
 $(eval $(call BuildPackage,ldd))

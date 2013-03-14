@@ -88,14 +88,12 @@ endef
 
 $(eval $(call KernelPackage,xen-evtchn))
 
-# FIXME: the FB support should be moved to a separate kmod
 define KernelPackage/xen-fbdev
   SUBMENU:=$(VIRTUAL_MENU)
   TITLE:=Xen virtual frame buffer
-  DEPENDS:=@TARGET_x86_xen_domu
+  DEPENDS:=@TARGET_x86_xen_domu +kmod-fb
   KCONFIG:= \
   	CONFIG_XEN_FBDEV_FRONTEND \
-  	CONFIG_FB \
   	CONFIG_FB_DEFERRED_IO=y \
   	CONFIG_FB_SYS_COPYAREA \
   	CONFIG_FB_SYS_FILLRECT \
@@ -104,11 +102,10 @@ define KernelPackage/xen-fbdev
   	CONFIG_FIRMWARE_EDID=n
   FILES:= \
   	$(LINUX_DIR)/drivers/video/xen-fbfront.ko \
-  	$(LINUX_DIR)/drivers/video/fb.ko \
   	$(LINUX_DIR)/drivers/video/syscopyarea.ko \
   	$(LINUX_DIR)/drivers/video/sysfillrect.ko \
   	$(LINUX_DIR)/drivers/video/fb_sys_fops.ko \
-  	$(LINUX_DIR)/drivers/video/sysimgblt.ko  	
+  	$(LINUX_DIR)/drivers/video/sysimgblt.ko
   AUTOLOAD:=$(call AutoLoad,07, \
   	fb \
   	syscopyarea \
@@ -163,7 +160,7 @@ define KernelPackage/xen-pcidev
   TITLE:=Xen PCI device frontend
   DEPENDS:=@TARGET_x86_xen_domu
   KCONFIG:=CONFIG_XEN_PCIDEV_FRONTEND
-  FILES:=$(LINUX_DIR)/drivers/xen/platform-pci.ko
+  FILES:=$(LINUX_DIR)/drivers/pci/xen-pcifront.ko
   AUTOLOAD:=$(call AutoLoad,10,xen-pcifront)
 endef
 

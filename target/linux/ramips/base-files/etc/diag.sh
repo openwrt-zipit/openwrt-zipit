@@ -1,40 +1,34 @@
 #!/bin/sh
-#
-# Copyright (C) 2010 OpenWrt.org
-#
-#
+# Copyright (C) 2010-2013 OpenWrt.org
 
+. /lib/functions/leds.sh
 . /lib/ramips.sh
-
-status_led=""
-
-led_set_attr() {
-	[ -f "/sys/class/leds/$1/$2" ] && echo "$3" > "/sys/class/leds/$1/$2"
-}
-
-status_led_set_timer() {
-	led_set_attr $status_led "trigger" "timer"
-	led_set_attr $status_led "delay_on" "$1"
-	led_set_attr $status_led "delay_off" "$2"
-}
-
-status_led_on() {
-	led_set_attr $status_led "trigger" "none"
-	led_set_attr $status_led "brightness" 255
-}
-
-status_led_off() {
-	led_set_attr $status_led "trigger" "none"
-	led_set_attr $status_led "brightness" 0
-}
 
 get_status_led() {
 	case $(ramips_board_name) in
+	3g-6200n)
+		status_led="edimax:green:power"
+		;;
+	3g300m)
+		status_led="tenda:blue:ap"
+		;;
 	argus-atp52b)
 		status_led="argus-atp52b:green:run"
 		;;
-	dir-300-b1 | dir-600-b1 | dir-600-b2)
+	br6524n)
+		status_led="edimax:blue:power"
+		;;
+	br6425)
+		status_led="edimax:green:power"
+		;;
+	dir-300-b1 | dir-600-b1 | dir-600-b2 | dir-615-h1 | dir-615-d | dir-620-a1)
 		status_led="d-link:green:status"
+		;;
+	dir-645)
+		status_led="d-link:green:wps"
+		;;
+	dap-1350)
+		status_led="d-link:blue:power"
 		;;
 	esr-9753)
 		status_led="esr-9753:orange:power"
@@ -45,6 +39,10 @@ get_status_led() {
 	fonera20n)
 		status_led="fonera20n:green:power"
 		;;
+	rt-n13u)
+		status_led="rt-n13u:power"
+		;;
+	all0239-3g|\
 	hw550-3g)
 		status_led="hw550-3g:green:status"
 		;;
@@ -57,7 +55,8 @@ get_status_led() {
 	nw718)
 		status_led="nw718:amber:cpu"
 		;;
-	omni-emb)
+	omni-emb|\
+	omni-emb-hpm)
 		status_led="emb:green:status"
 		;;
 	psr-680w)
@@ -77,6 +76,10 @@ get_status_led() {
 		;;
 	sl-r7205)
 		status_led="sl-r7205:green:status"
+		;;
+	tew-691gr|\
+	tew-692gr)
+		status_led="trendnet:green:wps"
 		;;
 	v11st-fe)
 		status_led="v11st-fe:green:status"
@@ -105,6 +108,12 @@ get_status_led() {
 	wr512-3gn)
 		status_led="wr512:green:wps"
 		;;
+	mzk-w300nh2)
+		status_led="mzkw300nh2:green:power"
+		;;
+	ur-326n4g)
+		status_led="ur326:green:wps"
+		;;
 	ur-336un)
 		status_led="ur336:green:wps"
 		;;
@@ -119,11 +128,11 @@ set_state() {
 
 	case "$1" in
 	preinit)
-		insmod leds-gpio
-		status_led_set_timer 200 200
+		insmod leds-gpio 2> /dev/null
+		status_led_blink_preinit
 		;;
 	failsafe)
-		status_led_set_timer 50 50
+		status_led_blink_failsafe
 		;;
 	done)
 		status_led_on

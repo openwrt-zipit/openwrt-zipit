@@ -38,22 +38,22 @@ ifdef CONFIG_GCC_VERSION_LLVM
 else
 ifeq ($(findstring linaro, $(CONFIG_GCC_VERSION)),linaro)
     ifeq ($(CONFIG_GCC_VERSION),"4.5-linaro")
-      PKG_REV:=4.5-2012.02
+      PKG_REV:=4.5-2012.03
       PKG_VERSION:=4.5.4
       PKG_VERSION_MAJOR:=4.5
-      PKG_MD5SUM:=e05be9ea8eca2ad4c859d35dbab568e7
+      PKG_MD5SUM:=0c25f93e15e362e352c933e4649a7fc6
     endif
     ifeq ($(CONFIG_GCC_VERSION),"4.6-linaro")
-      PKG_REV:=4.6-2012.02
-      PKG_VERSION:=4.6.3
+      PKG_REV:=4.6-2012.12
+      PKG_VERSION:=4.6.4
       PKG_VERSION_MAJOR:=4.6
-      PKG_MD5SUM:=2b7887846f8e5ac1ca58fe4dfaabf5a6
+      PKG_MD5SUM:=6b6c6a4faa026edd1193cf6426309039
     endif
     ifeq ($(CONFIG_GCC_VERSION),"4.7-linaro")
-      PKG_REV:=4.7-2012.04
-      PKG_VERSION:=4.7.1
+      PKG_REV:=4.7-2012.12
+      PKG_VERSION:=4.7.3
       PKG_VERSION_MAJOR:=4.7
-      PKG_MD5SUM:=6dab459c1177fc9ae2969e7a39549d44
+      PKG_MD5SUM:=247b15687358bc7958eeb91ab22637d1
     endif
     PKG_SOURCE_URL:=http://launchpad.net/gcc-linaro/$(PKG_VERSION_MAJOR)/$(PKG_REV)/+download/
     PKG_SOURCE:=$(PKG_NAME)-linaro-$(PKG_REV).tar.bz2
@@ -66,11 +66,11 @@ else
   ifeq ($(PKG_VERSION),4.4.7)
     PKG_MD5SUM:=295709feb4441b04e87dea3f1bab4281
   endif
-  ifeq ($(PKG_VERSION),4.6.2)
-    PKG_MD5SUM:=028115c4fbfb6cfd75d6369f4a90d87e
+  ifeq ($(PKG_VERSION),4.6.3)
+    PKG_MD5SUM:=773092fe5194353b02bb0110052a972e
   endif
-  ifeq ($(PKG_VERSION),4.7.0)
-    PKG_MD5SUM:=2a0f1d99fda235c29d40b561f81d9a77
+  ifeq ($(PKG_VERSION),4.7.2)
+    PKG_MD5SUM:=cc308a0891e778cfda7a151ab8a6e762
   endif
 endif
 endif
@@ -78,6 +78,8 @@ endif
 PATCH_DIR=../patches/$(GCC_VERSION)
 
 BUGURL=https://dev.openwrt.org/
+
+HOST_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/toolchain-build.mk
 
@@ -121,6 +123,7 @@ GCC_CONFIGURE:= \
 		$(call qstrip,$(CONFIG_EXTRA_GCC_CONFIG_OPTIONS)) \
 		$(if $(CONFIG_mips64)$(CONFIG_mips64el),--with-arch=mips64 --with-abi=64) \
 		$(if $(CONFIG_GCC_VERSION_LLVM),--enable-llvm=$(BUILD_DIR_BASE)/host/llvm) \
+		$(if $(CONFIG_sparc),--with-long-double-128) \
 
 ifeq ($(CONFIG_GCC_LLVM),)
   GCC_BUILD_TARGET_LIBGCC:=y
@@ -170,7 +173,8 @@ endif
 
 GCC_MAKE:= \
 	export SHELL="$(BASH)"; \
-	$(MAKE) $(TOOLCHAIN_JOBS) \
+	$(MAKE) \
+		CFLAGS="$(HOST_CFLAGS)" \
 		CFLAGS_FOR_TARGET="$(TARGET_CFLAGS)" \
 		CXXFLAGS_FOR_TARGET="$(TARGET_CFLAGS)"
 

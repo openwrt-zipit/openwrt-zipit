@@ -8,6 +8,7 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/prereq.mk
 include $(INCLUDE_DIR)/host.mk
+include $(INCLUDE_DIR)/host-build.mk
 
 PKG_NAME:=Build dependency
 
@@ -38,6 +39,8 @@ $(eval $(call Require,case-sensitive-fs, \
 ))
 
 define Require/getopt
+	gnugetopt --help 2>&1 | grep long >/dev/null || \
+	/usr/local/bin/getopt --help 2>&1 | grep long >/dev/null || \
 	getopt --help 2>&1 | grep long >/dev/null
 endef
 $(eval $(call Require,getopt, \
@@ -70,6 +73,27 @@ $(eval $(call Require,working-g++, \
 	Please install the GNU C++ Compiler (g++). \
 ))
 
+ifneq ($(HOST_STATIC_LINKING),)
+  define Require/working-gcc-static
+	echo 'int main(int argc, char **argv) { return 0; }' | \
+		gcc -x c $(HOST_STATIC_LINKING) -o $(TMP_DIR)/a.out -
+  endef
+
+  $(eval $(call Require,working-gcc-static, \
+    Please install the static libc development package (glibc-static on CentOS/Fedora/RHEL). \
+  ))
+
+  define Require/working-g++-static
+	echo 'int main(int argc, char **argv) { return 0; }' | \
+		g++ -x c++ $(HOST_STATIC_LINKING) -o $(TMP_DIR)/a.out - -lstdc++ && \
+		$(TMP_DIR)/a.out
+  endef
+
+  $(eval $(call Require,working-g++-static, \
+	Please install the static libstdc++ development package (libstdc++-static on CentOS/Fedora/RHEL). \
+  ))
+endif
+
 define Require/ncurses
 	echo 'int main(int argc, char **argv) { initscr(); return 0; }' | \
 		gcc -include ncurses.h -x c -o $(TMP_DIR)/a.out - -lncurses
@@ -89,6 +113,17 @@ $(eval $(call Require,zlib, \
 	Please install zlib. (Missing libz.so or zlib.h) \
 ))
 
+ifneq ($(HOST_STATIC_LINKING),)
+  define Require/zlib-static
+	echo 'int main(int argc, char **argv) { gzdopen(0, "rb"); return 0; }' | \
+		gcc -include zlib.h -x c $(HOST_STATIC_LINKING) -o $(TMP_DIR)/a.out - -lz
+  endef
+
+  $(eval $(call Require,zlib-static, \
+	Please install a static zlib. (zlib-static on CentOS/Fedora/RHEL). \
+  ))
+endif
+
 $(eval $(call RequireCommand,gawk, \
 	Please install GNU awk. \
 ))
@@ -101,15 +136,11 @@ $(eval $(call RequireCommand,bzip2, \
 	Please install bzip2. \
 ))
 
-$(eval $(call RequireCommand,patch, \
-	Please install patch. \
-))
-
 $(eval $(call RequireCommand,perl, \
 	Please install perl. \
 ))
 
-$(eval $(call RequireCommand,python, \
+$(eval $(call RequireCommand,$(PYTHON), \
 	Please install python. \
 ))
 

@@ -32,8 +32,42 @@ $(eval $(call KernelPackage,usb-core))
 
 define AddDepends/usb
   SUBMENU:=$(USB_MENU)
-  DEPENDS+=+!TARGET_etrax:kmod-usb-core $(1)
+  DEPENDS+=+kmod-usb-core $(1)
 endef
+
+
+define KernelPackage/pxa27x-udc
+  TITLE:=Support for PXA27x USB device controller
+  KCONFIG:= \
+	CONFIG_USB_PXA27X
+  DEPENDS:=+TARGET_pxa:kmod-udc-core
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/pxa27x_udc.ko
+  AUTOLOAD:=$(call AutoLoad,46,pxa27x_udc)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/pxa27x-udc/description
+  Kernel support for PXA27x USB device.
+endef
+
+$(eval $(call KernelPackage,pxa27x-udc))
+
+
+define KernelPackage/udc-core
+  TITLE:=Core support for UDC
+  KCONFIG:= \
+	CONFIG_USB_GADGET
+  DEPENDS:=@USB_GADGET_SUPPORT
+  FILES:=$(LINUX_DIR)/drivers/usb/gadget/udc-core.ko
+  AUTOLOAD:=$(call AutoLoad,45,udc-core)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/udc-core/description
+  Kernel support for UDC core
+endef
+
+$(eval $(call KernelPackage,udc-core))
 
 
 define KernelPackage/usb-gadget
@@ -57,7 +91,7 @@ define KernelPackage/usb-eth-gadget
   KCONFIG:= \
 	CONFIG_USB_ETH \
 	CONFIG_USB_ETH_RNDIS=y \
-	CONFIG_USB_ETH_EEM=n
+	CONFIG_USB_ETH_EEM=y
   DEPENDS:=+kmod-usb-gadget
   FILES:=$(LINUX_DIR)/drivers/usb/gadget/g_ether.ko
   AUTOLOAD:=$(call AutoLoad,52,g_ether)
@@ -96,8 +130,8 @@ define KernelPackage/usb-ohci
 	CONFIG_USB_OHCI_HCD \
 	CONFIG_USB_OHCI_ATH79=y \
 	CONFIG_USB_OHCI_BCM63XX=y \
-	CONFIG_USB_OHCI_RT3883=y \
-	CONFIG_USB_OCTEON_OHCI=y
+	CONFIG_USB_OCTEON_OHCI=y \
+	CONFIG_USB_OHCI_HCD_PLATFORM=y
   FILES:=$(LINUX_DIR)/drivers/usb/host/ohci-hcd.ko
   AUTOLOAD:=$(call AutoLoad,50,ohci-hcd,1)
   $(call AddDepends/usb)
@@ -110,143 +144,41 @@ endef
 $(eval $(call KernelPackage,usb-ohci,1))
 
 
-define KernelPackage/musb-hdrc
-  TITLE:=Support for Mentor Graphics silicon dual role USB
-  KCONFIG:= \
-	CONFIG_USB_MUSB_HDRC \
-	CONFIG_MUSB_PIO_ONLY=n \
-	CONFIG_USB_MUSB_OTG=y \
-	CONFIG_USB_MUSB_DEBUG=y
-  DEPENDS:=@TARGET_omap24xx
-  FILES:=$(LINUX_DIR)/drivers/usb/musb/musb_hdrc.ko
-  AUTOLOAD:=$(call AutoLoad,46,musb_hdrc)
+define KernelPackage/usb2-fsl
+  TITLE:=Support for Freescale USB2 controllers
+  DEPENDS:=TARGET_mpc85xx
+  KCONFIG:=\
+	CONFIG_USB_FSL_MPH_DR_OF \
+  	CONFIG_USB_EHCI_FSL=y
+  FILES:=$(LINUX_DIR)/drivers/usb/host/fsl-mph-dr-of.ko
+  AUTOLOAD:=$(call AutoLoad,39,fsl-mph-dr-of,1)
   $(call AddDepends/usb)
 endef
 
-define KernelPackage/musb-hdrc/description
-  Kernel support for Mentor Graphics silicon dual role USB device.
+define KernelPackage/usb2-fsl/description
+ Kernel support for Freescale USB2 (EHCI) controllers
 endef
 
-$(eval $(call KernelPackage,musb-hdrc))
-
-
-define KernelPackage/pxa27x-udc
-  TITLE:=Support for PXA27x USB device controller
-  KCONFIG:= \
-	CONFIG_USB_PXA27X
-  DEPENDS:=+TARGET_pxa:kmod-udc-core
-  FILES:=$(LINUX_DIR)/drivers/usb/gadget/pxa27x_udc.ko
-  AUTOLOAD:=$(call AutoLoad,46,pxa27x_udc)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/pxa27x-udc/description
-  Kernel support for PXA27x USB device.
-endef
-
-$(eval $(call KernelPackage,pxa27x-udc))
-
-
-define KernelPackage/udc-core
-  TITLE:=Core support for UDC
-  KCONFIG:= \
-	CONFIG_USB_GADGET
-  DEPENDS:=@USB_GADGET_SUPPORT
-  FILES:=$(LINUX_DIR)/drivers/usb/gadget/udc-core.ko
-  AUTOLOAD:=$(call AutoLoad,45,udc-core)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/udc-core/description
-  Kernel support for UDC
-endef
-
-$(eval $(call KernelPackage,udc-core))
-
-
-define KernelPackage/nop-usb-xceiv
-  TITLE:=Support for USB OTG NOP transceiver
-  KCONFIG:= \
-	CONFIG_NOP_USB_XCEIV
-  DEPENDS:=@TARGET_omap24xx
-  FILES:=$(LINUX_DIR)/drivers/usb/otg/nop-usb-xceiv.ko
-  AUTOLOAD:=$(call AutoLoad,45,nop-usb-xceiv)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/nop-usb-xceiv/description
-  Support for USB OTG NOP transceiver
-endef
-
-$(eval $(call KernelPackage,nop-usb-xceiv))
-
-
-define KernelPackage/tusb6010
-  TITLE:=Support for TUSB 6010
-  KCONFIG:= \
-	CONFIG_USB_MUSB_TUSB6010 \
-	CONFIG_USB_TUSB6010=y
-  DEPENDS:=+kmod-musb-hdrc +kmod-nop-usb-xceiv
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/tusb6010/description
-  TUSB6010 support
-endef
-
-$(eval $(call KernelPackage,tusb6010))
-
-
-define KernelPackage/usb-tahvo
-  TITLE:=Support for Tahvo (Nokia n810) USB
-  KCONFIG:= \
-	CONFIG_CBUS_TAHVO_USB \
-	CONFIG_CBUS_TAHVO_USB_HOST_BY_DEFAULT=n \
-	CONFIG_USB_OHCI_HCD_OMAP1=y \
-	CONFIG_USB_GADGET_DEBUG_FS=n
-  DEPENDS:=@TARGET_omap24xx +kmod-tusb6010 +kmod-usb-gadget
-  FILES:=$(LINUX_DIR)/drivers/cbus/tahvo-usb.ko
-  AUTOLOAD:=$(call AutoLoad,45,tahvo-usb)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/usb-tahvo/description
-  Kernel support for Nokia n810 USB OHCI controller.
-endef
-
-$(eval $(call KernelPackage,usb-tahvo))
-
-
-define KernelPackage/usb-isp116x-hcd
-  TITLE:=Support for the ISP116x USB Host Controller
-  DEPENDS:=@TARGET_ppc40x
-  KCONFIG:= \
-	CONFIG_USB_ISP116X_HCD \
-	CONFIG_USB_ISP116X_HCD_OF=y \
-	CONFIG_USB_ISP116X_HCD_PLATFORM=n
-  FILES:=$(LINUX_DIR)/drivers/usb/host/isp116x-hcd.ko
-  AUTOLOAD:=$(call AutoLoad,50,isp116x-hcd)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/usb-isp116x-hcd/description
-  Kernel support for the ISP116X USB Host Controller
-endef
-
-$(eval $(call KernelPackage,usb-isp116x-hcd))
+$(eval $(call KernelPackage,usb2-fsl))
 
 
 define KernelPackage/usb2
   TITLE:=Support for USB2 controllers
-  DEPENDS:=+TARGET_brcm47xx:kmod-usb-brcm47xx
+  DEPENDS:=+TARGET_brcm47xx:kmod-usb-brcm47xx +TARGET_mpc85xx:kmod-usb2-fsl
   KCONFIG:=CONFIG_USB_EHCI_HCD \
-    CONFIG_USB_EHCI_ATH79=y \
-    CONFIG_USB_EHCI_BCM63XX=y \
-    CONFIG_USB_EHCI_RT3883=y \
-    CONFIG_USB_OCTEON_EHCI=y \
-    CONFIG_USB_EHCI_FSL=n
+	CONFIG_USB_EHCI_ATH79=y \
+	CONFIG_USB_EHCI_BCM63XX=y \
+	CONFIG_USB_OCTEON_EHCI=y \
+	CONFIG_USB_EHCI_HCD_PLATFORM=y
+ifeq ($(strip $(call CompareKernelPatchVer,$(KERNEL_PATCHVER),ge,3.8.0)),1)
+  FILES:= \
+	$(LINUX_DIR)/drivers/usb/host/ehci-hcd.ko \
+	$(LINUX_DIR)/drivers/usb/host/ehci-platform.ko
+  AUTOLOAD:=$(call AutoLoad,40,ehci-hcd ehci-platform,1)
+else
   FILES:=$(LINUX_DIR)/drivers/usb/host/ehci-hcd.ko
   AUTOLOAD:=$(call AutoLoad,40,ehci-hcd,1)
+endif
   $(call AddDepends/usb)
 endef
 
@@ -255,6 +187,22 @@ define KernelPackage/usb2/description
 endef
 
 $(eval $(call KernelPackage,usb2))
+
+
+define KernelPackage/usb2-pci
+  TITLE:=Support for PCI USB2 controllers
+  DEPENDS:=@PCI_SUPPORT @LINUX_3_8 +kmod-usb2
+  KCONFIG:=CONFIG_USB_EHCI_PCI
+  FILES:=$(LINUX_DIR)/drivers/usb/host/ehci-pci.ko
+  AUTOLOAD:=$(call AutoLoad,42,ehci-pci,1)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/usb2-pci/description
+ Kernel support for PCI USB2 (EHCI) controllers
+endef
+
+$(eval $(call KernelPackage,usb2-pci))
 
 
 define KernelPackage/usb-acm
@@ -270,6 +218,22 @@ define KernelPackage/usb-acm/description
 endef
 
 $(eval $(call KernelPackage,usb-acm))
+
+
+define KernelPackage/usb-wdm
+  TITLE:=USB Wireless Device Management
+  KCONFIG:=CONFIG_USB_WDM
+  FILES:=$(LINUX_DIR)/drivers/usb/class/cdc-wdm.ko
+  AUTOLOAD:=$(call AutoLoad,60,cdc-wdm)
+$(call AddDepends/usb)
+$(call AddDepends/usb-net)
+endef
+
+define KernelPackage/usb-wdm/description
+ USB Wireless Device Management support
+endef
+
+$(eval $(call KernelPackage,usb-wdm))
 
 
 define KernelPackage/usb-audio
@@ -883,6 +847,21 @@ endef
 $(eval $(call KernelPackage,usb-net-cdc-ether))
 
 
+define KernelPackage/usb-net-qmi-wwan
+  TITLE:=QMI WWAN driver
+  KCONFIG:=CONFIG_USB_NET_QMI_WWAN
+  FILES:= $(LINUX_DIR)/drivers/$(USBNET_DIR)/qmi_wwan.ko
+  AUTOLOAD:=$(call AutoLoad,61,qmi_wwan)
+  $(call AddDepends/usb-net,+kmod-usb-wdm)
+endef
+
+define KernelPackage/usb-net-qmi-wwan/description
+ QMI WWAN driver for Qualcomm MSM based 3G and LTE modems
+endef
+
+$(eval $(call KernelPackage,usb-net-qmi-wwan))
+
+
 define KernelPackage/usb-net-rndis
   TITLE:=Support for RNDIS connections
   KCONFIG:=CONFIG_USB_NET_RNDIS_HOST
@@ -896,6 +875,21 @@ define KernelPackage/usb-net-rndis/description
 endef
 
 $(eval $(call KernelPackage,usb-net-rndis))
+
+define KernelPackage/usb-net-cdc-ncm
+  TITLE:=Support for CDC NCM connections
+  KCONFIG:=CONFIG_USB_NET_CDC_NCM
+  FILES:= $(LINUX_DIR)/drivers/$(USBNET_DIR)/cdc_ncm.ko
+  AUTOLOAD:=$(call AutoLoad,61,cdc_ncm)
+  $(call AddDepends/usb-net)
+endef
+
+define KernelPackage/usb-net-cdc-ncm/description
+ Kernel support for CDC NCM connections
+endef
+
+$(eval $(call KernelPackage,usb-net-cdc-ncm))
+
 
 define KernelPackage/usb-net-sierrawireless
   TITLE:=Support for Sierra Wireless devices
@@ -991,42 +985,6 @@ endef
 
 $(eval $(call KernelPackage,usb-test))
 
-
-define KernelPackage/usb-rt305x-dwc_otg
-  TITLE:=RT305X USB controller driver
-  DEPENDS:=@TARGET_ramips_rt305x
-  KCONFIG:= \
-	CONFIG_DWC_OTG \
-	CONFIG_DWC_OTG_HOST_ONLY=y \
-	CONFIG_DWC_OTG_DEVICE_ONLY=n \
-	CONFIG_DWC_OTG_DEBUG=n
-  FILES:=$(LINUX_DIR)/drivers/usb/dwc_otg/dwc_otg.ko
-  AUTOLOAD:=$(call AutoLoad,54,dwc_otg,1)
-  $(call AddDepends/usb)
-endef
-
-define KernelPackage/usb-rt305x-dwc_otg/description
-  This driver provides USB Device Controller support for the
-  Synopsys DesignWare USB OTG Core used in the Ralink RT305X SoCs.
-endef
-
-$(eval $(call KernelPackage,usb-rt305x-dwc_otg))
-
-define KernelPackage/usb-brcm47xx
-  SUBMENU:=$(USB_MENU)
-  TITLE:=Support for USB on bcm47xx
-  DEPENDS:=@USB_SUPPORT @TARGET_brcm47xx
-  KCONFIG:= \
-  	CONFIG_USB_HCD_BCMA \
-  	CONFIG_USB_HCD_SSB
-  FILES:= \
-  	$(LINUX_DIR)/drivers/usb/host/bcma-hcd.ko \
-  	$(LINUX_DIR)/drivers/usb/host/ssb-hcd.ko
-  AUTOLOAD:=$(call AutoLoad,19,bcma-hcd ssb-hcd,1)
-  $(call AddDepends/usb)
-endef
-
-$(eval $(call KernelPackage,usb-brcm47xx))
 
 define KernelPackage/usbip
   TITLE := USB-over-IP kernel support
