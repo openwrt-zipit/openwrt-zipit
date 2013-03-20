@@ -1,0 +1,33 @@
+From dc39d425ba83a52278c9584c39455be7eb98f9c6 Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Fri, 15 Mar 2013 15:43:16 +0300
+Subject: [PATCH 17/19] ARM: Z2: change Z2 flash layout
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ arch/arm/mach-pxa/z2.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-pxa/z2.c b/arch/arm/mach-pxa/z2.c
+index 2f320cc..e3f4ae6 100644
+--- a/arch/arm/mach-pxa/z2.c
++++ b/arch/arm/mach-pxa/z2.c
+@@ -169,9 +169,13 @@ static struct mtd_partition z2_flash_parts[] = {
+ 		.offset	= 0x40000,
+ 		.size	= 0x20000,
+ 	}, {
+-		.name	= "Flash",
++		.name	= "Kernel",
+ 		.offset	= 0x60000,
+-		.size	= 0x780000,
++		.size	= 0x120000,
++	}, {
++		.name   = "Filesystem",
++		.offset = 0x180000,
++		.size   = 0x660000,
+ 	}, {
+ 		.name	= "U-Boot Logo",
+ 		.offset = 0x7e0000,
+-- 
+1.8.2
+

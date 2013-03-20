@@ -1,0 +1,28 @@
+From d0e6309849664c2a240f794fd1be9fd7e19cadd1 Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Fri, 4 Feb 2011 18:32:37 +0200
+Subject: [PATCH 02/14] ARM: PXA: Zipit Z2: Add mtd partition with logo
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ arch/arm/mach-pxa/z2.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/mach-pxa/z2.c b/arch/arm/mach-pxa/z2.c
+index b9320cb..3635c29 100644
+--- a/arch/arm/mach-pxa/z2.c
++++ b/arch/arm/mach-pxa/z2.c
+@@ -167,6 +167,10 @@ static struct mtd_partition z2_flash_parts[] = {
+ 	}, {
+ 		.name	= "Flash",
+ 		.offset	= 0x60000,
++		.size	= 0x780000,
++	}, {
++		.name	= "U-Boot Logo",
++		.offset = 0x7e0000,
+ 		.size	= MTDPART_SIZ_FULL,
+ 	},
+ };
+-- 
+1.8.2
+

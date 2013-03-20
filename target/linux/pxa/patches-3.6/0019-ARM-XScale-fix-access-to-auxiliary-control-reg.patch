@@ -1,0 +1,35 @@
+From ce58bed57eee60b346ca0f5aa1d7dcbae7c0e0fa Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Mon, 18 Mar 2013 19:31:46 +0300
+Subject: [PATCH 19/19] ARM: XScale: fix access to auxiliary control reg
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ arch/arm/mm/proc-xscale.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mm/proc-xscale.S b/arch/arm/mm/proc-xscale.S
+index 4ffebaa..c830578 100644
+--- a/arch/arm/mm/proc-xscale.S
++++ b/arch/arm/mm/proc-xscale.S
+@@ -531,7 +531,7 @@ ENTRY(cpu_xscale_do_suspend)
+ 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
+ 	mrc	p15, 0, r6, c13, c0, 0	@ PID
+ 	mrc	p15, 0, r7, c3, c0, 0	@ domain ID
+-	mrc	p15, 0, r8, c1, c1, 0	@ auxiliary control reg
++	mrc	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+ 	mrc	p15, 0, r9, c1, c0, 0	@ control reg
+ 	bic	r4, r4, #2		@ clear frequency change bit
+ 	stmia	r0, {r4 - r9}		@ store cp regs
+@@ -548,7 +548,7 @@ ENTRY(cpu_xscale_do_resume)
+ 	mcr	p15, 0, r6, c13, c0, 0	@ PID
+ 	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
+ 	mcr	p15, 0, r1, c2, c0, 0	@ translation table base addr
+-	mcr	p15, 0, r8, c1, c1, 0	@ auxiliary control reg
++	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+ 	mov	r0, r9			@ control register
+ 	b	cpu_resume_mmu
+ ENDPROC(cpu_xscale_do_resume)
+-- 
+1.8.2
+

@@ -1,0 +1,30 @@
+From ce978f8e6929ad0271791a4ce8b377bb24fd882c Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Mon, 9 Jan 2012 18:25:12 +0300
+Subject: [PATCH 10/14] ARM: pxa27x_keypad: clear pending interrupts on keypad
+ config
+
+Bootloader can leave interrupt bit pending, and it confuses driver.
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ drivers/input/keyboard/pxa27x_keypad.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/input/keyboard/pxa27x_keypad.c b/drivers/input/keyboard/pxa27x_keypad.c
+index 7f7b724..4c17f69 100644
+--- a/drivers/input/keyboard/pxa27x_keypad.c
++++ b/drivers/input/keyboard/pxa27x_keypad.c
+@@ -368,6 +368,9 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
+ 	unsigned int mask = 0, direct_key_num = 0;
+ 	unsigned long kpc = 0;
+ 
++	/* clear pending interrupt bit */
++	keypad_readl(KPC);
++
+ 	/* enable matrix keys with automatic scan */
+ 	if (pdata->matrix_key_rows && pdata->matrix_key_cols) {
+ 		kpc |= KPC_ASACT | KPC_MIE | KPC_ME | KPC_MS_ALL;
+-- 
+1.8.2
+

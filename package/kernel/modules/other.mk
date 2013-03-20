@@ -636,24 +636,6 @@ endef
 
 $(eval $(call KernelPackage,n810bm))
 
-define KernelPackage/regmap
-  SUBMENU:=$(OTHER_MENU)
-  TITLE:=Regmap for I2C and SPI devices
-  KCONFIG:= \
-	CONFIG_REGMAP_I2C \
-	CONFIG_REGMAP_SPI
-  FILES:= \
-	$(LINUX_DIR)/drivers/base/regmap/regmap-i2c.ko \
-	$(LINUX_DIR)/drivers/base/regmap/regmap-spi.ko
-  AUTOLOAD:=$(call AutoLoad,01,regmap-i2c regmap-spi)
-endef
-
-define KernelPackage/regmap/description
-  Register map support for I2C and SPI devices
-endef
-
-$(eval $(call KernelPackage,regmap))
-
 define KernelPackage/mtdtests
   SUBMENU:=$(OTHER_MENU)
   TITLE:=MTD subsystem tests
@@ -735,15 +717,14 @@ define KernelPackage/regmap
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Generic register map support
   DEPENDS:=+kmod-lib-lzo +kmod-i2c-core
-  KCONFIG:=CONFIG_REGMAP \
+  KCONFIG:=CONFIG_REGMAP=y \
 	   CONFIG_REGMAP_SPI \
 	   CONFIG_REGMAP_I2C \
 	   CONFIG_SPI=y
   FILES:= \
-	$(LINUX_DIR)/drivers/base/regmap/regmap-core.ko \
 	$(LINUX_DIR)/drivers/base/regmap/regmap-i2c.ko \
 	$(LINUX_DIR)/drivers/base/regmap/regmap-spi.ko
-  AUTOLOAD:=$(call AutoLoad,10,regmap-core regmap-i2c regmap-spi)
+  AUTOLOAD:=$(call AutoLoad,25,regmap-i2c regmap-spi)
 endef
 
 define KernelPackage/regmap/description

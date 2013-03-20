@@ -1,0 +1,43 @@
+From de9958e0af9a78da90b549ef90cdb7c05ecf72e8 Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Thu, 5 Jan 2012 13:46:37 +0300
+Subject: [PATCH 09/19] ARM: PXA: Zipit Z2: Fix oops in z2_power_off
+
+Drop __init modifier from pxa27x_set_pwrmode,
+it's called in non-init code.
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ arch/arm/mach-pxa/include/mach/pxa27x.h | 2 +-
+ arch/arm/mach-pxa/pxa27x.c              | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-pxa/include/mach/pxa27x.h b/arch/arm/mach-pxa/include/mach/pxa27x.h
+index 7cff640..66c4cbf 100644
+--- a/arch/arm/mach-pxa/include/mach/pxa27x.h
++++ b/arch/arm/mach-pxa/include/mach/pxa27x.h
+@@ -21,7 +21,7 @@
+ 
+ extern void __init pxa27x_map_io(void);
+ extern void __init pxa27x_init_irq(void);
+-extern int __init pxa27x_set_pwrmode(unsigned int mode);
++extern int pxa27x_set_pwrmode(unsigned int mode);
+ extern void pxa27x_cpu_pm_enter(suspend_state_t state);
+ 
+ #define pxa27x_handle_irq	ichp_handle_irq
+diff --git a/arch/arm/mach-pxa/pxa27x.c b/arch/arm/mach-pxa/pxa27x.c
+index 4726c24..7fdbf18 100644
+--- a/arch/arm/mach-pxa/pxa27x.c
++++ b/arch/arm/mach-pxa/pxa27x.c
+@@ -242,7 +242,7 @@ static struct clk_lookup pxa27x_clkregs[] = {
+  */
+ static unsigned int pwrmode = PWRMODE_SLEEP;
+ 
+-int __init pxa27x_set_pwrmode(unsigned int mode)
++int pxa27x_set_pwrmode(unsigned int mode)
+ {
+ 	switch (mode) {
+ 	case PWRMODE_SLEEP:
+-- 
+1.8.2
+

@@ -36,18 +36,34 @@ define AddDepends/usb
 endef
 
 
+define KernelPackage/nop-usb-xceiv
+  TITLE:=NO-OP USB transceiver
+  KCONFIG:= \
+	CONFIG_USB_OTG_UTILS=y \
+	CONFIG_NOP_USB_XCEIV
+  FILES:=$(LINUX_DIR)/drivers/usb/otg/nop-usb-xceiv.ko
+  AUTOLOAD:=$(call AutoLoad,45,nop-usb-xceiv)
+  $(call AddDepends/usb)
+endef
+
+define KernelPackage/nop-usb-xceiv/description
+  Kernel support for NO-OP USB transceiver
+endef
+
+$(eval $(call KernelPackage,nop-usb-xceiv))
+
+
 define KernelPackage/pxa27x-udc
   TITLE:=Support for PXA27x USB device controller
   KCONFIG:= \
 	CONFIG_USB_PXA27X
-  DEPENDS:=+TARGET_pxa:kmod-udc-core
   FILES:=$(LINUX_DIR)/drivers/usb/gadget/pxa27x_udc.ko
   AUTOLOAD:=$(call AutoLoad,46,pxa27x_udc)
   $(call AddDepends/usb)
 endef
 
 define KernelPackage/pxa27x-udc/description
-  Kernel support for PXA27x USB device.
+  Kernel support for PXA27x USB device
 endef
 
 $(eval $(call KernelPackage,pxa27x-udc))
@@ -91,7 +107,7 @@ define KernelPackage/usb-eth-gadget
   KCONFIG:= \
 	CONFIG_USB_ETH \
 	CONFIG_USB_ETH_RNDIS=y \
-	CONFIG_USB_ETH_EEM=y
+	CONFIG_USB_ETH_EEM=n
   DEPENDS:=+kmod-usb-gadget
   FILES:=$(LINUX_DIR)/drivers/usb/gadget/g_ether.ko
   AUTOLOAD:=$(call AutoLoad,52,g_ether)

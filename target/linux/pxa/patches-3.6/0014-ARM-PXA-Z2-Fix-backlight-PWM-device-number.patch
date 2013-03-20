@@ -1,0 +1,64 @@
+From bd85d38b5e940fd8ecf3f5cdb13fe5d9d3348a0f Mon Sep 17 00:00:00 2001
+From: Vasily Khoruzhick <anarsoul@gmail.com>
+Date: Sun, 28 Oct 2012 11:41:38 +0300
+Subject: [PATCH 14/14] ARM: PXA: Z2: Fix backlight PWM device number
+
+Recent changes to PXA PWM support changed the PXA27X PWM device
+numbering scheme, so keyboard and LCD backlight is not
+working anymore on Z2.
+
+Fix it and move from legacy to new PWM API.
+
+Signed-off-by: Vasily Khoruzhick <anarsoul@gmail.com>
+---
+ arch/arm/mach-pxa/z2.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-pxa/z2.c b/arch/arm/mach-pxa/z2.c
+index e504ba4..4ac6ac7 100644
+--- a/arch/arm/mach-pxa/z2.c
++++ b/arch/arm/mach-pxa/z2.c
+@@ -16,6 +16,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/partitions.h>
++#include <linux/pwm.h>
+ #include <linux/pwm_backlight.h>
+ #include <linux/z2_battery.h>
+ #include <linux/dma-mapping.h>
+@@ -207,17 +208,22 @@ static inline void z2_nor_init(void) {}
+  * Backlight
+  ******************************************************************************/
+ #if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
++static struct pwm_lookup z2_pwm_lookup[] = {
++	PWM_LOOKUP("pxa27x-pwm.0", 1, "pwm-backlight.0", NULL),
++	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight.1", NULL),
++};
++
+ static struct platform_pwm_backlight_data z2_backlight_data[] = {
+ 	[0] = {
+ 		/* Keypad Backlight */
+-		.pwm_id		= 1,
++		.pwm_id		= -1,
+ 		.max_brightness	= 1023,
+ 		.dft_brightness	= 0,
+ 		.pwm_period_ns	= 1260320,
+ 	},
+ 	[1] = {
+ 		/* LCD Backlight */
+-		.pwm_id		= 2,
++		.pwm_id		= -1,
+ 		.max_brightness	= 1023,
+ 		.dft_brightness	= 512,
+ 		.pwm_period_ns	= 1260320,
+@@ -244,6 +250,7 @@ static void __init z2_pwm_init(void)
+ {
+ 	platform_device_register(&z2_backlight_devices[0]);
+ 	platform_device_register(&z2_backlight_devices[1]);
++	pwm_add_table(z2_pwm_lookup, ARRAY_SIZE(z2_pwm_lookup));
+ }
+ #else
+ static inline void z2_pwm_init(void) {}
+-- 
+1.8.2
+
