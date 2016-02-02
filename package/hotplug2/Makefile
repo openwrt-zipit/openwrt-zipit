@@ -8,14 +8,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=hotplug2
-PKG_REV:=201
+PKG_REV:=4
 PKG_VERSION:=$(PKG_REV)
 PKG_RELEASE:=4
 
 PKG_SOURCE_PROTO:=svn
 PKG_SOURCE_VERSION:=$(PKG_REV)
 PKG_SOURCE_SUBDIR:=hotplug2-$(PKG_VERSION)
-PKG_SOURCE_URL:=http://svn.nomi.cz/svn/isteve/hotplug2
+PKG_SOURCE_URL:=http://hotplug2.googlecode.com/svn/trunk
+#PKG_SOURCE_URL:=http://svn.nomi.cz/svn/isteve/hotplug2
 PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
 #PKG_SOURCE_URL:=http://isteve.bofh.cz/~isteve/hotplug2
 #PKG_MD5SUM:=ea2c01d027b4002e4e6b0ff266f51a51
