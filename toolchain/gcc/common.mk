@@ -109,6 +109,7 @@ GCC_CONFIGURE:= \
 		--build=$(GNU_HOST_NAME) \
 		--host=$(GNU_HOST_NAME) \
 		--target=$(REAL_GNU_TARGET_NAME) \
+		MAKEINFO=missing \
 		--with-gnu-ld \
 		--enable-target-optspace \
 		--disable-libgomp \
