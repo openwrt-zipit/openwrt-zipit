@@ -1,3 +1,6 @@
+#### Note: this is the older OpenWrt Zipit (started in 2012)
+
+
 (This is the ZipIt Z2-specific README.md, see also the file 'README' for the OpenWRT original README.)
 
 This is a fork of [OpenWRT](http://www.openwrt.org/) to add support
